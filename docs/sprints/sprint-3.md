@@ -16,7 +16,7 @@
 - [ ] Requirement PRD yang dikerjakan (ID FR)
 - [ ] Definition of Done
 - [ ] Kepemilikan file
-- [ ] Daftar tiket dan target harian
+- [ ] Deliverable area dan target harian
 - [ ] Skenario demo
 - [ ] Risiko sprint
 

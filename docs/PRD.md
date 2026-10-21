@@ -75,7 +75,7 @@ Fitur di luar daftar ini hanya boleh ditambahkan bila ada kebutuhan resmi dari d
 
 ## 6. Kebutuhan Fungsional
 
-Setiap requirement diberi ID yang dipakai sebagai acuan pada dokumen sprint. Kriteria terima bersifat wajib kecuali ditandai opsional.
+Setiap requirement diberi ID yang dipakai sebagai acuan pada dokumen sprint. Butir FR-01 sampai FR-10 berfungsi sebagai **SRS** untuk Sprint 1: jobdesk area, kriteria terima, dan demo mengacu ke butir-butir ini. Kriteria terima bersifat wajib kecuali ditandai opsional.
 
 ### FR-01 — Landing publik read-only
 
@@ -305,6 +305,8 @@ Skenario berikut menjadi acuan penerimaan produk pada tahap saat ini. Dilakukan 
 
 ## 16. Dokumen Terkait
 
+- `docs/design.md` — keputusan antarmuka Sprint 1: token, navigasi, wireframe, state, dan teks.
+- `docs/ui-ux-design-system-graphite-lime.md` — design system visual (Graphite Lime).
 - `docs/WORKFLOW-GIT.md` — aturan branch, commit, pull request, dan rilis.
 - `docs/SETUP.md` — panduan menyiapkan proyek dan build.
 - `docs/sprints/sprint-1.md` — tujuan, tugas, jadwal, dan demo sprint berjalan.

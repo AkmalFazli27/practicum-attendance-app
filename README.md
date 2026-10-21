@@ -38,12 +38,14 @@ src/
   components/ui/        # komponen bersama
   context/              # state global sesi dan presensi
   data/                 # tipe dan data dummy
+  theme/                # token desain
   utils/                # format tanggal dan jam
 docs/
   PRD.md                # kebutuhan seluruh produk
+  design.md             # token, navigasi, wireframe Sprint 1
   WORKFLOW-GIT.md       # aturan branch, PR, dan rilis
   SETUP.md              # setup repository, Expo, dan EAS
-  sprints/              # tujuan, tugas, dan demo per sprint
+  sprints/              # jobdesk per area dan demo per sprint
 ```
 
 ## Dokumentasi
@@ -51,9 +53,11 @@ docs/
 | Dokumen | Isi |
 | --- | --- |
 | [docs/PRD.md](docs/PRD.md) | Requirement lengkap seluruh sprint |
+| [docs/design.md](docs/design.md) | Token, navigasi, wireframe, dan state Sprint 1 |
+| [docs/ui-ux-design-system-graphite-lime.md](docs/ui-ux-design-system-graphite-lime.md) | Design system visual Graphite Lime |
 | [docs/WORKFLOW-GIT.md](docs/WORKFLOW-GIT.md) | Alur kerja Git dan review |
 | [docs/SETUP.md](docs/SETUP.md) | Setup lokal, GitHub, dan EAS |
-| [docs/sprints/sprint-1.md](docs/sprints/sprint-1.md) | Tugas dan jadwal sprint berjalan |
+| [docs/sprints/sprint-1.md](docs/sprints/sprint-1.md) | Jobdesk per area dan jadwal sprint berjalan |
 
 ## Catatan
 
