@@ -36,7 +36,7 @@ npx expo start --clear
 
 1. Clone repository, lalu jalankan `npm install` dan `npx expo start`.
 2. Baca `docs/PRD.md` (requirement), `docs/design.md` (tampilan), `docs/sprints/sprint-1.md` (jobdesk area), dan `docs/WORKFLOW-GIT.md` (alur PR).
-3. Cek area kamu: P1 (shell, landing, login, UI kit), P2 (asisten), P3 (praktikan).
+3. Cek area kamu: Farras (P1 — shell, landing, login, UI kit), Eileen (P2 — asisten), Nouvella (P3 — praktikan).
 4. Buat branch dari `main`, kerjakan area sendiri, lalu buka PR.
 5. Jangan merge sendiri. Hanya PM yang menekan tombol merge.
 6. Jika butuh komponen atau token dari area lain, minta ke pemilik area; jangan menduplikasi.

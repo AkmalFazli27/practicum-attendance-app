@@ -1,7 +1,7 @@
 # Sprint 1 — Antarmuka dan Alur Praktikum
 
 **PM:** pemilik repository (kamu)
-**Programmer:** P1, P2, P3 (nama diisi setelah tim final)
+**Programmer:** P1 Farras, P2 Eileen, P3 Nouvella
 **Periode:** Rabu, 21 Oktober 2026 (H+0) — Minggu, 25 Oktober 2026 sore (H+4)
 **Acuan requirement (SRS):** `docs/PRD.md` — FR-01 sampai FR-10
 **Acuan desain:** `docs/design.md`
@@ -56,12 +56,12 @@ Jangan menambah dependensi atau fitur di luar daftar ini tanpa persetujuan PM.
 
 ## 3. Pembagian Area & Kepemilikan File
 
-| Area | Pemilik | File utama |
-| --- | --- | --- |
-| Fondasi, data, state, desain, rilis | PM | `app.json`, `eas.json`, `src/data/**`, `src/context/**`, `src/theme/**`, `README.md`, `docs/**` |
-| Shell, landing, login, komponen UI | P1 | `src/app/_layout.tsx`, `src/app/index.tsx`, `src/app/login.tsx`, `src/components/ui/**` |
-| Asisten | P2 | `src/app/(asisten)/**`, `src/components/asisten/**` |
-| Praktikan | P3 | `src/app/(praktikan)/**`, `src/components/praktikan/**` |
+| Area | Kode | Pemilik | File utama |
+| --- | --- | --- | --- |
+| Fondasi, data, state, desain, rilis | PM | pemilik repository (kamu) | `app.json`, `eas.json`, `src/data/**`, `src/context/**`, `src/theme/**`, `README.md`, `docs/**` |
+| Shell, landing, login, komponen UI | P1 | **Farras** | `src/app/_layout.tsx`, `src/app/index.tsx`, `src/app/login.tsx`, `src/components/ui/**` |
+| Asisten | P2 | **Eileen** | `src/app/(asisten)/**`, `src/components/asisten/**` |
+| Praktikan | P3 | **Nouvella** | `src/app/(praktikan)/**`, `src/components/praktikan/**` |
 
 Aturan: selain pemilik, jangan mengedit file area lain. Butuh perubahan? Ajukan ke pemilik area atau PM.
 
@@ -97,7 +97,7 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 
 **Batas:** PM tidak mengambil alih layar milik P1, P2, atau P3. Perubahan pada file area programmer harus diminta ke pemiliknya.
 
-### 4.2 P1 — Shell, Landing, Login, dan Komponen UI
+### 4.2 P1 — Farras — Shell, Landing, Login, dan Komponen UI
 
 **Hasil yang harus ada:**
 
@@ -126,7 +126,7 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 
 **Batas:** P1 tidak membuat layar asisten atau praktikan. P1 juga tidak mengubah `src/data`, `src/context`, atau `src/theme`.
 
-### 4.3 P2 — Asisten
+### 4.3 P2 — Eileen — Asisten
 
 **Hasil yang harus ada:**
 
@@ -154,7 +154,7 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 
 Mulai lebih awal dengan data dari `useSession()`. Bila komponen UI belum siap, gunakan tampilan sementara di dalam area sendiri, lalu ganti setelah P1 selesai.
 
-### 4.4 P3 — Praktikan
+### 4.4 P3 — Nouvella — Praktikan
 
 **Hasil yang harus ada:**
 
@@ -198,7 +198,7 @@ Urutan ini menjaga agar pekerjaan tidak saling menunggu. Bukan jadwal per orang.
 | 9 | Landing final + sheet detail | P1 | Login + komponen UI |
 | 10 | Gladi demo, perbaikan, tag rilis | PM + semua | Seluruh hasil area |
 
-P2 dan P3 boleh mulai sebelum P1 selesai dengan memakai data context dan tampilan sementara. Jangan menunggu tanpa kabar; gunakan standup untuk menyepakati bentuk sementara.
+Eileen dan Nouvella boleh mulai sebelum Farras selesai dengan memakai data context dan tampilan sementara. Jangan menunggu tanpa kabar; gunakan standup untuk menyepakati bentuk sementara.
 
 ## 6. Aturan Kerja per Area
 
@@ -243,7 +243,7 @@ Dilakukan pada satu perangkat, berganti peran.
 | Risiko | Dampak | Mitigasi |
 | --- | --- | --- |
 | Programmer pemula macet di setup | Pekerjaan tidak mulai | PM memastikan repository siap H+1 pagi; sediakan contoh pola komponen dan layar |
-| Menunggu komponen UI P1 | P2/P3 idle | Mulai dengan data context dan tampilan sementara; ganti setelah komponen UI siap |
+| Menunggu komponen UI Farras | Eileen/Nouvella idle | Mulai dengan data context dan tampilan sementara; ganti setelah komponen UI siap |
 | Konflik edit file yang sama | PR macet | Kepemilikan area §3; file bersama hanya PM |
 | EAS antre panjang | APK belum siap saat demo | Build H+3; demo utama memakai Expo Go |
 | Demo lintas perangkat | Data tidak sinkron | Demo satu perangkat; jelaskan batasan tanpa database |
@@ -260,21 +260,21 @@ Dilakukan pada satu perangkat, berganti peran.
 - [ ] APK preview EAS
 - [ ] Gladi demo + tag `v0.1-sprint1`
 
-### P1
+### P1 — Farras
 
 - [ ] Root layout, Stack, tab, guard peran
 - [ ] Komponen UI bersama (5 komponen)
 - [ ] Login dummy + routing peran
 - [ ] Landing publik + sheet detail + aksi terkunci
 
-### P2
+### P2 — Eileen
 
 - [ ] Beranda asisten + badge status
 - [ ] Detail sesi + buka/tutup/buka lagi
 - [ ] Daftar hadir yang diperbarui otomatis
 - [ ] Rekap per sesi
 
-### P3
+### P3 — Nouvella
 
 - [ ] Beranda praktikan + filter
 - [ ] Detail sesi + tombol presensi empat state
