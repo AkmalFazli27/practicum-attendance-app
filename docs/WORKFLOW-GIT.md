@@ -89,9 +89,11 @@ Aturan:
 1. Programmer membuka PR dan meminta review kepada PM.
 2. PM memeriksa kode, menjalankan aplikasi, dan mencocokkan dengan kriteria terima area serta butir SRS.
 3. Jika ada perbaikan, PM memberi komentar; programmer memperbaiki pada branch yang sama dan melakukan push ulang.
-4. Setelah disetujui, **PM melakukan squash merge** ke `main`.
+4. Setelah disetujui, **PM melakukan merge commit** ke `main` (tombol **Create a merge commit** atau `gh pr merge <nomor> --merge`). Jangan memakai squash.
 5. Branch fitur dihapus setelah merge.
 6. Semua anggota melakukan `git pull origin main` sebelum melanjutkan pekerjaan berikutnya.
+
+Metode merge yang dipakai adalah **merge commit biasa**: seluruh commit pada branch fitur dipertahankan dan satu merge commit ditambahkan ke `main`.
 
 ### 5.3 Checklist review PM
 

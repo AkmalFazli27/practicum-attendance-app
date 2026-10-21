@@ -205,7 +205,7 @@ P2 dan P3 boleh mulai sebelum P1 selesai dengan memakai data context dan tampila
 1. **Kepemilikan file.** Setiap orang hanya mengubah file areanya. File bersama milik PM.
 2. **Satu PR = satu pekerjaan yang koheren.** PR besar yang mencampur beberapa area akan dikembalikan.
 3. **Judul PR** memakai konvensi commit (`feat:`, `fix:`, `chore:`, `docs:`). Deskripsi memuat area, FR terkait, cara menguji, dan screenshot/video.
-4. **PM yang me-review dan merge.** Programmer tidak merge sendiri. Merge memakai squash.
+4. **PM yang me-review dan merge.** Programmer tidak merge sendiri. Merge memakai merge commit biasa, bukan squash.
 5. **Standup async setiap pagi** di grup: apa yang selesai, apa yang dikerjakan hari ini, apa yang menghambat.
 6. **Blocker lebih dari 2 jam** harus disampaikan ke grup, jangan dipendam.
 7. **Tidak ada fitur di luar SRS.** Kalau muncul ide baru, catat dan ajukan ke PM; jangan langsung dikerjakan.
