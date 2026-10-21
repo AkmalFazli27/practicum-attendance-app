@@ -1,4 +1,6 @@
-# practicum-attendance-app
+# TapIn
+
+**Tap once. You're in.**
 
 Aplikasi mobile Sistem Informasi Praktikum. Satu aplikasi untuk asisten dan praktikan:
 
@@ -62,5 +64,4 @@ docs/
 ## Catatan
 
 - EAS: `eas.json` sudah tersedia di repository. Jalankan `eas login` dan `eas init` sebelum membuat APK (lihat `docs/SETUP.md` §7).
-- Nama tampilan aplikasi belum final.
 - Data identitas, jadwal, dan sesi masih dummy.

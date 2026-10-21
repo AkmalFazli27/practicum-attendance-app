@@ -1,6 +1,7 @@
 # Design — Sprint 1
 
-**Produk:** practicum-attendance-app (nama tampilan belum final; placeholder: SI-Praktikum)
+**Produk:** TapIn
+**Tagline:** Tap once. You're in.
 **Sprint:** 1 — Antarmuka dan Alur Praktikum
 **Acuan kebutuhan:** `docs/PRD.md` — FR-01 sampai FR-10
 **Acuan visual:** `docs/ui-ux-design-system-graphite-lime.md`
@@ -287,7 +288,8 @@ Keterangan: `[ ]` tombol, `▓` area graphite, `•` teks kecil, `▁` indikator
 ```text
 ┌──────────────────────────────────────┐
 │ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ │
-│  SI-Praktikum              [ Masuk ] │
+│  TapIn                     [ Masuk ] │
+│  Tap once. You're in.                │
 │  Jadwal praktikum minggu ini         │
 │ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ │
 │                                      │
@@ -989,7 +991,7 @@ Ditunda dan tidak boleh dikerjakan tanpa pembaruan PRD:
 
 ## 13. Keputusan Terbuka
 
-- Nama tampilan aplikasi dan logo (maksimal H+2 Sprint 1).
+- Logo dan ikon aplikasi (maksimal H+2 Sprint 1).
 - Data lab/kelas final untuk demo.
 - Apakah APK EAS wajib atau cukup Expo Go + rekaman.
 - Apakah ikon tab diperlukan setelah Sprint 1 (menambah dependensi `@expo/vector-icons`).

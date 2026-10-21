@@ -112,6 +112,7 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 - [ ] Tab pertama berfungsi sebagai beranda dan menjadi halaman awal setelah login.
 - [ ] Guard peran mencegah asisten membuka route praktikan dan sebaliknya.
 - [ ] Landing menampilkan seluruh sesi dari `useSession()`, bukan data hardcode baru.
+- [ ] Landing menampilkan nama `TapIn` dan tagline `Tap once. You're in.` sesuai `docs/design.md` §4.1.
 - [ ] Setiap kartu landing dapat membuka sheet detail; pengunjung tidak dapat menjalankan aksi selain menuju login.
 - [ ] Login memilih peran dan user; `Masuk` nonaktif sampai pilihan lengkap.
 - [ ] Setelah login, pengguna diarahkan ke tab pertama sesuai peran; `Keluar` mengembalikan ke landing.

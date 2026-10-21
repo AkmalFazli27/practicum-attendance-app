@@ -1,19 +1,22 @@
 {
   "expo": {
-    "name": "practicum-attendance-app",
-    "slug": "practicum-attendance-app",
+    "name": "TapIn",
+    "slug": "tapin",
+    "description": "Tap once. You're in. Sistem Informasi Praktikum.",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "scheme": "practicum-attendance-app",
+    "scheme": "tapin",
     "experiments": {
       "typedRoutes": true
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "id.tapin.praktikum"
     },
     "android": {
+      "package": "id.tapin.praktikum",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
