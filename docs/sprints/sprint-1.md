@@ -4,6 +4,7 @@
 **Programmer:** P1, P2, P3 (nama diisi setelah tim final)
 **Periode:** Rabu, 21 Oktober 2026 (H+0) — Minggu, 25 Oktober 2026 sore (H+4)
 **Acuan kebutuhan:** `docs/PRD.md` — FR-01 sampai FR-10
+**Acuan desain:** `docs/design.md`
 **Status:** Berjalan
 
 > Dokumen ini berisi tujuan sprint, pembagian tugas, jadwal, dan demo. Requirement lengkap tetap mengacu ke `docs/PRD.md`, bukan disalin ke sini.
@@ -37,6 +38,7 @@ Sprint dianggap selesai bila:
 - [ ] Aplikasi berjalan dari `git clone` baru tanpa langkah manual tambahan selain `npm install`.
 - [ ] `npx tsc --noEmit` lolos tanpa error.
 - [ ] Skenario demo §7 berhasil dijalankan tanpa crash.
+- [ ] Design QA `docs/design.md` §11 lolos.
 - [ ] Tidak ada layar kosong tanpa empty state.
 - [ ] README dan dokumen sprint diperbarui.
 - [ ] Tag `v0.1-sprint1` dibuat di `main`.
@@ -46,7 +48,7 @@ Sprint dianggap selesai bila:
 
 | Area | Pemilik | File utama |
 | --- | --- | --- |
-| Fondasi, data, state, rilis | PM | `app.json`, `eas.json`, `src/data/**`, `src/context/**`, `README.md`, `docs/**` |
+| Fondasi, data, state, rilis | PM | `app.json`, `eas.json`, `src/data/**`, `src/context/**`, `src/theme/**`, `README.md`, `docs/**` |
 | Shell, landing, login, komponen UI | P1 | `src/app/_layout.tsx`, `src/app/index.tsx`, `src/app/login.tsx`, `src/components/ui/**` |
 | Asisten | P2 | `src/app/(asisten)/**`, `src/components/asisten/**` |
 | Praktikan | P3 | `src/app/(praktikan)/**`, `src/components/praktikan/**` |
@@ -61,6 +63,7 @@ Aturan: selain pemilik, jangan mengedit file area lain. Butuh perubahan? Ajukan 
 | --- | --- | --- | --- |
 | CHORE-01 | Siapkan repository, Expo, dan Expo Router | H+0 | Sebagian — lokal selesai; GitHub dan undangan menyusul |
 | CHORE-02 | Skeleton folder, data dummy, SessionContext, README | H+0 | Selesai |
+| CHORE-05 | Token desain `src/theme/tokens.ts` dan font Inter + fallback | H+1 | Belum |
 | CHORE-03 | Publikasikan repository ke GitHub, undang kolaborator, aktifkan proteksi `main` | H+1 pagi | Belum |
 | CHORE-04 | Konfigurasi EAS dan build APK preview | H+3 | Sebagian — `eas.json` siap; login/init dan build belum |
 | REVIEW | Review dan merge PR setiap sore | H+1–H+4 | Berjalan |
@@ -83,6 +86,16 @@ Kriteria terima:
 - `projectId` di `app.json` sudah di-commit.
 - Panduan ada di `docs/SETUP.md` §7.
 
+**CHORE-05 — Token desain dan font Inter**
+
+Kriteria terima:
+- `src/theme/tokens.ts` tersedia dan berisi seluruh token pada `docs/design.md` §2 (warna, spacing, radius, layout, tipografi).
+- Inter dipasang dengan `npx expo install expo-font @expo-google-fonts/inter` dan dimuat lewat `useFonts` di `src/app/_layout.tsx`.
+- Aplikasi tetap berjalan di Expo Go bila font gagal dimuat (fallback font sistem).
+- P1, P2, dan P3 dapat mengimpor token tanpa error.
+- Tidak ada kode hex di luar `src/theme/tokens.ts`.
+- Rincian teknis ada di `docs/design.md` §10.
+
 ### 5.2 P1 — Shell, Landing, Login, Komponen UI
 
 | ID | Tugas | Target | Bergantung pada |
@@ -95,7 +108,8 @@ Kriteria terima:
 **P1-01 — Navigasi dan landing statis**
 
 - Buat root layout dengan `Stack` dan grup route `(asisten)` serta `(praktikan)`.
-- Buat tab per peran: Asisten `[Sesi | Rekap | Profil]`, Praktikan `[Jadwal | Riwayat | Profil]`.
+- Struktur route mengikuti `docs/design.md` §3.1: detail sesi berada di luar grup `(tabs)` agar tidak muncul sebagai tab.
+- Buat tab per peran: Asisten `[Sesi | Rekap | Profil]`, Praktikan `[Jadwal | Riwayat | Profil]`. Tab pertama berfungsi sebagai beranda.
 - Landing menampilkan daftar sesi dari `useSession()` (bukan data hardcode baru).
 - Setiap tab sementara boleh berisi layar kosong berlabel.
 - Kriteria terima: aplikasi berjalan, perpindahan tab tidak crash, landing menampilkan seluruh sesi dummy.
@@ -113,9 +127,12 @@ Kriteria terima:
 Buat di `src/components/ui/`:
 
 - `StatusBadge` — warna dan label untuk `TERJADWAL`, `DIBUKA`, `SELESAI`.
-- `Tombol` — varian primer/sekunder, mendukung `disabled` dan `loading`.
+- `Tombol` — varian primer/sekunder/graphite/ghost, mendukung `disabled` dan `loading`.
 - `SheetModal` — modal dari bawah dengan judul, isi, dan tombol tutup.
 - `EmptyState` — ikon/teks pesan saat daftar kosong.
+- `FilterChip` — chip filter aktif/nonaktif untuk beranda praktikan.
+
+Seluruh komponen wajib memakai token dari `src/theme/tokens.ts` dan font Inter. Jangan menulis hex atau ukuran langsung di komponen.
 
 Kriteria terima: P2 dan P3 memakai komponen ini, bukan membuat versi sendiri. Dokumentasikan props singkat di komentar file.
 
@@ -210,7 +227,7 @@ Mulai H+1 dengan data dari `useSession()`; jangan menunggu P1 selesai. Gunakan l
 | Hari | Tanggal | Fokus |
 | --- | --- | --- |
 | H+0 | Rabu, 21 Okt | PM menyiapkan fondasi (selesai sebagian) |
-| H+1 | Kamis, 22 Okt | PM publikasi repo; P1 navigasi+landing; P2 beranda asisten; P3 beranda praktikan |
+| H+1 | Kamis, 22 Okt | PM publikasi repo + token/font; P1 navigasi+landing; P2 beranda asisten; P3 beranda praktikan |
 | H+2 | Jumat, 23 Okt | P1 login+UI kit; P2 detail+aksi sesi; P3 detail+presensi |
 | H+3 | Sabtu, 24 Okt | P1 landing final; P2 rekap+live; P3 guard+riwayat; PM build EAS |
 | H+4 | Minggu, 25 Okt | Stop fitur baru; merge sisa PR; uji demo; perbaikan kecil; tag rilis |
@@ -235,14 +252,15 @@ Dilakukan pada satu perangkat, berganti peran.
 ## 8. Urutan Merge yang Disarankan
 
 1. CHORE-03 (repo publik) — tanpa PR, dilakukan PM.
-2. P1-01 (navigasi) — fondasi rute.
-3. P1-03 (UI kit) — dibutuhkan P2 dan P3.
-4. P1-02 (login) — membuka alur peran.
-5. P2-01, P3-01 — beranda per peran.
-6. P2-02, P3-02 — detail dan aksi utama.
-7. P2-03, P2-04, P3-03, P3-04 — rekap, live, guard, riwayat.
-8. P1-04 — landing final.
-9. Perbaikan kecil dan dokumentasi.
+2. CHORE-05 (token + font) — fondasi visual untuk semua area.
+3. P1-01 (navigasi) — fondasi rute.
+4. P1-03 (UI kit) — dibutuhkan P2 dan P3.
+5. P1-02 (login) — membuka alur peran.
+6. P2-01, P3-01 — beranda per peran.
+7. P2-02, P3-02 — detail dan aksi utama.
+8. P2-03, P2-04, P3-03, P3-04 — rekap, live, guard, riwayat.
+9. P1-04 — landing final.
+10. Perbaikan kecil dan dokumentasi.
 
 Jika ada PR yang saling menunggu, PM boleh mengubah urutan selama `main` tetap dapat dijalankan.
 

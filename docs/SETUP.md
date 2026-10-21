@@ -154,10 +154,14 @@ practicum-attendance-app/
       SessionContext.tsx  # state global + aksi sesi dan presensi
     data/
       dummy.ts            # tipe dan data dummy
+    theme/
+      tokens.ts           # token desain (CHORE-05)
     utils/
       format.ts           # format tanggal dan jam
   docs/
     PRD.md
+    design.md
+    ui-ux-design-system-graphite-lime.md
     WORKFLOW-GIT.md
     SETUP.md
     sprints/

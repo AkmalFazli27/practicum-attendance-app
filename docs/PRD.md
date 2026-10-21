@@ -305,6 +305,8 @@ Skenario berikut menjadi acuan penerimaan produk pada tahap saat ini. Dilakukan 
 
 ## 16. Dokumen Terkait
 
+- `docs/design.md` — keputusan antarmuka Sprint 1: token, navigasi, wireframe, state, dan teks.
+- `docs/ui-ux-design-system-graphite-lime.md` — design system visual (Graphite Lime).
 - `docs/WORKFLOW-GIT.md` — aturan branch, commit, pull request, dan rilis.
 - `docs/SETUP.md` — panduan menyiapkan proyek dan build.
 - `docs/sprints/sprint-1.md` — tujuan, tugas, jadwal, dan demo sprint berjalan.
