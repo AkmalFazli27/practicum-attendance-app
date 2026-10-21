@@ -86,7 +86,7 @@ Dilakukan oleh PM pemilik repository:
 5. Pastikan force push dan delete branch dilarang.
 6. Simpan.
 
-Dengan aturan ini, programmer tidak dapat melakukan push langsung ke `main`. Hanya PM yang menekan tombol merge; ini aturan tim yang ditegaskan di `docs/WORKFLOW-GIT.md`.
+Dengan aturan ini, programmer tidak dapat melakukan push langsung ke `main`. Hanya PM yang menekan tombol merge; ini aturan tim yang ditegaskan di `docs/WORKFLOW-GIT.md`. Proteksi saat ini mewajibkan PR tanpa approval, sehingga tombol merge tetap tersedia bagi kolaborator dan kepatuhan bergantung pada aturan tim.
 
 Catatan: pada repository milik akun personal, GitHub tidak menyediakan pembatasan tombol merge per pengguna. Untuk enforcement keras, repository perlu dipindahkan ke GitHub Organization dan memakai push restriction.
 

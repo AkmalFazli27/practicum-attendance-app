@@ -7,7 +7,7 @@ Berlaku untuk seluruh sprint. Aturan pembagian tugas per sprint tidak ditulis di
 - `main` adalah branch yang **selalu dapat dijalankan dan didemokan**.
 - Semua pekerjaan dilakukan pada branch fitur yang dibuat dari `main`.
 - Satu pull request (PR) mewakili satu pekerjaan atau scope yang koheren.
-- Programmer **tidak melakukan merge sendiri**. Hanya PM sprint berjalan yang me-review dan menekan tombol merge; programmer dilarang merge meskipun tombol tersedia.
+- Programmer **tidak melakukan merge sendiri**. Hanya PM sprint berjalan yang me-review dan menekan tombol merge; programmer dilarang merge meskipun tombol tersedia. GitHub hanya mewajibkan PR, jadi aturan ini ditegakkan oleh tim.
 - Raih status hijau sebelum menambah pekerjaan baru: pastikan `main` tidak rusak akibat PR yang masuk.
 
 ### 1.1 Pelacakan progres
