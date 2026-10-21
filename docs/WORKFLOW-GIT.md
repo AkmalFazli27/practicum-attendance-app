@@ -6,9 +6,15 @@ Berlaku untuk seluruh sprint. Aturan pembagian tugas per sprint tidak ditulis di
 
 - `main` adalah branch yang **selalu dapat dijalankan dan didemokan**.
 - Semua pekerjaan dilakukan pada branch fitur yang dibuat dari `main`.
-- Satu pull request (PR) mewakili satu tiket/tugas.
+- Satu pull request (PR) mewakili satu pekerjaan atau scope yang koheren.
 - Programmer **tidak melakukan merge sendiri**. PM sprint berjalan yang me-review dan melakukan merge.
 - Raih status hijau sebelum menambah pekerjaan baru: pastikan `main` tidak rusak akibat PR yang masuk.
+
+### 1.1 Pelacakan progres
+
+- Progres dilacak melalui checklist area pada `docs/sprints/sprint-<n>.md` dan standup harian.
+- Setiap PR mencantumkan area dan butir SRS/FR yang dipenuhi.
+- Tidak ada ID pekerjaan internal; butir FR pada `docs/PRD.md` menjadi acuan hasil.
 
 ## 2. Penamaan Branch
 
@@ -73,7 +79,7 @@ Aturan:
 ### 5.1 Ketentuan
 
 - Judul PR: ringkasan tugas, misalnya `feat: form login dan routing peran`.
-- Deskripsi wajib memuat: ringkasan perubahan, ID tiket, cara menguji, dan bukti (screenshot/video).
+- Deskripsi wajib memuat: ringkasan perubahan, area dan butir SRS/FR terkait, cara menguji, dan bukti (screenshot/video).
 - PR harus kecil dan dapat di-review dalam waktu singkat. Jika terlalu besar, pecah menjadi beberapa PR.
 - Jangan mencampur pekerjaan orang lain dalam PR sendiri.
 - Jangan menyentuh file di luar area tugas tanpa persetujuan pemilik area atau PM.
@@ -81,7 +87,7 @@ Aturan:
 ### 5.2 Alur review
 
 1. Programmer membuka PR dan meminta review kepada PM.
-2. PM memeriksa kode, menjalankan aplikasi, dan mencocokkan dengan kriteria terima tiket.
+2. PM memeriksa kode, menjalankan aplikasi, dan mencocokkan dengan kriteria terima area serta butir SRS.
 3. Jika ada perbaikan, PM memberi komentar; programmer memperbaiki pada branch yang sama dan melakukan push ulang.
 4. Setelah disetujui, **PM melakukan squash merge** ke `main`.
 5. Branch fitur dihapus setelah merge.
@@ -90,7 +96,7 @@ Aturan:
 ### 5.3 Checklist review PM
 
 - [ ] Aplikasi berjalan di Expo Go tanpa error.
-- [ ] Perilaku sesuai kriteria terima tiket dan requirement PRD terkait.
+- [ ] Perilaku sesuai kriteria terima area dan requirement PRD terkait.
 - [ ] Perubahan status/state terlihat pada layar yang terkait.
 - [ ] Tidak ada `console.log` sisa debugging.
 - [ ] Tidak ada file rahasia (`.env`, kunci API) yang ikut ter-commit.
@@ -149,7 +155,7 @@ Jika membutuhkan perubahan pada file milik orang lain: ajukan permintaan di grup
 Pada akhir sprint, PM lama menyerahkan kepada PM baru:
 
 1. `main` dalam kondisi hijau dan sudah diberi tag.
-2. Papan tugas dibersihkan; tiket yang belum selesai dipindahkan ke sprint berikutnya.
+2. Checklist progres sprint ditinjau; deliverable area yang belum selesai dipindahkan ke sprint berikutnya.
 3. PM baru berhasil menjalankan aplikasi di Expo Go dari hasil `git clone`/`git pull`.
 4. Build EAS terakhir (jika ada) masih dapat diunduh.
 5. Daftar blocker, utang teknis, dan keputusan tertunda dijelaskan.

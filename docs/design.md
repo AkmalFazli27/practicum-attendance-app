@@ -46,7 +46,7 @@ Aturan: bila sebuah elemen tidak mendukung FR-01–FR-10, elemen itu tidak masuk
 
 ## 2. Design Tokens
 
-Seluruh nilai visual disimpan di satu tempat: `src/theme/tokens.ts` (dibuat pada tiket `CHORE-05`). Komponen tidak boleh menulis kode hex langsung.
+Seluruh nilai visual disimpan di satu tempat: `src/theme/tokens.ts` (dibuat oleh PM sebagai fondasi desain). Komponen tidak boleh menulis kode hex langsung.
 
 ### 2.1 Warna dasar
 
@@ -752,7 +752,7 @@ Anatomi `EmptyState`: garis/ikon dekoratif 40×40 dengan `primarySoft`, judul `b
 
 ## 5. Komponen UI Kit
 
-Dibuat oleh P1 pada tiket `P1-03`, dipakai P2 dan P3. Semua komponen memakai token; tidak ada hex lokal.
+Dibuat oleh P1 sebagai bagian dari komponen UI bersama, dipakai P2 dan P3. Semua komponen memakai token; tidak ada hex lokal.
 
 | Komponen | Props | State | Catatan |
 | --- | --- | --- | --- |
@@ -924,7 +924,7 @@ Format waktu di antarmuka: `HH.mm` (contoh `08.02`). Format tanggal: `Rabu, 21 O
 ### 10.1 Keputusan
 
 - Inter dipakai sejak Sprint 1.
-- PM menyiapkan font pada tiket `CHORE-05`; programmer tidak perlu memasang sendiri.
+- PM menyiapkan font sebagai bagian dari fondasi desain; programmer tidak perlu memasang sendiri.
 - Bila font gagal dimuat, aplikasi tetap berjalan dengan font sistem (fallback), tanpa layar error.
 
 ### 10.2 Rencana teknis
@@ -1000,5 +1000,5 @@ Ditunda dan tidak boleh dikerjakan tanpa pembaruan PRD:
 
 - `docs/PRD.md` — requirement dan kriteria terima.
 - `docs/ui-ux-design-system-graphite-lime.md` — token dan prinsip visual.
-- `docs/sprints/sprint-1.md` — tiket, jadwal, dan demo Sprint 1.
+- `docs/sprints/sprint-1.md` — jobdesk per area, jadwal, dan demo Sprint 1.
 - `docs/WORKFLOW-GIT.md` — aturan branch dan review.

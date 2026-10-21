@@ -155,7 +155,7 @@ practicum-attendance-app/
     data/
       dummy.ts            # tipe dan data dummy
     theme/
-      tokens.ts           # token desain (CHORE-05)
+      tokens.ts           # token desain
     utils/
       format.ts           # format tanggal dan jam
   docs/

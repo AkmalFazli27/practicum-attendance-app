@@ -3,11 +3,11 @@
 **PM:** pemilik repository (kamu)
 **Programmer:** P1, P2, P3 (nama diisi setelah tim final)
 **Periode:** Rabu, 21 Oktober 2026 (H+0) — Minggu, 25 Oktober 2026 sore (H+4)
-**Acuan kebutuhan:** `docs/PRD.md` — FR-01 sampai FR-10
+**Acuan requirement (SRS):** `docs/PRD.md` — FR-01 sampai FR-10
 **Acuan desain:** `docs/design.md`
 **Status:** Berjalan
 
-> Dokumen ini berisi tujuan sprint, pembagian tugas, jadwal, dan demo. Requirement lengkap tetap mengacu ke `docs/PRD.md`, bukan disalin ke sini.
+> Dokumen ini mengatur pembagian area dan hasil yang harus dicapai. Requirement tetap di PRD (SRS); keputusan visual tetap di design.md. Setiap orang bebas menentukan urutan dan cara kerja di dalam areanya, selama kriteria terima terpenuhi.
 
 ---
 
@@ -24,259 +24,263 @@ Menghasilkan aplikasi yang mendemonstrasikan alur praktikum secara utuh dalam sa
 
 Data masih lokal/dummy. Belum ada Firebase, autentikasi nyata, QR, atau notifikasi.
 
-## 2. Ruang Lingkup Sprint
+## 2. Sumber Requirement (SRS)
 
-**Dikerjakan:** FR-01, FR-02, FR-03, FR-04, FR-05, FR-06, FR-07, FR-08, FR-09, FR-10.
+### 2.1 Butir SRS yang dikerjakan
 
-**Tidak dikerjakan:** seluruh item di §5.2 PRD, termasuk integrasi Firebase. Jangan menambah dependensi di luar yang sudah ada tanpa persetujuan PM.
+| Butir SRS | Kebutuhan | Area utama |
+| --- | --- | --- |
+| FR-01 | Landing publik read-only + detail sesi | P1 |
+| FR-02 | Login dummy + routing peran | P1 |
+| FR-03 | Beranda asisten | P2 |
+| FR-04 | Detail sesi asisten + buka/tutup/buka lagi + daftar hadir | P2 |
+| FR-05 | Beranda praktikan + filter | P3 |
+| FR-06 | Detail sesi praktikan + presensi | P3 |
+| FR-07 | Pencegahan presensi ganda | P3 (antarmuka) + PM (aksi context) |
+| FR-08 | Rekap kehadiran asisten | P2 |
+| FR-09 | Riwayat kehadiran praktikan | P3 |
+| FR-10 | Form, modal, dan bottom sheet | P1 (komponen) + P2/P3 (pemakaian) |
 
-## 3. Definition of Done Sprint
+### 2.2 Di luar Sprint 1
 
-Sprint dianggap selesai bila:
+Seluruh item pada `docs/PRD.md` §5.2, termasuk:
 
-- [ ] Seluruh tiket berstatus selesai dan sudah di-merge ke `main`.
-- [ ] Aplikasi berjalan dari `git clone` baru tanpa langkah manual tambahan selain `npm install`.
-- [ ] `npx tsc --noEmit` lolos tanpa error.
-- [ ] Skenario demo §7 berhasil dijalankan tanpa crash.
-- [ ] Design QA `docs/design.md` §11 lolos.
-- [ ] Tidak ada layar kosong tanpa empty state.
-- [ ] README dan dokumen sprint diperbarui.
-- [ ] Tag `v0.1-sprint1` dibuat di `main`.
-- [ ] APK preview EAS tersedia sebagai cadangan demo.
+- Firebase dan autentikasi nyata.
+- QR, PIN, wajah, atau lokasi.
+- Badge dan alur Izin/Alpa.
+- Membuat/mengubah/menghapus sesi.
+- Pencarian, ekspor, statistik, notifikasi.
+- Tab Beranda dashboard terpisah.
 
-## 4. Kepemilikan File
+Jangan menambah dependensi atau fitur di luar daftar ini tanpa persetujuan PM.
+
+## 3. Pembagian Area & Kepemilikan File
 
 | Area | Pemilik | File utama |
 | --- | --- | --- |
-| Fondasi, data, state, rilis | PM | `app.json`, `eas.json`, `src/data/**`, `src/context/**`, `src/theme/**`, `README.md`, `docs/**` |
+| Fondasi, data, state, desain, rilis | PM | `app.json`, `eas.json`, `src/data/**`, `src/context/**`, `src/theme/**`, `README.md`, `docs/**` |
 | Shell, landing, login, komponen UI | P1 | `src/app/_layout.tsx`, `src/app/index.tsx`, `src/app/login.tsx`, `src/components/ui/**` |
 | Asisten | P2 | `src/app/(asisten)/**`, `src/components/asisten/**` |
 | Praktikan | P3 | `src/app/(praktikan)/**`, `src/components/praktikan/**` |
 
 Aturan: selain pemilik, jangan mengedit file area lain. Butuh perubahan? Ajukan ke pemilik area atau PM.
 
-## 5. Tugas
+## 4. Jobdesk per Area
 
-### 5.1 PM
+Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapai hasil diserahkan kepada pemilik area.
 
-| ID | Tugas | Target | Status |
+### 4.1 PM — Fondasi, Integrasi, dan Rilis
+
+**Hasil yang harus ada:**
+
+1. Repository lokal dan GitHub siap dipakai tim.
+2. Data dummy dan `SessionContext` berfungsi sebagai sumber state tunggal.
+3. Token desain `src/theme/tokens.ts` dan font Inter dengan fallback sistem.
+4. Repository dipublikasikan, kolaborator diundang, `main` dilindungi.
+5. Setiap PR di-review dan di-merge.
+6. APK preview EAS tersedia sebagai cadangan demo.
+7. Demo gladi bersih dan tag `v0.1-sprint1`.
+
+**Kriteria terima:**
+
+- [ ] Ketiga programmer dapat `git clone` lalu `npm install` dan `npx expo start`.
+- [ ] `useSession()` menyediakan `login`, `logout`, `openSession`, `closeSession`, `reopenSession`, `markAttendance`, `getKehadiranSesi`, `getKehadiranPraktikan`, dan `sudahPresensi`.
+- [ ] `markAttendance` menolak presensi ganda dan mengembalikan alasan yang menyebut waktu presensi pertama.
+- [ ] `src/theme/tokens.ts` memuat token pada `docs/design.md` §2 dan dipakai seluruh area.
+- [ ] Inter dimuat tanpa membuat aplikasi gagal dibuka bila font tidak tersedia.
+- [ ] `main` selalu dapat dijalankan; PR di-merge maksimal satu hari setelah disetujui.
+- [ ] `eas.json` memiliki profil `preview` dengan `buildType: "apk"`.
+- [ ] Tag `v0.1-sprint1` dibuat setelah demo lolos.
+
+**Butir SRS terkait:** mendukung FR-01 sampai FR-10, khususnya guard FR-07 dan fondasi FR-10.
+
+**Batas:** PM tidak mengambil alih layar milik P1, P2, atau P3. Perubahan pada file area programmer harus diminta ke pemiliknya.
+
+### 4.2 P1 — Shell, Landing, Login, dan Komponen UI
+
+**Hasil yang harus ada:**
+
+1. Root layout, navigasi Stack, dan 3 tab per peran.
+2. Landing publik read-only dengan sheet detail.
+3. Login dummy dengan pilihan peran dan user.
+4. Komponen bersama: `StatusBadge`, `Tombol`, `SheetModal`, `EmptyState`, `FilterChip`.
+
+**Kriteria terima:**
+
+- [ ] Struktur route mengikuti `docs/design.md` §3.1; layar detail tidak muncul sebagai tab.
+- [ ] Asisten memiliki tab `Sesi | Rekap | Profil`; praktikan `Jadwal | Riwayat | Profil`.
+- [ ] Tab pertama berfungsi sebagai beranda dan menjadi halaman awal setelah login.
+- [ ] Guard peran mencegah asisten membuka route praktikan dan sebaliknya.
+- [ ] Landing menampilkan seluruh sesi dari `useSession()`, bukan data hardcode baru.
+- [ ] Setiap kartu landing dapat membuka sheet detail; pengunjung tidak dapat menjalankan aksi selain menuju login.
+- [ ] Login memilih peran dan user; `Masuk` nonaktif sampai pilihan lengkap.
+- [ ] Setelah login, pengguna diarahkan ke tab pertama sesuai peran; `Keluar` mengembalikan ke landing.
+- [ ] Lima komponen UI tersedia dan dipakai P2/P3, bukan diduplikasi.
+- [ ] Semua komponen memakai token dan tidak menulis kode hex langsung.
+- [ ] Semua form/sheet dapat ditutup tanpa menjalankan aksi.
+
+**Butir SRS terkait:** FR-01, FR-02, FR-10. Komponen UI mendukung FR-03 sampai FR-09.
+
+**Batas:** P1 tidak membuat layar asisten atau praktikan. P1 juga tidak mengubah `src/data`, `src/context`, atau `src/theme`.
+
+### 4.3 P2 — Asisten
+
+**Hasil yang harus ada:**
+
+1. Beranda asisten berisi sesi yang dikelola.
+2. Detail sesi dengan aksi buka, tutup, dan buka lagi.
+3. Daftar hadir yang diperbarui saat praktikan presensi.
+4. Rekap per sesi berisi jumlah hadir dan waktu kehadiran.
+
+**Kriteria terima:**
+
+- [ ] Beranda menampilkan nama praktikum, kelas, lab, tanggal, waktu, dan badge status.
+- [ ] Hanya sesi milik asisten yang login yang tampil.
+- [ ] Tombol `Buka` muncul untuk `TERJADWAL`, `Tutup` untuk `DIBUKA`, dan `Buka Lagi` untuk `SELESAI`.
+- [ ] Setiap aksi memakai sheet konfirmasi dan memanggil aksi context yang sesuai.
+- [ ] Perubahan status langsung terlihat pada beranda dan detail tanpa reload.
+- [ ] Detail menampilkan deskripsi dan daftar hadir sesi tersebut.
+- [ ] Daftar hadir bertambah tanpa perlu refresh manual.
+- [ ] Rekap menampilkan `hadir/total`, nama praktikan, dan waktu kehadiran.
+- [ ] Rekap dan daftar hadir memiliki empty state.
+- [ ] Tidak ada aksi membuat, mengubah, menghapus, atau mengekspor sesi.
+
+**Butir SRS terkait:** FR-03, FR-04, FR-08.
+
+**Batas:** P2 tidak mengubah landing, login, komponen UI bersama, atau area praktikan.
+
+Mulai lebih awal dengan data dari `useSession()`. Bila komponen UI belum siap, gunakan tampilan sementara di dalam area sendiri, lalu ganti setelah P1 selesai.
+
+### 4.4 P3 — Praktikan
+
+**Hasil yang harus ada:**
+
+1. Beranda praktikan dengan kartu sesi aktif dan filter.
+2. Detail sesi dengan tombol presensi yang mengikuti status.
+3. Form konfirmasi presensi dan penanganan presensi ganda.
+4. Riwayat kehadiran pribadi.
+
+**Kriteria terima:**
+
+- [ ] Beranda menampilkan daftar sesi dan status.
+- [ ] Filter `Semua`, `Dibuka`, dan `Saya Hadir` mengubah daftar secara langsung.
+- [ ] Filter yang kosong menampilkan empty state.
+- [ ] Kartu sesi aktif hanya menampilkan satu CTA lime untuk presensi.
+- [ ] Tombol presensi aktif hanya bila sesi `DIBUKA` dan pengguna belum presensi.
+- [ ] Sesi `TERJADWAL` dan `SELESAI` menampilkan tombol nonaktif dengan label yang sesuai.
+- [ ] Form konfirmasi menampilkan nama praktikan dan checkbox kehadiran yang wajib dicentang.
+- [ ] Saat proses, tombol menampilkan loading dan tidak dapat ditekan ulang.
+- [ ] Setelah berhasil, waktu kehadiran tampil, banner berubah hijau, dan tombol nonaktif permanen untuk sesi itu.
+- [ ] Presensi ganda ditolak dengan sheet yang menyebut waktu presensi pertama.
+- [ ] Riwayat hanya menampilkan catatan milik pengguna yang login dan memiliki empty state.
+
+**Butir SRS terkait:** FR-05, FR-06, FR-07, FR-09.
+
+**Batas:** P3 tidak mengubah landing, login, komponen UI bersama, atau area asisten. P3 tidak mengubah aturan guard di context; bila menemukan celah, laporkan ke PM.
+
+## 5. Dependensi & Urutan Integrasi
+
+Urutan ini menjaga agar pekerjaan tidak saling menunggu. Bukan jadwal per orang.
+
+| Urutan | Pekerjaan | Area | Prasyarat |
 | --- | --- | --- | --- |
-| CHORE-01 | Siapkan repository, Expo, dan Expo Router | H+0 | Sebagian — lokal selesai; GitHub dan undangan menyusul |
-| CHORE-02 | Skeleton folder, data dummy, SessionContext, README | H+0 | Selesai |
-| CHORE-05 | Token desain `src/theme/tokens.ts` dan font Inter + fallback | H+1 | Belum |
-| CHORE-03 | Publikasikan repository ke GitHub, undang kolaborator, aktifkan proteksi `main` | H+1 pagi | Belum |
-| CHORE-04 | Konfigurasi EAS dan build APK preview | H+3 | Sebagian — `eas.json` siap; login/init dan build belum |
-| REVIEW | Review dan merge PR setiap sore | H+1–H+4 | Berjalan |
-| REL-01 | Gladi demo, perbaikan akhir, tag `v0.1-sprint1` | H+4 | Belum |
+| 1 | Publikasi repository + undangan kolaborator | PM | — |
+| 2 | Token desain + font | PM | Repository siap |
+| 3 | Root layout, Stack, tab, guard peran | P1 | Token tersedia |
+| 4 | Komponen UI bersama | P1 | Root layout |
+| 5 | Login dan routing peran | P1 | Root layout + komponen UI |
+| 6 | Beranda asisten dan beranda praktikan | P2, P3 | Context + komponen UI + login |
+| 7 | Detail asisten dan detail praktikan | P2, P3 | Beranda masing-masing |
+| 8 | Rekap, daftar hadir, guard ganda, riwayat | P2, P3 | Detail masing-masing |
+| 9 | Landing final + sheet detail | P1 | Login + komponen UI |
+| 10 | Gladi demo, perbaikan, tag rilis | PM + semua | Seluruh hasil area |
 
-**CHORE-03 — Publikasi repository**
+P2 dan P3 boleh mulai sebelum P1 selesai dengan memakai data context dan tampilan sementara. Jangan menunggu tanpa kabar; gunakan standup untuk menyepakati bentuk sementara.
 
-Kriteria terima:
-- Repository `practicum-attendance-app` tersedia di GitHub.
-- Ketiga programmer dapat `git clone` dan menjalankan `npx expo start`.
-- Branch `main` dilindungi dengan aturan wajib pull request.
-- Panduan ada di `docs/SETUP.md` §4–§6.
+## 6. Aturan Kerja per Area
 
-**CHORE-04 — EAS preview**
+1. **Kepemilikan file.** Setiap orang hanya mengubah file areanya. File bersama milik PM.
+2. **Satu PR = satu pekerjaan yang koheren.** PR besar yang mencampur beberapa area akan dikembalikan.
+3. **Judul PR** memakai konvensi commit (`feat:`, `fix:`, `chore:`, `docs:`). Deskripsi memuat area, FR terkait, cara menguji, dan screenshot/video.
+4. **PM yang me-review dan merge.** Programmer tidak merge sendiri. Merge memakai squash.
+5. **Standup async setiap pagi** di grup: apa yang selesai, apa yang dikerjakan hari ini, apa yang menghambat.
+6. **Blocker lebih dari 2 jam** harus disampaikan ke grup, jangan dipendam.
+7. **Tidak ada fitur di luar SRS.** Kalau muncul ide baru, catat dan ajukan ke PM; jangan langsung dikerjakan.
+8. **Definition of Done setiap deliverable:** berjalan di Expo Go, tidak crash, sesuai FR dan `docs/design.md`, `npx tsc --noEmit` lolos, dan sudah di-merge ke `main`.
 
-Kriteria terima:
-- `npx eas-cli@latest login` dan `eas init` selesai.
-- `eas.json` memiliki profil `preview` dengan `buildType: "apk"`.
-- APK preview berhasil diunduh dan dapat dipasang di HP.
-- `projectId` di `app.json` sudah di-commit.
-- Panduan ada di `docs/SETUP.md` §7.
+## 7. Jadwal
 
-**CHORE-05 — Token desain dan font Inter**
-
-Kriteria terima:
-- `src/theme/tokens.ts` tersedia dan berisi seluruh token pada `docs/design.md` §2 (warna, spacing, radius, layout, tipografi).
-- Inter dipasang dengan `npx expo install expo-font @expo-google-fonts/inter` dan dimuat lewat `useFonts` di `src/app/_layout.tsx`.
-- Aplikasi tetap berjalan di Expo Go bila font gagal dimuat (fallback font sistem).
-- P1, P2, dan P3 dapat mengimpor token tanpa error.
-- Tidak ada kode hex di luar `src/theme/tokens.ts`.
-- Rincian teknis ada di `docs/design.md` §10.
-
-### 5.2 P1 — Shell, Landing, Login, Komponen UI
-
-| ID | Tugas | Target | Bergantung pada |
-| --- | --- | --- | --- |
-| P1-01 | Struktur navigasi dan landing statis | H+1 | CHORE-02 |
-| P1-02 | Form login dan routing peran | H+2 | P1-01 |
-| P1-03 | Komponen UI bersama | H+2 | P1-01 |
-| P1-04 | Landing final dengan detail dan aksi terkunci | H+3 | P1-02, P1-03 |
-
-**P1-01 — Navigasi dan landing statis**
-
-- Buat root layout dengan `Stack` dan grup route `(asisten)` serta `(praktikan)`.
-- Struktur route mengikuti `docs/design.md` §3.1: detail sesi berada di luar grup `(tabs)` agar tidak muncul sebagai tab.
-- Buat tab per peran: Asisten `[Sesi | Rekap | Profil]`, Praktikan `[Jadwal | Riwayat | Profil]`. Tab pertama berfungsi sebagai beranda.
-- Landing menampilkan daftar sesi dari `useSession()` (bukan data hardcode baru).
-- Setiap tab sementara boleh berisi layar kosong berlabel.
-- Kriteria terima: aplikasi berjalan, perpindahan tab tidak crash, landing menampilkan seluruh sesi dummy.
-
-**P1-02 — Form login dan routing peran**
-
-- Form berisi pilihan peran (asisten/praktikan) dan pilihan pengguna sesuai peran.
-- Tombol Masuk memanggil `login(userId)` dari context.
-- Setelah login, arahkan ke beranda peran yang dipilih.
-- Profil memiliki tombol Keluar yang memanggil `logout()` dan kembali ke landing.
-- Kriteria terima: asisten tidak bisa masuk ke tab praktikan dan sebaliknya; logout berfungsi.
-
-**P1-03 — Komponen UI bersama**
-
-Buat di `src/components/ui/`:
-
-- `StatusBadge` — warna dan label untuk `TERJADWAL`, `DIBUKA`, `SELESAI`.
-- `Tombol` — varian primer/sekunder/graphite/ghost, mendukung `disabled` dan `loading`.
-- `SheetModal` — modal dari bawah dengan judul, isi, dan tombol tutup.
-- `EmptyState` — ikon/teks pesan saat daftar kosong.
-- `FilterChip` — chip filter aktif/nonaktif untuk beranda praktikan.
-
-Seluruh komponen wajib memakai token dari `src/theme/tokens.ts` dan font Inter. Jangan menulis hex atau ukuran langsung di komponen.
-
-Kriteria terima: P2 dan P3 memakai komponen ini, bukan membuat versi sendiri. Dokumentasikan props singkat di komentar file.
-
-**P1-04 — Landing final**
-
-- Setiap item sesi dapat diketuk untuk membuka detail dalam `SheetModal`.
-- Detail menampilkan nama praktikum, kelas, lab, tanggal, waktu, status, dan deskripsi.
-- Untuk pengunjung, tombol presensi dan buka/tutup sesi nonaktif.
-- Sediakan tombol/arahan menuju login.
-- Kriteria terima: pengunjung tidak dapat memicu aksi apa pun selain melihat dan menuju login.
-
-### 5.3 P2 — Asisten
-
-| ID | Tugas | Target | Bergantung pada |
-| --- | --- | --- | --- |
-| P2-01 | Beranda asisten dengan data dari context | H+1 | CHORE-02 |
-| P2-02 | Detail sesi dan aksi buka/tutup/buka lagi | H+2 | P2-01, P1-03 |
-| P2-03 | Rekap kehadiran per sesi | H+3 | P2-02 |
-| P2-04 | Daftar hadir live pada detail sesi | H+3 | P2-02 |
-
-Mulai H+1 dengan data dari `useSession()`; jangan menunggu P1 selesai. Gunakan layar sementara bila komponen UI belum tersedia, lalu ganti setelah P1-03 selesai.
-
-**P2-01 — Beranda asisten**
-
-- Menampilkan sesi yang relevan untuk asisten yang login.
-- Status sesi memakai `StatusBadge` (atau tampilan sementara).
-- Tombol buka/tutup cepat tersedia pada item yang sesuai.
-- Kriteria terima: perubahan status dari context langsung terlihat di daftar.
-
-**P2-02 — Detail sesi asisten**
-
-- Tampilkan seluruh informasi sesi.
-- Tombol Buka untuk `TERJADWAL`, Tutup untuk `DIBUKA`, Buka Lagi untuk `SELESAI`.
-- Setiap aksi memakai modal konfirmasi.
-- Aksi memanggil `openSession`, `closeSession`, atau `reopenSession`.
-- Kriteria terima: status berubah dan badge di beranda ikut berubah tanpa reload.
-
-**P2-03 — Rekap**
-
-- Pilih sesi, lalu tampilkan daftar praktikan yang hadir beserta waktu (`formatJam`).
-- Tampilkan jumlah hadir/total.
-- Tampilkan `EmptyState` bila belum ada kehadiran.
-- Kriteria terima: setelah P3 melakukan presensi, data muncul di rekap.
-
-**P2-04 — Daftar hadir live**
-
-- Detail sesi menampilkan daftar hadir sesi tersebut.
-- Daftar berasal dari `getKehadiranSesi(sesiId)`.
-- Kriteria terima: presensi baru langsung tampil tanpa menarik refresh.
-
-### 5.4 P3 — Praktikan
-
-| ID | Tugas | Target | Bergantung pada |
-| --- | --- | --- | --- |
-| P3-01 | Beranda praktikan dan filter | H+1 | CHORE-02 |
-| P3-02 | Detail sesi dan alur presensi | H+2 | P3-01, P1-03 |
-| P3-03 | Guard presensi ganda dan anti double-tap | H+3 | P3-02 |
-| P3-04 | Riwayat kehadiran praktikan | H+3 | P3-02 |
-
-**P3-01 — Beranda praktikan**
-
-- Daftar sesi dengan status.
-- Filter: Semua, Dibuka, Saya Hadir.
-- Filter memakai state lokal layar dan data dari context.
-- Empty state untuk hasil filter kosong.
-- Kriteria terima: filter mengubah daftar secara langsung.
-
-**P3-02 — Detail sesi dan presensi**
-
-- Tampilkan informasi sesi dan status presensi pengguna.
-- Tombol Presensi hanya aktif bila status `DIBUKA` dan `sudahPresensi()` kosong.
-- Form konfirmasi menampilkan nama praktikan dan pernyataan kehadiran.
-- Panggil `markAttendance(sesiId)`; tangani hasil `ok` dan `alasan`.
-- Setelah sukses, tampilkan waktu kehadiran dan nonaktifkan tombol.
-- Kriteria terima: presensi berhasil pada sesi dibuka dan tercatat di context.
-
-**P3-03 — Guard presensi ganda**
-
-- Jika `markAttendance` mengembalikan `ok: false`, tampilkan alasannya dalam modal.
-- Tombol masuk status loading selama proses untuk mencegah ketukan ganda.
-- Kriteria terima: tidak ada cara menghasilkan dua catatan untuk sesi dan praktikan yang sama; pesan menyebut waktu presensi pertama.
-
-**P3-04 — Riwayat**
-
-- Tampilkan `getKehadiranPraktikan(currentUser.id)`.
-- Setiap baris menampilkan nama praktikum/sesi dan waktu hadir.
-- Tersedia empty state.
-- Kriteria terima: praktikan hanya melihat catatan miliknya.
-
-## 6. Jadwal
-
-| Hari | Tanggal | Fokus |
+| Hari | Tanggal | Fokus area |
 | --- | --- | --- |
-| H+0 | Rabu, 21 Okt | PM menyiapkan fondasi (selesai sebagian) |
-| H+1 | Kamis, 22 Okt | PM publikasi repo + token/font; P1 navigasi+landing; P2 beranda asisten; P3 beranda praktikan |
-| H+2 | Jumat, 23 Okt | P1 login+UI kit; P2 detail+aksi sesi; P3 detail+presensi |
-| H+3 | Sabtu, 24 Okt | P1 landing final; P2 rekap+live; P3 guard+riwayat; PM build EAS |
-| H+4 | Minggu, 25 Okt | Stop fitur baru; merge sisa PR; uji demo; perbaikan kecil; tag rilis |
+| H+0 | Rabu, 21 Okt | PM menyiapkan fondasi dan repository |
+| H+1 | Kamis, 22 Okt | PM publikasi + token/font; P1 navigasi + landing awal; P2 beranda; P3 beranda |
+| H+2 | Jumat, 23 Okt | P1 login + komponen UI; P2 detail + aksi sesi; P3 detail + presensi |
+| H+3 | Sabtu, 24 Okt | P1 landing final; P2 rekap + daftar hadir; P3 guard + riwayat; PM build EAS |
+| H+4 | Minggu, 25 Okt | Hentikan fitur baru; integrasi, demo, perbaikan kecil, tag rilis |
 
-**Irama harian:**
+Irama harian:
 
-- Pagi: `git pull origin main`, lalu standup async di grup (3 baris: kemarin / hari ini / blocker).
-- Siang: target PR sudah dibuka agar PM dapat me-review sore.
-- Sore: PM review dan merge; programmer memperbaiki jika diminta.
+- Pagi: `git pull origin main`, lalu standup async.
+- Siang: PR sudah dibuka agar PM dapat me-review sore.
+- Sore: PM review dan merge; pemilik area memperbaiki bila diminta.
 
-## 7. Skenario Demo
+## 8. Skenario Demo
 
 Dilakukan pada satu perangkat, berganti peran.
 
-1. Buka aplikasi tanpa login. Landing menampilkan jadwal; tombol aksi terkunci dan mengarah ke login.
+1. Buka aplikasi tanpa login. Landing menampilkan jadwal; aksi terkunci dan mengarah ke login.
 2. Login sebagai asisten. Buka sesi `TERJADWAL`. Status berubah menjadi `DIBUKA` pada beranda dan detail.
 3. Keluar, login sebagai praktikan. Lakukan presensi pada sesi yang dibuka. Waktu kehadiran tampil.
 4. Coba presensi lagi pada sesi yang sama. Sistem menolak dan menyebut waktu presensi pertama.
 5. Buka Riwayat praktikan: catatan tampil. Login asisten dan buka Rekap: nama serta waktu yang sama tampil.
 6. Asisten menutup sesi. Pada sisi praktikan, tombol presensi menjadi tidak aktif.
 
-## 8. Urutan Merge yang Disarankan
-
-1. CHORE-03 (repo publik) — tanpa PR, dilakukan PM.
-2. CHORE-05 (token + font) — fondasi visual untuk semua area.
-3. P1-01 (navigasi) — fondasi rute.
-4. P1-03 (UI kit) — dibutuhkan P2 dan P3.
-5. P1-02 (login) — membuka alur peran.
-6. P2-01, P3-01 — beranda per peran.
-7. P2-02, P3-02 — detail dan aksi utama.
-8. P2-03, P2-04, P3-03, P3-04 — rekap, live, guard, riwayat.
-9. P1-04 — landing final.
-10. Perbaikan kecil dan dokumentasi.
-
-Jika ada PR yang saling menunggu, PM boleh mengubah urutan selama `main` tetap dapat dijalankan.
-
 ## 9. Risiko Sprint
 
 | Risiko | Dampak | Mitigasi |
 | --- | --- | --- |
-| Programmer pemula macet di setup | Pekerjaan tidak mulai | PM memastikan CHORE-03 selesai H+1 pagi; sediakan contoh pola komponen dan layar |
-| Menunggu komponen UI P1 | P2/P3 idle | Mulai dengan tampilan sementara; ganti setelah P1-03 |
-| Konflik edit file yang sama | PR macet | Kepemilikan file §4; file bersama hanya PM |
+| Programmer pemula macet di setup | Pekerjaan tidak mulai | PM memastikan repository siap H+1 pagi; sediakan contoh pola komponen dan layar |
+| Menunggu komponen UI P1 | P2/P3 idle | Mulai dengan data context dan tampilan sementara; ganti setelah komponen UI siap |
+| Konflik edit file yang sama | PR macet | Kepemilikan area §3; file bersama hanya PM |
 | EAS antre panjang | APK belum siap saat demo | Build H+3; demo utama memakai Expo Go |
 | Demo lintas perangkat | Data tidak sinkron | Demo satu perangkat; jelaskan batasan tanpa database |
+| Scope melebar | Waktu habis | Acuan demo §8 dan daftar di luar Sprint 1 §2.2 |
 
-## 10. Catatan untuk PM
+## 10. Checklist Progres per Area
 
-- Periksa PR terhadap kriteria terima tiket dan requirement PRD, bukan hanya apakah kode "terlihat jalan".
+### PM
+
+- [ ] Repository GitHub + kolaborator + proteksi `main`
+- [ ] Data dummy dan `SessionContext` final
+- [ ] Token desain + font Inter dengan fallback
+- [ ] Review dan merge PR setiap hari
+- [ ] APK preview EAS
+- [ ] Gladi demo + tag `v0.1-sprint1`
+
+### P1
+
+- [ ] Root layout, Stack, tab, guard peran
+- [ ] Komponen UI bersama (5 komponen)
+- [ ] Login dummy + routing peran
+- [ ] Landing publik + sheet detail + aksi terkunci
+
+### P2
+
+- [ ] Beranda asisten + badge status
+- [ ] Detail sesi + buka/tutup/buka lagi
+- [ ] Daftar hadir yang diperbarui otomatis
+- [ ] Rekap per sesi
+
+### P3
+
+- [ ] Beranda praktikan + filter
+- [ ] Detail sesi + tombol presensi empat state
+- [ ] Form konfirmasi + penolakan presensi ganda
+- [ ] Riwayat kehadiran pribadi
+
+## 11. Catatan untuk PM
+
+- Periksa PR terhadap kriteria terima area dan butir SRS, bukan hanya apakah kode "terlihat jalan".
 - Jaga `main` tetap dapat dijalankan; jangan menunda merge sampai semua fitur selesai.
 - Catat keputusan penting (misalnya perubahan aturan presensi) di PRD atau dokumen sprint.
 - Setelah sprint selesai, lakukan handover sesuai `docs/WORKFLOW-GIT.md` §9.

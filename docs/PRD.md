@@ -75,7 +75,7 @@ Fitur di luar daftar ini hanya boleh ditambahkan bila ada kebutuhan resmi dari d
 
 ## 6. Kebutuhan Fungsional
 
-Setiap requirement diberi ID yang dipakai sebagai acuan pada dokumen sprint. Kriteria terima bersifat wajib kecuali ditandai opsional.
+Setiap requirement diberi ID yang dipakai sebagai acuan pada dokumen sprint. Butir FR-01 sampai FR-10 berfungsi sebagai **SRS** untuk Sprint 1: jobdesk area, kriteria terima, dan demo mengacu ke butir-butir ini. Kriteria terima bersifat wajib kecuali ditandai opsional.
 
 ### FR-01 — Landing publik read-only
 
