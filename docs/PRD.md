@@ -1,6 +1,7 @@
 # PRD — Sistem Informasi Praktikum
 
-**Nama produk:** practicum-attendance-app (nama tampilan aplikasi belum final)
+**Nama produk:** TapIn
+**Tagline:** Tap once. You're in.
 **Versi dokumen:** 1.0
 **Tanggal:** 21 Oktober 2026
 **Status:** Aktif — acuan seluruh sprint
@@ -275,7 +276,6 @@ Skenario berikut menjadi acuan penerimaan produk pada tahap saat ini. Dilakukan 
 - Belum ada basis data; data hilang saat aplikasi ditutup.
 - Demonstrasi dilakukan pada satu perangkat dengan berganti peran; aplikasi tidak menjanjikan sinkronisasi antar-perangkat.
 - Identitas, jadwal, dan sesi menggunakan data dummy.
-- Nama tampilan aplikasi belum final.
 - Spesifikasi fitur sprint lanjutan dapat ditambahkan tanpa mengubah struktur navigasi dan model data pada dokumen ini.
 
 ## 13. Risiko Produk
@@ -298,7 +298,7 @@ Skenario berikut menjadi acuan penerimaan produk pada tahap saat ini. Dilakukan 
 
 ## 15. Hal yang Belum Diputuskan
 
-- Nama tampilan aplikasi.
+- Logo dan ikon aplikasi.
 - Data lab, kelas, dan jadwal yang akan dipakai pada demo.
 - Apakah demo akhir wajib berupa APK atau cukup Expo Go disertai rekaman layar.
 - Rincian kebutuhan sprint lanjutan (termasuk Firebase) setelah spesifikasi resmi diterima.
