@@ -82,10 +82,13 @@ Dilakukan oleh PM pemilik repository:
 1. **Settings** → **Branches** → **Add branch protection rule** (atau **Rulesets** pada tampilan GitHub terbaru).
 2. Target branch: `main`.
 3. Aktifkan **Require a pull request before merging**.
-4. Disarankan mengaktifkan **Require approvals** minimal 1.
-5. Simpan.
+4. Aktifkan **Require approvals** minimal 1.
+5. Pastikan force push dan delete branch dilarang.
+6. Simpan.
 
-Dengan aturan ini, programmer tidak dapat melakukan push langsung ke `main`. PM tetap dapat melakukan merge setelah review.
+Dengan aturan ini, programmer tidak dapat melakukan push langsung ke `main`. Hanya PM yang menekan tombol merge; ini aturan tim yang ditegaskan di `docs/WORKFLOW-GIT.md`. Proteksi saat ini mewajibkan PR tanpa approval, sehingga tombol merge tetap tersedia bagi kolaborator dan kepatuhan bergantung pada aturan tim.
+
+Catatan: pada repository milik akun personal, GitHub tidak menyediakan pembatasan tombol merge per pengguna. Untuk enforcement keras, repository perlu dipindahkan ke GitHub Organization dan memakai push restriction.
 
 ## 7. Menyiapkan EAS
 
@@ -223,6 +226,7 @@ Aturan: folder `src/app/` hanya berisi route. Komponen, hook, dan utilitas disim
 | `Unable to resolve module @/...` | Alias belum terbaca | Pastikan `tsconfig.json` benar, restart dengan `--clear` |
 | Build EAS gagal karena versi | Dependensi tidak kompatibel | `npx expo install --fix` lalu ulangi build |
 | `npm install` gagal | Node terlalu lama | Gunakan Node 20+ |
+| `npm install` gagal `ERESOLVE` react/react-dom | `react-dom` 19.3.1 menuntut React 19.3.1 | Pastikan `react-dom@19.3.0` ada di `package.json`; jangan memakai `--force` |
 | Layar putih setelah mengubah route | File route salah nama/posisi | Pastikan file berada di `src/app/` dan ada `_layout.tsx` |
 
 ## 11. Referensi

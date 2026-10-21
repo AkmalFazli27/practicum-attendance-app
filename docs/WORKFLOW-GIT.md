@@ -7,7 +7,7 @@ Berlaku untuk seluruh sprint. Aturan pembagian tugas per sprint tidak ditulis di
 - `main` adalah branch yang **selalu dapat dijalankan dan didemokan**.
 - Semua pekerjaan dilakukan pada branch fitur yang dibuat dari `main`.
 - Satu pull request (PR) mewakili satu pekerjaan atau scope yang koheren.
-- Programmer **tidak melakukan merge sendiri**. PM sprint berjalan yang me-review dan melakukan merge.
+- Programmer **tidak melakukan merge sendiri**. Hanya PM sprint berjalan yang me-review dan menekan tombol merge; programmer dilarang merge meskipun tombol tersedia. GitHub hanya mewajibkan PR, jadi aturan ini ditegakkan oleh tim.
 - Raih status hijau sebelum menambah pekerjaan baru: pastikan `main` tidak rusak akibat PR yang masuk.
 
 ### 1.1 Pelacakan progres
@@ -89,9 +89,11 @@ Aturan:
 1. Programmer membuka PR dan meminta review kepada PM.
 2. PM memeriksa kode, menjalankan aplikasi, dan mencocokkan dengan kriteria terima area serta butir SRS.
 3. Jika ada perbaikan, PM memberi komentar; programmer memperbaiki pada branch yang sama dan melakukan push ulang.
-4. Setelah disetujui, **PM melakukan squash merge** ke `main`.
+4. Setelah disetujui, **PM melakukan merge commit** ke `main` (tombol **Create a merge commit** atau `gh pr merge <nomor> --merge`). Jangan memakai squash.
 5. Branch fitur dihapus setelah merge.
 6. Semua anggota melakukan `git pull origin main` sebelum melanjutkan pekerjaan berikutnya.
+
+Metode merge yang dipakai adalah **merge commit biasa**: seluruh commit pada branch fitur dipertahankan dan satu merge commit ditambahkan ke `main`.
 
 ### 5.3 Checklist review PM
 
