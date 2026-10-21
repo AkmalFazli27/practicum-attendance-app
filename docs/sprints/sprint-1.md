@@ -75,7 +75,7 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 
 1. Repository lokal dan GitHub siap dipakai tim.
 2. Data dummy dan `SessionContext` berfungsi sebagai sumber state tunggal.
-3. Token desain `src/theme/tokens.ts` dan font Inter dengan fallback sistem.
+3. Token desain `src/theme/tokens.ts`, hook font `src/theme/fonts.ts`, dan Inter dengan fallback sistem.
 4. Repository dipublikasikan, kolaborator diundang, `main` dilindungi.
 5. Setiap PR di-review dan di-merge.
 6. APK preview EAS tersedia sebagai cadangan demo.
@@ -87,6 +87,7 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 - [ ] `useSession()` menyediakan `login`, `logout`, `openSession`, `closeSession`, `reopenSession`, `markAttendance`, `getKehadiranSesi`, `getKehadiranPraktikan`, dan `sudahPresensi`.
 - [ ] `markAttendance` menolak presensi ganda dan mengembalikan alasan yang menyebut waktu presensi pertama.
 - [ ] `src/theme/tokens.ts` memuat token pada `docs/design.md` §2 dan dipakai seluruh area.
+- [ ] `src/theme/fonts.ts` menyediakan `useAppFonts()` dengan fallback sistem.
 - [ ] Inter dimuat tanpa membuat aplikasi gagal dibuka bila font tidak tersedia.
 - [ ] `main` selalu dapat dijalankan; PR di-merge maksimal satu hari setelah disetujui.
 - [ ] `eas.json` memiliki profil `preview` dengan `buildType: "apk"`.
@@ -118,6 +119,7 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 - [ ] Setelah login, pengguna diarahkan ke tab pertama sesuai peran; `Keluar` mengembalikan ke landing.
 - [ ] Lima komponen UI tersedia dan dipakai P2/P3, bukan diduplikasi.
 - [ ] Semua komponen memakai token dan tidak menulis kode hex langsung.
+- [ ] `src/app/_layout.tsx` memanggil `useAppFonts()` dan aplikasi tetap dapat dibuka bila font gagal dimuat.
 - [ ] Semua form/sheet dapat ditutup tanpa menjalankan aksi.
 
 **Butir SRS terkait:** FR-01, FR-02, FR-10. Komponen UI mendukung FR-03 sampai FR-09.
@@ -253,7 +255,7 @@ Dilakukan pada satu perangkat, berganti peran.
 
 - [ ] Repository GitHub + kolaborator + proteksi `main`
 - [ ] Data dummy dan `SessionContext` final
-- [ ] Token desain + font Inter dengan fallback
+- [ ] Token desain + hook font Inter dengan fallback
 - [ ] Review dan merge PR setiap hari
 - [ ] APK preview EAS
 - [ ] Gladi demo + tag `v0.1-sprint1`

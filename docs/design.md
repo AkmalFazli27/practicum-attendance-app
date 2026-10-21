@@ -932,7 +932,7 @@ Format waktu di antarmuka: `HH.mm` (contoh `08.02`). Format tanggal: `Rabu, 21 O
 ### 10.2 Rencana teknis
 
 - Paket: `expo-font` + `@expo-google-fonts/inter` melalui `npx expo install`.
-- Dimuat di `src/app/_layout.tsx` dengan `useFonts` agar tetap kompatibel dengan Expo Go.
+- PM menyediakan hook `useAppFonts()` di `src/theme/fonts.ts`; P1 memanggilnya di `src/app/_layout.tsx`.
 - Weight yang dimuat: `Inter_400Regular`, `Inter_500Medium`, `Inter_600SemiBold`, `Inter_700Bold`.
 - Jangan memakai config plugin `expo-font` untuk Sprint 1 karena tidak berjalan di Expo Go.
 - Saat font belum siap, tampilkan latar `background` polos (tanpa spinner) atau render dengan font sistem; jangan menahan aplikasi dengan splash yang lama.
