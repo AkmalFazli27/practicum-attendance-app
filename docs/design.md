@@ -289,6 +289,7 @@ Keterangan: `[ ]` tombol, `▓` area graphite, `•` teks kecil, `▁` indikator
 ┌──────────────────────────────────────┐
 │ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ │
 │  TapIn                     [ Masuk ] │
+│  Tap once. You're in.                │
 │  Jadwal praktikum minggu ini         │
 │ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ │
 │                                      │
