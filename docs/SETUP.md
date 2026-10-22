@@ -163,7 +163,7 @@ practicum-attendance-app/
       format.ts           # format tanggal dan jam
   docs/
     PRD.md
-    design.md
+    DESIGN.md
     ui-ux-design-system-graphite-lime.md
     WORKFLOW-GIT.md
     SETUP.md

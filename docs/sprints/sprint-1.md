@@ -4,10 +4,10 @@
 **Programmer:** P1 Farras, P2 Eileen, P3 Nouvella
 **Periode:** Rabu, 21 Oktober 2026 (H+0) — Minggu, 25 Oktober 2026 sore (H+4)
 **Acuan requirement (SRS):** `docs/PRD.md` — FR-01 sampai FR-10
-**Acuan desain:** `docs/design.md`
+**Acuan desain:** `docs/DESIGN.md`
 **Status:** Berjalan
 
-> Dokumen ini mengatur pembagian area dan hasil yang harus dicapai. Requirement tetap di PRD (SRS); keputusan visual tetap di design.md. Setiap orang bebas menentukan urutan dan cara kerja di dalam areanya, selama kriteria terima terpenuhi.
+> Dokumen ini mengatur pembagian area dan hasil yang harus dicapai. Requirement tetap di PRD (SRS); keputusan visual tetap di `docs/DESIGN.md`. Setiap orang bebas menentukan urutan dan cara kerja di dalam areanya, selama kriteria terima terpenuhi.
 
 ---
 
@@ -86,7 +86,7 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 - [ ] Ketiga programmer dapat `git clone` lalu `npm install` dan `npx expo start`.
 - [ ] `useSession()` menyediakan `login`, `logout`, `openSession`, `closeSession`, `reopenSession`, `markAttendance`, `getKehadiranSesi`, `getKehadiranPraktikan`, dan `sudahPresensi`.
 - [ ] `markAttendance` menolak presensi ganda dan mengembalikan alasan yang menyebut waktu presensi pertama.
-- [ ] `src/theme/tokens.ts` memuat token pada `docs/design.md` §2 dan dipakai seluruh area.
+- [ ] `src/theme/tokens.ts` memuat token pada `docs/DESIGN.md` §2 dan dipakai seluruh area.
 - [ ] `src/theme/fonts.ts` menyediakan `useAppFonts()` dengan fallback sistem.
 - [ ] Inter dimuat tanpa membuat aplikasi gagal dibuka bila font tidak tersedia.
 - [ ] `main` selalu dapat dijalankan; PR di-merge maksimal satu hari setelah disetujui.
@@ -108,17 +108,17 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 
 **Kriteria terima:**
 
-- [ ] Struktur route mengikuti `docs/design.md` §3.1; layar detail tidak muncul sebagai tab.
+- [ ] Struktur route mengikuti `docs/DESIGN.md` §3.1; layar detail tidak muncul sebagai tab.
 - [ ] Asisten memiliki tab `Sesi | Rekap | Profil`; praktikan `Jadwal | Riwayat | Profil`.
 - [ ] Tab pertama berfungsi sebagai beranda dan menjadi halaman awal setelah login.
 - [ ] Guard peran mencegah asisten membuka route praktikan dan sebaliknya.
 - [ ] Landing menampilkan seluruh sesi dari `useSession()`, bukan data hardcode baru.
-- [ ] Landing menampilkan nama `TapIn` dan tagline `Tap once. You're in.` sesuai `docs/design.md` §4.1.
+- [ ] Landing menampilkan nama `TapIn` dan tagline `Tap once. You're in.` sesuai `docs/DESIGN.md` §4.1.
 - [ ] Setiap kartu landing dapat membuka sheet detail; pengunjung tidak dapat menjalankan aksi selain menuju login.
 - [ ] Login memilih peran dan user; `Masuk` nonaktif sampai pilihan lengkap.
 - [ ] Setelah login, pengguna diarahkan ke tab pertama sesuai peran; `Keluar` mengembalikan ke landing.
 - [ ] Lima komponen UI tersedia dan dipakai P2/P3, bukan diduplikasi.
-- [ ] Skeleton 5 komponen dengan props sesuai `docs/design.md` §5 di-merge lebih awal, sebelum layar final.
+- [ ] Skeleton 5 komponen dengan props sesuai `docs/DESIGN.md` §5 di-merge lebih awal, sebelum layar final.
 - [ ] Semua komponen memakai token dan tidak menulis kode hex langsung.
 - [ ] `src/app/_layout.tsx` memanggil `useAppFonts()` dan aplikasi tetap dapat dibuka bila font gagal dimuat.
 - [ ] Semua form/sheet dapat ditutup tanpa menjalankan aksi.
@@ -212,7 +212,7 @@ Skeleton komponen (urutan 4) wajib di-merge lebih dahulu agar Eileen dan Nouvell
 6. **Standup async setiap pagi** di grup: apa yang selesai, apa yang dikerjakan hari ini, apa yang menghambat.
 7. **Blocker lebih dari 2 jam** harus disampaikan ke grup, jangan dipendam.
 8. **Tidak ada fitur di luar SRS.** Kalau muncul ide baru, catat dan ajukan ke PM; jangan langsung dikerjakan.
-9. **Definition of Done setiap deliverable:** berjalan di Expo Go, tidak crash, sesuai FR dan `docs/design.md`, `npx tsc --noEmit` lolos, dan sudah di-merge ke `main`.
+9. **Definition of Done setiap deliverable:** berjalan di Expo Go, tidak crash, sesuai FR dan `docs/DESIGN.md`, `npx tsc --noEmit` lolos, dan sudah di-merge ke `main`.
 
 ## 7. Jadwal
 

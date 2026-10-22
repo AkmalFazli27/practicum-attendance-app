@@ -35,7 +35,7 @@ npx expo start --clear
 ## Mulai untuk Programmer
 
 1. Clone repository, lalu jalankan `npm install` dan `npx expo start`.
-2. Baca `docs/PRD.md` (requirement), `docs/design.md` (tampilan), `docs/sprints/sprint-1.md` (jobdesk area), dan `docs/WORKFLOW-GIT.md` (alur PR).
+2. Baca `docs/PRD.md` (requirement), `docs/DESIGN.md` (tampilan), `docs/sprints/sprint-1.md` (jobdesk area), dan `docs/WORKFLOW-GIT.md` (alur PR).
 3. Cek area kamu: Farras (P1 — shell, landing, login, UI kit), Eileen (P2 — asisten), Nouvella (P3 — praktikan).
 4. Buat branch dari `main`, kerjakan area sendiri, lalu buka PR.
 5. Jangan merge sendiri. Hanya PM yang menekan tombol merge.
@@ -53,7 +53,7 @@ src/
   utils/                # format tanggal dan jam
 docs/
   PRD.md                # kebutuhan seluruh produk
-  design.md             # token, navigasi, wireframe Sprint 1
+  DESIGN.md             # token, navigasi, wireframe Sprint 1
   WORKFLOW-GIT.md       # aturan branch, PR, dan rilis
   SETUP.md              # setup repository, Expo, dan EAS
   sprints/              # jobdesk per area dan demo per sprint
@@ -64,7 +64,7 @@ docs/
 | Dokumen | Isi |
 | --- | --- |
 | [docs/PRD.md](docs/PRD.md) | Requirement lengkap seluruh sprint |
-| [docs/design.md](docs/design.md) | Token, navigasi, wireframe, dan state Sprint 1 |
+| [docs/DESIGN.md](docs/DESIGN.md) | Token, navigasi, wireframe, dan state Sprint 1 |
 | [docs/ui-ux-design-system-graphite-lime.md](docs/ui-ux-design-system-graphite-lime.md) | Design system visual Graphite Lime |
 | [docs/WORKFLOW-GIT.md](docs/WORKFLOW-GIT.md) | Alur kerja Git dan review |
 | [docs/SETUP.md](docs/SETUP.md) | Setup lokal, GitHub, dan EAS |
