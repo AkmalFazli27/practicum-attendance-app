@@ -764,12 +764,25 @@ Dibuat oleh P1 sebagai bagian dari komponen UI bersama, dipakai P2 dan P3. Semua
 | `EmptyState` | `judul`, `pesan`, `aksi?` | — | Center, max width 280 |
 | `FilterChip` | `label`, `aktif`, `onPress` | aktif/nonaktif | Aktif graphite + teks putih; nonaktif putih + border |
 
+**Kontrak komponen (H+1).** Farras memublikasikan skeleton dengan props di atas lebih dahulu; nama dan props dibekukan setelah disepakati. Eileen dan Nouvella dapat langsung mengimpor dan memakai komponen walau styling belum final; styling disempurnakan di PR terpisah.
+
+```tsx
+// Penggunaan — inilah kontrak yang dibekukan.
+<StatusBadge status="DIBUKA" />
+<Tombol variant="primer" loading={memproses} onPress={konfirmasi}>Konfirmasi</Tombol>
+<SheetModal visible={terbuka} judul="Buka sesi?" onClose={tutupSheet}>Sesi: Praktikum PBO — Kelas A</SheetModal>
+<EmptyState judul="Belum ada sesi" pesan="Jadwal akan tampil di sini." />
+<FilterChip label="Dibuka" aktif={aktif} onPress={() => setFilter('DIBUKA')} />
+```
+
 Aturan tambahan:
 
 - `Tombol` dengan `loading` otomatis `disabled` dan menampilkan `ActivityIndicator` kecil.
 - `SheetModal` memakai `Modal` bawaan React Native dengan `animationType="slide"` dan `transparent`.
 - Tidak ada komponen yang menyimpan state bisnis; state tetap di layar/context.
 - Komponen tidak boleh mengimpor data dummy secara langsung.
+- Perubahan props kontrak hanya melalui kesepakatan Farras dan PM, dan wajib dikabarkan ke P2/P3 sebelum di-merge.
+- Urutan implementasi UI kit: skeleton dengan props final → langsung dipakai P2/P3 → styling final menyusul.
 
 Anatomi kartu sesi (dipakai berulang):
 

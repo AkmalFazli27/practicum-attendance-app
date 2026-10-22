@@ -4,10 +4,10 @@
 **Programmer:** P1 Farras, P2 Eileen, P3 Nouvella
 **Periode:** Rabu, 21 Oktober 2026 (H+0) — Minggu, 25 Oktober 2026 sore (H+4)
 **Acuan requirement (SRS):** `docs/PRD.md` — FR-01 sampai FR-10
-**Acuan desain:** `docs/design.md`
+**Acuan desain:** `docs/DESIGN.md`
 **Status:** Berjalan
 
-> Dokumen ini mengatur pembagian area dan hasil yang harus dicapai. Requirement tetap di PRD (SRS); keputusan visual tetap di design.md. Setiap orang bebas menentukan urutan dan cara kerja di dalam areanya, selama kriteria terima terpenuhi.
+> Dokumen ini mengatur pembagian area dan hasil yang harus dicapai. Requirement tetap di PRD (SRS); keputusan visual tetap di `docs/DESIGN.md`. Setiap orang bebas menentukan urutan dan cara kerja di dalam areanya, selama kriteria terima terpenuhi.
 
 ---
 
@@ -28,18 +28,18 @@ Data masih lokal/dummy. Belum ada Firebase, autentikasi nyata, QR, atau notifika
 
 ### 2.1 Butir SRS yang dikerjakan
 
-| Butir SRS | Kebutuhan | Area utama |
-| --- | --- | --- |
-| FR-01 | Landing publik read-only + detail sesi | P1 |
-| FR-02 | Login dummy + routing peran | P1 |
-| FR-03 | Beranda asisten | P2 |
-| FR-04 | Detail sesi asisten + buka/tutup/buka lagi + daftar hadir | P2 |
-| FR-05 | Beranda praktikan + filter | P3 |
-| FR-06 | Detail sesi praktikan + presensi | P3 |
-| FR-07 | Pencegahan presensi ganda | P3 (antarmuka) + PM (aksi context) |
-| FR-08 | Rekap kehadiran asisten | P2 |
-| FR-09 | Riwayat kehadiran praktikan | P3 |
-| FR-10 | Form, modal, dan bottom sheet | P1 (komponen) + P2/P3 (pemakaian) |
+| Butir SRS | Kebutuhan                                                 | Area utama                         |
+| --------- | --------------------------------------------------------- | ---------------------------------- |
+| FR-01     | Landing publik read-only + detail sesi                    | P1                                 |
+| FR-02     | Login dummy + routing peran                               | P1                                 |
+| FR-03     | Beranda asisten                                           | P2                                 |
+| FR-04     | Detail sesi asisten + buka/tutup/buka lagi + daftar hadir | P2                                 |
+| FR-05     | Beranda praktikan + filter                                | P3                                 |
+| FR-06     | Detail sesi praktikan + presensi                          | P3                                 |
+| FR-07     | Pencegahan presensi ganda                                 | P3 (antarmuka) + PM (aksi context) |
+| FR-08     | Rekap kehadiran asisten                                   | P2                                 |
+| FR-09     | Riwayat kehadiran praktikan                               | P3                                 |
+| FR-10     | Form, modal, dan bottom sheet                             | P1 (komponen) + P2/P3 (pemakaian)  |
 
 ### 2.2 Di luar Sprint 1
 
@@ -56,12 +56,12 @@ Jangan menambah dependensi atau fitur di luar daftar ini tanpa persetujuan PM.
 
 ## 3. Pembagian Area & Kepemilikan File
 
-| Area | Kode | Pemilik | File utama |
-| --- | --- | --- | --- |
-| Fondasi, data, state, desain, rilis | PM | pemilik repository (kamu) | `app.json`, `eas.json`, `src/data/**`, `src/context/**`, `src/theme/**`, `README.md`, `docs/**` |
-| Shell, landing, login, komponen UI | P1 | **Farras** | `src/app/_layout.tsx`, `src/app/index.tsx`, `src/app/login.tsx`, `src/components/ui/**` |
-| Asisten | P2 | **Eileen** | `src/app/(asisten)/**`, `src/components/asisten/**` |
-| Praktikan | P3 | **Nouvella** | `src/app/(praktikan)/**`, `src/components/praktikan/**` |
+| Area                                | Kode | Pemilik                   | File utama                                                                                                    |
+| ----------------------------------- | ---- | ------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Fondasi, data, state, desain, rilis | PM   | pemilik repository (kamu) | `app.json`, `eas.json`, `src/data/**`, `src/context/**`, `src/theme/**`, `README.md`, `docs/**` |
+| Shell, landing, login, komponen UI  | P1   | **Farras**          | `src/app/_layout.tsx`, `src/app/index.tsx`, `src/app/login.tsx`, `src/components/ui/**`               |
+| Asisten                             | P2   | **Eileen**          | `src/app/(asisten)/**`, `src/components/asisten/**`                                                       |
+| Praktikan                           | P3   | **Nouvella**        | `src/app/(praktikan)/**`, `src/components/praktikan/**`                                                   |
 
 Aturan: selain pemilik, jangan mengedit file area lain. Butuh perubahan? Ajukan ke pemilik area atau PM.
 
@@ -86,7 +86,7 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 - [ ] Ketiga programmer dapat `git clone` lalu `npm install` dan `npx expo start`.
 - [ ] `useSession()` menyediakan `login`, `logout`, `openSession`, `closeSession`, `reopenSession`, `markAttendance`, `getKehadiranSesi`, `getKehadiranPraktikan`, dan `sudahPresensi`.
 - [ ] `markAttendance` menolak presensi ganda dan mengembalikan alasan yang menyebut waktu presensi pertama.
-- [ ] `src/theme/tokens.ts` memuat token pada `docs/design.md` §2 dan dipakai seluruh area.
+- [ ] `src/theme/tokens.ts` memuat token pada `docs/DESIGN.md` §2 dan dipakai seluruh area.
 - [ ] `src/theme/fonts.ts` menyediakan `useAppFonts()` dengan fallback sistem.
 - [ ] Inter dimuat tanpa membuat aplikasi gagal dibuka bila font tidak tersedia.
 - [ ] `main` selalu dapat dijalankan; PR di-merge maksimal satu hari setelah disetujui.
@@ -102,22 +102,23 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 **Hasil yang harus ada:**
 
 1. Root layout, navigasi Stack, dan 3 tab per peran.
-2. Landing publik read-only dengan sheet detail.
-3. Login dummy dengan pilihan peran dan user.
-4. Komponen bersama: `StatusBadge`, `Tombol`, `SheetModal`, `EmptyState`, `FilterChip`.
+2. Komponen bersama: `StatusBadge`, `Tombol`, `SheetModal`, `EmptyState`, `FilterChip` — kontrak + skeleton dipublikasikan dan di-merge lebih awal (H+1), styling final menyusul.
+3. Landing publik read-only dengan sheet detail.
+4. Login dummy dengan pilihan peran dan user.
 
 **Kriteria terima:**
 
-- [ ] Struktur route mengikuti `docs/design.md` §3.1; layar detail tidak muncul sebagai tab.
+- [ ] Struktur route mengikuti `docs/DESIGN.md` §3.1; layar detail tidak muncul sebagai tab.
 - [ ] Asisten memiliki tab `Sesi | Rekap | Profil`; praktikan `Jadwal | Riwayat | Profil`.
 - [ ] Tab pertama berfungsi sebagai beranda dan menjadi halaman awal setelah login.
 - [ ] Guard peran mencegah asisten membuka route praktikan dan sebaliknya.
 - [ ] Landing menampilkan seluruh sesi dari `useSession()`, bukan data hardcode baru.
-- [ ] Landing menampilkan nama `TapIn` dan tagline `Tap once. You're in.` sesuai `docs/design.md` §4.1.
+- [ ] Landing menampilkan nama `TapIn` dan tagline `Tap once. You're in.` sesuai `docs/DESIGN.md` §4.1.
 - [ ] Setiap kartu landing dapat membuka sheet detail; pengunjung tidak dapat menjalankan aksi selain menuju login.
 - [ ] Login memilih peran dan user; `Masuk` nonaktif sampai pilihan lengkap.
 - [ ] Setelah login, pengguna diarahkan ke tab pertama sesuai peran; `Keluar` mengembalikan ke landing.
 - [ ] Lima komponen UI tersedia dan dipakai P2/P3, bukan diduplikasi.
+- [ ] Skeleton 5 komponen dengan props sesuai `docs/DESIGN.md` §5 di-merge lebih awal, sebelum layar final.
 - [ ] Semua komponen memakai token dan tidak menulis kode hex langsung.
 - [ ] `src/app/_layout.tsx` memanggil `useAppFonts()` dan aplikasi tetap dapat dibuka bila font gagal dimuat.
 - [ ] Semua form/sheet dapat ditutup tanpa menjalankan aksi.
@@ -190,36 +191,38 @@ Urutan ini menjaga agar pekerjaan tidak saling menunggu. Bukan jadwal per orang.
 | 1 | Publikasi repository + undangan kolaborator | PM | — |
 | 2 | Token desain + font | PM | Repository siap |
 | 3 | Root layout, Stack, tab, guard peran | P1 | Token tersedia |
-| 4 | Komponen UI bersama | P1 | Root layout |
-| 5 | Login dan routing peran | P1 | Root layout + komponen UI |
-| 6 | Beranda asisten dan beranda praktikan | P2, P3 | Context + komponen UI + login |
-| 7 | Detail asisten dan detail praktikan | P2, P3 | Beranda masing-masing |
-| 8 | Rekap, daftar hadir, guard ganda, riwayat | P2, P3 | Detail masing-masing |
-| 9 | Landing final + sheet detail | P1 | Login + komponen UI |
-| 10 | Gladi demo, perbaikan, tag rilis | PM + semua | Seluruh hasil area |
+| 4 | Kontrak + skeleton komponen UI | P1 | Root layout |
+| 5 | Login dan routing peran | P1 | Root layout + skeleton komponen |
+| 6 | Beranda asisten dan beranda praktikan | P2, P3 | Context + skeleton komponen + login |
+| 7 | Finalisasi styling UI kit | P1 | Skeleton komponen; berjalan paralel |
+| 8 | Detail asisten dan detail praktikan | P2, P3 | Beranda masing-masing |
+| 9 | Rekap, daftar hadir, guard ganda, riwayat | P2, P3 | Detail masing-masing |
+| 10 | Landing final + sheet detail | P1 | Login + UI kit final |
+| 11 | Gladi demo, perbaikan, tag rilis | PM + semua | Seluruh hasil area |
 
-Eileen dan Nouvella boleh mulai sebelum Farras selesai dengan memakai data context dan tampilan sementara. Jangan menunggu tanpa kabar; gunakan standup untuk menyepakati bentuk sementara.
+Skeleton komponen (urutan 4) wajib di-merge lebih dahulu agar Eileen dan Nouvella dapat mengimpor komponen dengan props final. Styling final boleh menyusul; mereka mulai dengan data context dan tampilan sementara. Jangan menunggu tanpa kabar; gunakan standup untuk menyepakati bentuk sementara.
 
 ## 6. Aturan Kerja per Area
 
 1. **Kepemilikan file.** Setiap orang hanya mengubah file areanya. File bersama milik PM.
-2. **Satu PR = satu pekerjaan yang koheren.** PR besar yang mencampur beberapa area akan dikembalikan.
-3. **Judul PR** memakai konvensi commit (`feat:`, `fix:`, `chore:`, `docs:`). Deskripsi memuat area, FR terkait, cara menguji, dan screenshot/video.
-4. **PM yang me-review dan merge.** Programmer tidak merge sendiri. Merge memakai merge commit biasa, bukan squash.
-5. **Standup async setiap pagi** di grup: apa yang selesai, apa yang dikerjakan hari ini, apa yang menghambat.
-6. **Blocker lebih dari 2 jam** harus disampaikan ke grup, jangan dipendam.
-7. **Tidak ada fitur di luar SRS.** Kalau muncul ide baru, catat dan ajukan ke PM; jangan langsung dikerjakan.
-8. **Definition of Done setiap deliverable:** berjalan di Expo Go, tidak crash, sesuai FR dan `docs/design.md`, `npx tsc --noEmit` lolos, dan sudah di-merge ke `main`.
+2. **Tampilan sementara boleh, duplikasi tidak.** Bila komponen UI bersama belum final, P2/P3 boleh memakai tampilan sementara di area masing-masing, lalu menggantinya dengan UI kit sebelum PR di-merge. Dilarang mengedit `src/components/ui/**` atau mengubah props komponen tanpa kesepakatan pemiliknya dan PM.
+3. **Satu PR = satu pekerjaan yang koheren.** PR besar yang mencampur beberapa area akan dikembalikan.
+4. **Judul PR** memakai konvensi commit (`feat:`, `fix:`, `chore:`, `docs:`). Deskripsi memuat area, FR terkait, cara menguji, dan screenshot/video.
+5. **PM yang me-review dan merge.** Programmer tidak merge sendiri. Merge memakai merge commit biasa, bukan squash.
+6. **Standup async setiap pagi** di grup: apa yang selesai, apa yang dikerjakan hari ini, apa yang menghambat.
+7. **Blocker lebih dari 2 jam** harus disampaikan ke grup, jangan dipendam.
+8. **Tidak ada fitur di luar SRS.** Kalau muncul ide baru, catat dan ajukan ke PM; jangan langsung dikerjakan.
+9. **Definition of Done setiap deliverable:** berjalan di Expo Go, tidak crash, sesuai FR dan `docs/DESIGN.md`, `npx tsc --noEmit` lolos, dan sudah di-merge ke `main`.
 
 ## 7. Jadwal
 
-| Hari | Tanggal | Fokus area |
-| --- | --- | --- |
-| H+0 | Rabu, 21 Okt | PM menyiapkan fondasi dan repository |
-| H+1 | Kamis, 22 Okt | PM publikasi + token/font; P1 navigasi + landing awal; P2 beranda; P3 beranda |
-| H+2 | Jumat, 23 Okt | P1 login + komponen UI; P2 detail + aksi sesi; P3 detail + presensi |
-| H+3 | Sabtu, 24 Okt | P1 landing final; P2 rekap + daftar hadir; P3 guard + riwayat; PM build EAS |
-| H+4 | Minggu, 25 Okt | Hentikan fitur baru; integrasi, demo, perbaikan kecil, tag rilis |
+| Hari | Tanggal        | Fokus area                                                                    |
+| ---- | -------------- | ----------------------------------------------------------------------------- |
+| H+0  | Rabu, 21 Okt   | PM menyiapkan fondasi dan repository                                          |
+| H+1  | Kamis, 22 Okt  | PM publikasi + token/font; P1 navigasi + landing awal; P2 beranda; P3 beranda |
+| H+2  | Jumat, 23 Okt  | P1 login + komponen UI; P2 detail + aksi sesi; P3 detail + presensi           |
+| H+3  | Sabtu, 24 Okt  | P1 landing final; P2 rekap + daftar hadir; P3 guard + riwayat; PM build EAS   |
+| H+4  | Minggu, 25 Okt | Hentikan fitur baru; integrasi, demo, perbaikan kecil, tag rilis              |
 
 Irama harian:
 
@@ -240,14 +243,14 @@ Dilakukan pada satu perangkat, berganti peran.
 
 ## 9. Risiko Sprint
 
-| Risiko | Dampak | Mitigasi |
-| --- | --- | --- |
-| Programmer pemula macet di setup | Pekerjaan tidak mulai | PM memastikan repository siap H+1 pagi; sediakan contoh pola komponen dan layar |
-| Menunggu komponen UI Farras | Eileen/Nouvella idle | Mulai dengan data context dan tampilan sementara; ganti setelah komponen UI siap |
-| Konflik edit file yang sama | PR macet | Kepemilikan area §3; file bersama hanya PM |
-| EAS antre panjang | APK belum siap saat demo | Build H+3; demo utama memakai Expo Go |
-| Demo lintas perangkat | Data tidak sinkron | Demo satu perangkat; jelaskan batasan tanpa database |
-| Scope melebar | Waktu habis | Acuan demo §8 dan daftar di luar Sprint 1 §2.2 |
+| Risiko                           | Dampak                   | Mitigasi                                                                         |
+| -------------------------------- | ------------------------ | -------------------------------------------------------------------------------- |
+| Programmer pemula macet di setup | Pekerjaan tidak mulai    | PM memastikan repository siap H+1 pagi; sediakan contoh pola komponen dan layar  |
+| Farras terlambat menyelesaikan UI kit | Eileen/Nouvella idle | Kontrak + skeleton di-merge H+1; P2/P3 mulai dengan tampilan sementara; fallback komponen RN biasa sampai H+3 |
+| Konflik edit file yang sama      | PR macet                 | Kepemilikan area §3; file bersama hanya PM                                      |
+| EAS antre panjang                | APK belum siap saat demo | Build H+3; demo utama memakai Expo Go                                            |
+| Demo lintas perangkat            | Data tidak sinkron       | Demo satu perangkat; jelaskan batasan tanpa database                             |
+| Scope melebar                    | Waktu habis              | Acuan demo §8 dan daftar di luar Sprint 1 §2.2                                 |
 
 ## 10. Checklist Progres per Area
 
@@ -263,7 +266,8 @@ Dilakukan pada satu perangkat, berganti peran.
 ### P1 — Farras
 
 - [ ] Root layout, Stack, tab, guard peran
-- [ ] Komponen UI bersama (5 komponen)
+- [ ] Kontrak + skeleton 5 komponen di-merge lebih awal
+- [ ] Styling final 5 komponen UI bersama
 - [ ] Login dummy + routing peran
 - [ ] Landing publik + sheet detail + aksi terkunci
 

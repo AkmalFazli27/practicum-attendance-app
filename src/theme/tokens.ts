@@ -1,6 +1,6 @@
 /**
  * Token desain TapIn — Sprint 1.
- * Sumber: docs/design.md §2.
+ * Sumber: docs/DESIGN.md §2.
  * Jangan menulis kode hex langsung di komponen; impor dari file ini.
  */
 
