@@ -28,18 +28,18 @@ Data masih lokal/dummy. Belum ada Firebase, autentikasi nyata, QR, atau notifika
 
 ### 2.1 Butir SRS yang dikerjakan
 
-| Butir SRS | Kebutuhan | Area utama |
-| --- | --- | --- |
-| FR-01 | Landing publik read-only + detail sesi | P1 |
-| FR-02 | Login dummy + routing peran | P1 |
-| FR-03 | Beranda asisten | P2 |
-| FR-04 | Detail sesi asisten + buka/tutup/buka lagi + daftar hadir | P2 |
-| FR-05 | Beranda praktikan + filter | P3 |
-| FR-06 | Detail sesi praktikan + presensi | P3 |
-| FR-07 | Pencegahan presensi ganda | P3 (antarmuka) + PM (aksi context) |
-| FR-08 | Rekap kehadiran asisten | P2 |
-| FR-09 | Riwayat kehadiran praktikan | P3 |
-| FR-10 | Form, modal, dan bottom sheet | P1 (komponen) + P2/P3 (pemakaian) |
+| Butir SRS | Kebutuhan                                                 | Area utama                         |
+| --------- | --------------------------------------------------------- | ---------------------------------- |
+| FR-01     | Landing publik read-only + detail sesi                    | P1                                 |
+| FR-02     | Login dummy + routing peran                               | P1                                 |
+| FR-03     | Beranda asisten                                           | P2                                 |
+| FR-04     | Detail sesi asisten + buka/tutup/buka lagi + daftar hadir | P2                                 |
+| FR-05     | Beranda praktikan + filter                                | P3                                 |
+| FR-06     | Detail sesi praktikan + presensi                          | P3                                 |
+| FR-07     | Pencegahan presensi ganda                                 | P3 (antarmuka) + PM (aksi context) |
+| FR-08     | Rekap kehadiran asisten                                   | P2                                 |
+| FR-09     | Riwayat kehadiran praktikan                               | P3                                 |
+| FR-10     | Form, modal, dan bottom sheet                             | P1 (komponen) + P2/P3 (pemakaian)  |
 
 ### 2.2 Di luar Sprint 1
 
@@ -56,12 +56,12 @@ Jangan menambah dependensi atau fitur di luar daftar ini tanpa persetujuan PM.
 
 ## 3. Pembagian Area & Kepemilikan File
 
-| Area | Kode | Pemilik | File utama |
-| --- | --- | --- | --- |
-| Fondasi, data, state, desain, rilis | PM | pemilik repository (kamu) | `app.json`, `eas.json`, `src/data/**`, `src/context/**`, `src/theme/**`, `README.md`, `docs/**` |
-| Shell, landing, login, komponen UI | P1 | **Farras** | `src/app/_layout.tsx`, `src/app/index.tsx`, `src/app/login.tsx`, `src/components/ui/**` |
-| Asisten | P2 | **Eileen** | `src/app/(asisten)/**`, `src/components/asisten/**` |
-| Praktikan | P3 | **Nouvella** | `src/app/(praktikan)/**`, `src/components/praktikan/**` |
+| Area                                | Kode | Pemilik                   | File utama                                                                                                    |
+| ----------------------------------- | ---- | ------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Fondasi, data, state, desain, rilis | PM   | pemilik repository (kamu) | `app.json`, `eas.json`, `src/data/**`, `src/context/**`, `src/theme/**`, `README.md`, `docs/**` |
+| Shell, landing, login, komponen UI  | P1   | **Farras**          | `src/app/_layout.tsx`, `src/app/index.tsx`, `src/app/login.tsx`, `src/components/ui/**`               |
+| Asisten                             | P2   | **Eileen**          | `src/app/(asisten)/**`, `src/components/asisten/**`                                                       |
+| Praktikan                           | P3   | **Nouvella**        | `src/app/(praktikan)/**`, `src/components/praktikan/**`                                                   |
 
 Aturan: selain pemilik, jangan mengedit file area lain. Butuh perubahan? Ajukan ke pemilik area atau PM.
 
@@ -185,18 +185,18 @@ Mulai lebih awal dengan data dari `useSession()`. Bila komponen UI belum siap, g
 
 Urutan ini menjaga agar pekerjaan tidak saling menunggu. Bukan jadwal per orang.
 
-| Urutan | Pekerjaan | Area | Prasyarat |
-| --- | --- | --- | --- |
-| 1 | Publikasi repository + undangan kolaborator | PM | — |
-| 2 | Token desain + font | PM | Repository siap |
-| 3 | Root layout, Stack, tab, guard peran | P1 | Token tersedia |
-| 4 | Komponen UI bersama | P1 | Root layout |
-| 5 | Login dan routing peran | P1 | Root layout + komponen UI |
-| 6 | Beranda asisten dan beranda praktikan | P2, P3 | Context + komponen UI + login |
-| 7 | Detail asisten dan detail praktikan | P2, P3 | Beranda masing-masing |
-| 8 | Rekap, daftar hadir, guard ganda, riwayat | P2, P3 | Detail masing-masing |
-| 9 | Landing final + sheet detail | P1 | Login + komponen UI |
-| 10 | Gladi demo, perbaikan, tag rilis | PM + semua | Seluruh hasil area |
+| Urutan | Pekerjaan                                   | Area       | Prasyarat                     |
+| ------ | ------------------------------------------- | ---------- | ----------------------------- |
+| 1      | Publikasi repository + undangan kolaborator | PM         | —                            |
+| 2      | Token desain + font                         | PM         | Repository siap               |
+| 3      | Root layout, Stack, tab, guard peran        | P1         | Token tersedia                |
+| 4      | Komponen UI bersama                         | P1         | Root layout                   |
+| 5      | Login dan routing peran                     | P1         | Root layout + komponen UI     |
+| 6      | Beranda asisten dan beranda praktikan       | P2, P3     | Context + komponen UI + login |
+| 7      | Detail asisten dan detail praktikan         | P2, P3     | Beranda masing-masing         |
+| 8      | Rekap, daftar hadir, guard ganda, riwayat   | P2, P3     | Detail masing-masing          |
+| 9      | Landing final + sheet detail                | P1         | Login + komponen UI           |
+| 10     | Gladi demo, perbaikan, tag rilis            | PM + semua | Seluruh hasil area            |
 
 Eileen dan Nouvella boleh mulai sebelum Farras selesai dengan memakai data context dan tampilan sementara. Jangan menunggu tanpa kabar; gunakan standup untuk menyepakati bentuk sementara.
 
@@ -213,13 +213,13 @@ Eileen dan Nouvella boleh mulai sebelum Farras selesai dengan memakai data conte
 
 ## 7. Jadwal
 
-| Hari | Tanggal | Fokus area |
-| --- | --- | --- |
-| H+0 | Rabu, 21 Okt | PM menyiapkan fondasi dan repository |
-| H+1 | Kamis, 22 Okt | PM publikasi + token/font; P1 navigasi + landing awal; P2 beranda; P3 beranda |
-| H+2 | Jumat, 23 Okt | P1 login + komponen UI; P2 detail + aksi sesi; P3 detail + presensi |
-| H+3 | Sabtu, 24 Okt | P1 landing final; P2 rekap + daftar hadir; P3 guard + riwayat; PM build EAS |
-| H+4 | Minggu, 25 Okt | Hentikan fitur baru; integrasi, demo, perbaikan kecil, tag rilis |
+| Hari | Tanggal        | Fokus area                                                                    |
+| ---- | -------------- | ----------------------------------------------------------------------------- |
+| H+0  | Rabu, 21 Okt   | PM menyiapkan fondasi dan repository                                          |
+| H+1  | Kamis, 22 Okt  | PM publikasi + token/font; P1 navigasi + landing awal; P2 beranda; P3 beranda |
+| H+2  | Jumat, 23 Okt  | P1 login + komponen UI; P2 detail + aksi sesi; P3 detail + presensi           |
+| H+3  | Sabtu, 24 Okt  | P1 landing final; P2 rekap + daftar hadir; P3 guard + riwayat; PM build EAS   |
+| H+4  | Minggu, 25 Okt | Hentikan fitur baru; integrasi, demo, perbaikan kecil, tag rilis              |
 
 Irama harian:
 
@@ -240,14 +240,14 @@ Dilakukan pada satu perangkat, berganti peran.
 
 ## 9. Risiko Sprint
 
-| Risiko | Dampak | Mitigasi |
-| --- | --- | --- |
-| Programmer pemula macet di setup | Pekerjaan tidak mulai | PM memastikan repository siap H+1 pagi; sediakan contoh pola komponen dan layar |
-| Menunggu komponen UI Farras | Eileen/Nouvella idle | Mulai dengan data context dan tampilan sementara; ganti setelah komponen UI siap |
-| Konflik edit file yang sama | PR macet | Kepemilikan area §3; file bersama hanya PM |
-| EAS antre panjang | APK belum siap saat demo | Build H+3; demo utama memakai Expo Go |
-| Demo lintas perangkat | Data tidak sinkron | Demo satu perangkat; jelaskan batasan tanpa database |
-| Scope melebar | Waktu habis | Acuan demo §8 dan daftar di luar Sprint 1 §2.2 |
+| Risiko                           | Dampak                   | Mitigasi                                                                         |
+| -------------------------------- | ------------------------ | -------------------------------------------------------------------------------- |
+| Programmer pemula macet di setup | Pekerjaan tidak mulai    | PM memastikan repository siap H+1 pagi; sediakan contoh pola komponen dan layar  |
+| Menunggu komponen UI Farras      | Eileen/Nouvella idle     | Mulai dengan data context dan tampilan sementara; ganti setelah komponen UI siap |
+| Konflik edit file yang sama      | PR macet                 | Kepemilikan area §3; file bersama hanya PM                                      |
+| EAS antre panjang                | APK belum siap saat demo | Build H+3; demo utama memakai Expo Go                                            |
+| Demo lintas perangkat            | Data tidak sinkron       | Demo satu perangkat; jelaskan batasan tanpa database                             |
+| Scope melebar                    | Waktu habis              | Acuan demo §8 dan daftar di luar Sprint 1 §2.2                                 |
 
 ## 10. Checklist Progres per Area
 
