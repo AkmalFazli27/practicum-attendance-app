@@ -102,9 +102,9 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 **Hasil yang harus ada:**
 
 1. Root layout, navigasi Stack, dan 3 tab per peran.
-2. Landing publik read-only dengan sheet detail.
-3. Login dummy dengan pilihan peran dan user.
-4. Komponen bersama: `StatusBadge`, `Tombol`, `SheetModal`, `EmptyState`, `FilterChip`.
+2. Komponen bersama: `StatusBadge`, `Tombol`, `SheetModal`, `EmptyState`, `FilterChip` — kontrak + skeleton dipublikasikan dan di-merge lebih awal (H+1), styling final menyusul.
+3. Landing publik read-only dengan sheet detail.
+4. Login dummy dengan pilihan peran dan user.
 
 **Kriteria terima:**
 
@@ -118,6 +118,7 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**. Cara mencapa
 - [ ] Login memilih peran dan user; `Masuk` nonaktif sampai pilihan lengkap.
 - [ ] Setelah login, pengguna diarahkan ke tab pertama sesuai peran; `Keluar` mengembalikan ke landing.
 - [ ] Lima komponen UI tersedia dan dipakai P2/P3, bukan diduplikasi.
+- [ ] Skeleton 5 komponen dengan props sesuai `docs/design.md` §5 di-merge lebih awal, sebelum layar final.
 - [ ] Semua komponen memakai token dan tidak menulis kode hex langsung.
 - [ ] `src/app/_layout.tsx` memanggil `useAppFonts()` dan aplikasi tetap dapat dibuka bila font gagal dimuat.
 - [ ] Semua form/sheet dapat ditutup tanpa menjalankan aksi.
@@ -185,31 +186,33 @@ Mulai lebih awal dengan data dari `useSession()`. Bila komponen UI belum siap, g
 
 Urutan ini menjaga agar pekerjaan tidak saling menunggu. Bukan jadwal per orang.
 
-| Urutan | Pekerjaan                                   | Area       | Prasyarat                     |
-| ------ | ------------------------------------------- | ---------- | ----------------------------- |
-| 1      | Publikasi repository + undangan kolaborator | PM         | —                            |
-| 2      | Token desain + font                         | PM         | Repository siap               |
-| 3      | Root layout, Stack, tab, guard peran        | P1         | Token tersedia                |
-| 4      | Komponen UI bersama                         | P1         | Root layout                   |
-| 5      | Login dan routing peran                     | P1         | Root layout + komponen UI     |
-| 6      | Beranda asisten dan beranda praktikan       | P2, P3     | Context + komponen UI + login |
-| 7      | Detail asisten dan detail praktikan         | P2, P3     | Beranda masing-masing         |
-| 8      | Rekap, daftar hadir, guard ganda, riwayat   | P2, P3     | Detail masing-masing          |
-| 9      | Landing final + sheet detail                | P1         | Login + komponen UI           |
-| 10     | Gladi demo, perbaikan, tag rilis            | PM + semua | Seluruh hasil area            |
+| Urutan | Pekerjaan | Area | Prasyarat |
+| --- | --- | --- | --- |
+| 1 | Publikasi repository + undangan kolaborator | PM | — |
+| 2 | Token desain + font | PM | Repository siap |
+| 3 | Root layout, Stack, tab, guard peran | P1 | Token tersedia |
+| 4 | Kontrak + skeleton komponen UI | P1 | Root layout |
+| 5 | Login dan routing peran | P1 | Root layout + skeleton komponen |
+| 6 | Beranda asisten dan beranda praktikan | P2, P3 | Context + skeleton komponen + login |
+| 7 | Finalisasi styling UI kit | P1 | Skeleton komponen; berjalan paralel |
+| 8 | Detail asisten dan detail praktikan | P2, P3 | Beranda masing-masing |
+| 9 | Rekap, daftar hadir, guard ganda, riwayat | P2, P3 | Detail masing-masing |
+| 10 | Landing final + sheet detail | P1 | Login + UI kit final |
+| 11 | Gladi demo, perbaikan, tag rilis | PM + semua | Seluruh hasil area |
 
-Eileen dan Nouvella boleh mulai sebelum Farras selesai dengan memakai data context dan tampilan sementara. Jangan menunggu tanpa kabar; gunakan standup untuk menyepakati bentuk sementara.
+Skeleton komponen (urutan 4) wajib di-merge lebih dahulu agar Eileen dan Nouvella dapat mengimpor komponen dengan props final. Styling final boleh menyusul; mereka mulai dengan data context dan tampilan sementara. Jangan menunggu tanpa kabar; gunakan standup untuk menyepakati bentuk sementara.
 
 ## 6. Aturan Kerja per Area
 
 1. **Kepemilikan file.** Setiap orang hanya mengubah file areanya. File bersama milik PM.
-2. **Satu PR = satu pekerjaan yang koheren.** PR besar yang mencampur beberapa area akan dikembalikan.
-3. **Judul PR** memakai konvensi commit (`feat:`, `fix:`, `chore:`, `docs:`). Deskripsi memuat area, FR terkait, cara menguji, dan screenshot/video.
-4. **PM yang me-review dan merge.** Programmer tidak merge sendiri. Merge memakai merge commit biasa, bukan squash.
-5. **Standup async setiap pagi** di grup: apa yang selesai, apa yang dikerjakan hari ini, apa yang menghambat.
-6. **Blocker lebih dari 2 jam** harus disampaikan ke grup, jangan dipendam.
-7. **Tidak ada fitur di luar SRS.** Kalau muncul ide baru, catat dan ajukan ke PM; jangan langsung dikerjakan.
-8. **Definition of Done setiap deliverable:** berjalan di Expo Go, tidak crash, sesuai FR dan `docs/design.md`, `npx tsc --noEmit` lolos, dan sudah di-merge ke `main`.
+2. **Tampilan sementara boleh, duplikasi tidak.** Bila komponen UI bersama belum final, P2/P3 boleh memakai tampilan sementara di area masing-masing, lalu menggantinya dengan UI kit sebelum PR di-merge. Dilarang mengedit `src/components/ui/**` atau mengubah props komponen tanpa kesepakatan pemiliknya dan PM.
+3. **Satu PR = satu pekerjaan yang koheren.** PR besar yang mencampur beberapa area akan dikembalikan.
+4. **Judul PR** memakai konvensi commit (`feat:`, `fix:`, `chore:`, `docs:`). Deskripsi memuat area, FR terkait, cara menguji, dan screenshot/video.
+5. **PM yang me-review dan merge.** Programmer tidak merge sendiri. Merge memakai merge commit biasa, bukan squash.
+6. **Standup async setiap pagi** di grup: apa yang selesai, apa yang dikerjakan hari ini, apa yang menghambat.
+7. **Blocker lebih dari 2 jam** harus disampaikan ke grup, jangan dipendam.
+8. **Tidak ada fitur di luar SRS.** Kalau muncul ide baru, catat dan ajukan ke PM; jangan langsung dikerjakan.
+9. **Definition of Done setiap deliverable:** berjalan di Expo Go, tidak crash, sesuai FR dan `docs/design.md`, `npx tsc --noEmit` lolos, dan sudah di-merge ke `main`.
 
 ## 7. Jadwal
 
@@ -243,7 +246,7 @@ Dilakukan pada satu perangkat, berganti peran.
 | Risiko                           | Dampak                   | Mitigasi                                                                         |
 | -------------------------------- | ------------------------ | -------------------------------------------------------------------------------- |
 | Programmer pemula macet di setup | Pekerjaan tidak mulai    | PM memastikan repository siap H+1 pagi; sediakan contoh pola komponen dan layar  |
-| Menunggu komponen UI Farras      | Eileen/Nouvella idle     | Mulai dengan data context dan tampilan sementara; ganti setelah komponen UI siap |
+| Farras terlambat menyelesaikan UI kit | Eileen/Nouvella idle | Kontrak + skeleton di-merge H+1; P2/P3 mulai dengan tampilan sementara; fallback komponen RN biasa sampai H+3 |
 | Konflik edit file yang sama      | PR macet                 | Kepemilikan area §3; file bersama hanya PM                                      |
 | EAS antre panjang                | APK belum siap saat demo | Build H+3; demo utama memakai Expo Go                                            |
 | Demo lintas perangkat            | Data tidak sinkron       | Demo satu perangkat; jelaskan batasan tanpa database                             |
@@ -263,7 +266,8 @@ Dilakukan pada satu perangkat, berganti peran.
 ### P1 — Farras
 
 - [ ] Root layout, Stack, tab, guard peran
-- [ ] Komponen UI bersama (5 komponen)
+- [ ] Kontrak + skeleton 5 komponen di-merge lebih awal
+- [ ] Styling final 5 komponen UI bersama
 - [ ] Login dummy + routing peran
 - [ ] Landing publik + sheet detail + aksi terkunci
 
