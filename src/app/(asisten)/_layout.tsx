@@ -4,16 +4,20 @@ import { router, Stack } from 'expo-router';
 import { useSession } from '@/context/SessionContext';
 import { colors } from '@/theme/tokens';
 
-// Guard peran: DESIGN.md §3.3
+
 export default function AsistenLayout() {
   const { currentUser } = useSession();
   const diizinkan = currentUser?.peran === 'asisten';
 
   useEffect(() => {
     if (!currentUser) {
-      router.replace('/login');
+      if (router.canDismiss()) {
+        router.dismissAll();
+      } else {
+        router.replace('/');
+      }
     } else if (currentUser.peran !== 'asisten') {
-      router.replace('/(praktikan)' as any);
+      router.replace('/(praktikan)/(tabs)' as any);
     }
   }, [currentUser]);
 
