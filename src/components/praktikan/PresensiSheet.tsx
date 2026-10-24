@@ -22,6 +22,8 @@ export function PresensiSheet({ sesi, onClose, onSuccess }: PresensiSheetProps) 
   const [memproses, setMemproses] = useState(false);
   const [galat, setGalat] = useState<{ judul: string; pesan: string } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guard sinkron: state `memproses` baru berubah setelah render, ref langsung.
+  const sedangProses = useRef(false);
 
   // Simpan sesi terakhir supaya isi sheet tidak kosong saat animasi menutup.
   const terakhir = useRef<Sesi | null>(null);
@@ -34,6 +36,7 @@ export function PresensiSheet({ sesi, onClose, onSuccess }: PresensiSheetProps) 
     if (visible) {
       setDinyatakan(false);
       setMemproses(false);
+      sedangProses.current = false;
     }
   }, [visible]);
 
@@ -42,12 +45,14 @@ export function PresensiSheet({ sesi, onClose, onSuccess }: PresensiSheetProps) 
   }, []);
 
   function konfirmasi() {
-    if (!sesi || !dinyatakan || memproses) return;
+    if (!sesi || !dinyatakan || sedangProses.current) return;
+    sedangProses.current = true;
     setMemproses(true);
 
     // Jeda singkat agar "Mencatat..." terlihat (data Sprint 1 sinkron).
     timer.current = setTimeout(() => {
       const hasil = markAttendance(sesi.id);
+      sedangProses.current = false;
       setMemproses(false);
       onClose();
 
@@ -107,18 +112,23 @@ export function PresensiSheet({ sesi, onClose, onSuccess }: PresensiSheetProps) 
               </View>
             </View>
 
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: dinyatakan, disabled: memproses }}
-              disabled={memproses}
-              onPress={() => setDinyatakan((v) => !v)}
-              style={styles.checkRow}
-            >
-              <View style={[styles.checkBox, dinyatakan && styles.checkBoxOn]}>
-                {dinyatakan && <Text style={styles.checkTick}>✓</Text>}
-              </View>
-              <Text style={styles.checkLabel}>Saya hadir pada sesi ini</Text>
-            </Pressable>
+            <View>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: dinyatakan, disabled: memproses }}
+                disabled={memproses}
+                onPress={() => setDinyatakan((v) => !v)}
+                style={styles.checkRow}
+              >
+                <View style={[styles.checkBox, dinyatakan && styles.checkBoxOn]}>
+                  {dinyatakan && <Text style={styles.checkTick}>✓</Text>}
+                </View>
+                <Text style={styles.checkLabel}>Saya hadir pada sesi ini</Text>
+              </Pressable>
+              {!dinyatakan && (
+                <Text style={styles.hint}>Centang pernyataan untuk melanjutkan.</Text>
+              )}
+            </View>
           </>
         )}
       </SheetModal>
@@ -168,6 +178,7 @@ const styles = StyleSheet.create({
   checkBoxOn: { backgroundColor: colors.graphite, borderColor: colors.graphite },
   checkTick: { color: colors.onGraphite, fontSize: 14, lineHeight: 16 },
   checkLabel: { ...type.body, color: colors.textPrimary, flex: 1 },
+  hint: { ...type.caption, color: colors.textMuted },
   errorRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.s3 },
   errorIcon: {
     width: 36,

@@ -1,4 +1,4 @@
-// src/app/(praktikan)/(tabs)/riwayat.tsx  (placeholder, diganti saat FR-09)
+// (placeholder, diganti saat FR-09)
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, type } from '@/theme/tokens';

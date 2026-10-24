@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { PresensiSheet } from '@/components/praktikan/PresensiSheet';
 import { EmptyState, FilterChip, StatusBadge, Tombol } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
@@ -20,6 +19,11 @@ const EMPTY_COPY: Record<Filter, { judul: string; pesan: string }> = {
   DIBUKA: { judul: 'Tidak ada sesi', pesan: 'Tidak ada sesi yang dibuka.' },
   HADIR: { judul: 'Tidak ada sesi', pesan: 'Kamu belum menghadiri sesi apa pun.' },
 };
+
+const LIME = '#C6F26A';
+const LIME_BORDER = '#BDEB5E';
+const LIME_DOT = '#A5D431';
+const INK = '#17191A';
 
 export default function JadwalScreen() {
   const router = useRouter();
