@@ -10,7 +10,7 @@ export default function PraktikanLayout() {
   }
 
   if (currentUser.peran !== 'praktikan') {
-    return <Redirect href="/(asisten)/(tabs)/sesi" />;
+    return <Redirect href="/sesi" />;
   }
 
   return (
