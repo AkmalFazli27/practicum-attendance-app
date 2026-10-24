@@ -11,7 +11,7 @@ export default function AsistenLayout() {
   }
 
   if (currentUser.peran !== 'asisten') {
-    return <Redirect href={'/(praktikan)/(tabs)/jadwal' as any} />;
+    return <Redirect href="/jadwal" />;
   }
 
   return (
