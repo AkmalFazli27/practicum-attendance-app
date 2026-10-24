@@ -20,11 +20,6 @@ const EMPTY_COPY: Record<Filter, { judul: string; pesan: string }> = {
   HADIR: { judul: 'Tidak ada sesi', pesan: 'Kamu belum menghadiri sesi apa pun.' },
 };
 
-const LIME = '#C6F26A';
-const LIME_BORDER = '#BDEB5E';
-const LIME_DOT = '#A5D431';
-const INK = '#17191A';
-
 export default function JadwalScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
