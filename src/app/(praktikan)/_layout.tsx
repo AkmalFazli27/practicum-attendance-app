@@ -1,12 +1,19 @@
-import { Redirect, Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { router, Stack } from 'expo-router';
 import { useSession } from '@/context/SessionContext';
 import { colors } from '@/theme/tokens';
 
 export default function PraktikanLayout() {
   const { currentUser } = useSession();
+  const diizinkan = currentUser?.peran === 'praktikan';
 
-  if (!currentUser) return <Redirect href="/" />;
-  if (currentUser.peran !== 'praktikan') return <Redirect href="/" />;
+  useEffect(() => {
+    if (!diizinkan) {
+      router.replace('/login');
+    }
+  }, [diizinkan]);
+
+  if (!diizinkan) return null;
   return (
     <Stack
       screenOptions={{
