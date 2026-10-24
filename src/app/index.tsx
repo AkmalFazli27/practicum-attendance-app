@@ -217,8 +217,8 @@ export default function LandingScreen() {
                 if (currentUser) {
                   router.push(
                     peran === 'praktikan'
-                      ? ('/(praktikan)/(tabs)' as any)
-                      : ('/(asisten)/(tabs)' as any),
+                      ? '/(praktikan)/(tabs)/jadwal'
+                      : '/(asisten)/(tabs)/sesi',
                   );
                 } else {
                   router.push('/login');

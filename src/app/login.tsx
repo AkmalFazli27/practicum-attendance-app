@@ -29,8 +29,8 @@ export default function LoginScreen() {
 
     router.replace(
       currentUser.peran === 'praktikan'
-        ? ('/(praktikan)/(tabs)' as any)
-        : ('/(asisten)/(tabs)' as any),
+        ? '/(praktikan)/(tabs)/jadwal'
+        : '/(asisten)/(tabs)/sesi',
     );
   }, [currentUser, router]);
 
