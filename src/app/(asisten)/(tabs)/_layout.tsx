@@ -36,7 +36,7 @@ export default function AsistenTabs() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="sesi"
         options={{
           title: 'Sesi',
           tabBarLabel: ({ focused }) => <TabLabel label="Sesi" focused={focused} />,

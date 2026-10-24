@@ -40,7 +40,7 @@ export default function PraktikanTabs() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="jadwal"
         options={{
           title: 'Jadwal',
           tabBarLabel: ({ focused }) => <TabLabel label="Jadwal" focused={focused} />,
