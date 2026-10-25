@@ -155,10 +155,10 @@ const styles = StyleSheet.create({
     gap: spacing.s3,
   },
   statRow: { flexDirection: 'row', gap: spacing.s2 },
-  stat: { flex: 1, gap: spacing.s1 },
-  statAngka: { ...type.h1, color: colors.onGraphite },
-  statLabel: { ...type.caption, color: colors.onGraphite, opacity: 0.7 },
-  ringkasanTotal: { ...type.caption, color: colors.onGraphite, opacity: 0.7 },
+  stat: { flex: 1, gap: spacing.s1, alignItems: 'center' },
+  statAngka: { ...type.h1, color: colors.onGraphite, textAlign: 'center' },
+  statLabel: { ...type.caption, color: colors.onGraphite, opacity: 0.7, textAlign: 'center' },
+  ringkasanTotal: { ...type.caption, color: colors.onGraphite, opacity: 0.7, textAlign: 'center' },
 
   list: { gap: spacing.s3 },
   card: {
