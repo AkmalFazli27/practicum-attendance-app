@@ -6,6 +6,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { Search } from 'lucide-react-native';
 
 import { colors, radius, spacing, type } from '@/theme/tokens';
 import { Tombol } from './Tombol';
@@ -58,7 +59,7 @@ export function EmptyState({
             icon
           ) : (
             <View style={styles.defaultIconTile}>
-              <View style={styles.defaultIconInner} />
+              <Search size={22} color={colors.textMuted} />
             </View>
           )}
         </View>
@@ -76,29 +77,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: spacing.s8,
     paddingHorizontal: spacing.s5,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.borderDashed,
+    borderRadius: radius.cardLg,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
   },
   contentWrapper: {
-    maxWidth: 280,
+    maxWidth: 270,
     alignItems: 'center',
-    gap: spacing.s2,
+    gap: spacing.s1 + 2,
   },
   iconContainer: {
     marginBottom: spacing.s2,
   },
   defaultIconTile: {
-    width: 48,
-    height: 48,
+    width: 50,
+    height: 50,
     borderRadius: radius.card,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  defaultIconInner: {
-    width: 20,
-    height: 14,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: colors.graphite,
   },
   judul: {
     ...type.bodyStrong,
@@ -106,10 +105,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   pesan: {
-    ...type.body,
-    color: colors.textSecondary,
+    ...type.caption,
+    color: colors.textMuted,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   aksiContainer: {
     marginTop: spacing.s3,

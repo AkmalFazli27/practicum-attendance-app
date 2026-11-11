@@ -1,34 +1,51 @@
 import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { type StatusSesi } from '@/data/dummy';
-import { colors, radius, spacing, type } from '@/theme/tokens';
+import { type StatusIzin, type StatusSesi } from '@/data/dummy';
+import { colors, fontFamily, radius, spacing } from '@/theme/tokens';
+
+export type BadgeStatusType = StatusSesi | StatusIzin;
 
 export interface StatusBadgeProps {
-  status: StatusSesi | 'TERJADWAL' | 'DIBUKA' | 'SELESAI';
+  status: BadgeStatusType;
   style?: StyleProp<ViewStyle>;
 }
 
-const BADGE_CONFIG = {
+const BADGE_CONFIG: Record<
+  BadgeStatusType,
+  { label: string; bg: string; fg: string }
+> = {
   TERJADWAL: {
-    label: 'TERJADWAL',
+    label: 'Terjadwal',
     bg: colors.sesiTerjadwalBg,
     fg: colors.sesiTerjadwalFg,
-    hasDot: false,
   },
   DIBUKA: {
-    label: 'DIBUKA',
+    label: 'Sedang dibuka',
     bg: colors.sesiDibukaBg,
     fg: colors.sesiDibukaFg,
-    hasDot: true,
   },
   SELESAI: {
-    label: 'SELESAI',
+    label: 'Selesai',
     bg: colors.sesiSelesaiBg,
     fg: colors.sesiSelesaiFg,
-    hasDot: false,
   },
-} as const;
+  MENUNGGU: {
+    label: 'Menunggu',
+    bg: colors.izinBg,
+    fg: colors.izinFg,
+  },
+  DITERIMA: {
+    label: 'Izin Diterima',
+    bg: colors.sesiDibukaBg,
+    fg: colors.sesiDibukaFg,
+  },
+  DITOLAK: {
+    label: 'Izin Ditolak',
+    bg: colors.errorBg,
+    fg: colors.errorFg,
+  },
+};
 
 export function StatusBadge({ status, style }: StatusBadgeProps) {
   const config = BADGE_CONFIG[status] ?? BADGE_CONFIG.TERJADWAL;
@@ -39,9 +56,7 @@ export function StatusBadge({ status, style }: StatusBadgeProps) {
       accessibilityRole="text"
       accessibilityLabel={`Status: ${config.label}`}
     >
-      {config.hasDot && (
-        <View style={[styles.dot, { backgroundColor: config.fg }]} />
-      )}
+      <View style={[styles.dot, { backgroundColor: config.fg }]} />
       <Text style={[styles.text, { color: config.fg }]}>{config.label}</Text>
     </View>
   );
@@ -53,9 +68,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radius.badge,
-    gap: spacing.s1,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    gap: spacing.s1 + 2,
   },
   dot: {
     width: 6,
@@ -63,8 +78,8 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   text: {
-    ...type.caption,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    fontSize: 11,
+    lineHeight: 14,
+    fontFamily: fontFamily.bold,
   },
 });

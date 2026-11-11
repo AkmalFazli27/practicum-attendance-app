@@ -12,12 +12,15 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { X } from 'lucide-react-native';
 
-import { colors, radius, spacing, type } from '@/theme/tokens';
+import { colors, radius, shadows, spacing, type } from '@/theme/tokens';
 
 export interface SheetModalProps {
   visible: boolean;
-  judul: string;
+  judul?: string;
+  kicker?: string;
+  hideHeader?: boolean;
   onClose: () => void;
   children: React.ReactNode;
   dismissible?: boolean;
@@ -27,7 +30,9 @@ export interface SheetModalProps {
 
 export function SheetModal({
   visible,
-  judul,
+  judul = '',
+  kicker,
+  hideHeader = false,
   onClose,
   children,
   dismissible = true,
@@ -68,7 +73,7 @@ export function SheetModal({
         <View
           style={[
             styles.sheetContainer,
-            { paddingBottom: Math.max(insets.bottom, spacing.s4) },
+            { paddingBottom: Math.max(insets.bottom, spacing.s5) },
             style,
           ]}
         >
@@ -78,38 +83,40 @@ export function SheetModal({
           </View>
 
           {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.judul} numberOfLines={1}>
-              {judul}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Tutup"
-              disabled={!dismissible}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              onPress={onClose}
-              style={({ pressed }) => [
-                styles.closeButton,
-                pressed && dismissible && styles.closeButtonPressed,
-                !dismissible && styles.closeButtonDisabled,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.closeIcon,
-                  !dismissible && styles.closeIconDisabled,
+          {!hideHeader && (
+            <View style={styles.header}>
+              <View style={styles.headerTextWrap}>
+                {kicker && <Text style={styles.kicker}>{kicker}</Text>}
+                <Text style={styles.judul} numberOfLines={2}>
+                  {judul}
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Tutup"
+                disabled={!dismissible}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                onPress={onClose}
+                style={({ pressed }) => [
+                  styles.closeButton,
+                  pressed && dismissible && styles.closeButtonPressed,
+                  !dismissible && styles.closeButtonDisabled,
                 ]}
               >
-                ✕
-              </Text>
-            </Pressable>
-          </View>
+                <X
+                  size={20}
+                  color={dismissible ? colors.textPrimary : colors.disabledText}
+                />
+              </Pressable>
+            </View>
+          )}
 
           {/* Body Content */}
           <ScrollView
             style={styles.body}
             contentContainerStyle={styles.bodyContent}
             bounces={false}
+            showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             {children}
@@ -129,80 +136,79 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(23, 26, 26, 0.5)',
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(12, 14, 13, 0.62)',
   },
   sheetContainer: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
-    maxHeight: '85%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+    maxHeight: '89%',
+    ...shadows.sheet,
   },
   grabberContainer: {
     alignItems: 'center',
-    paddingTop: spacing.s2,
-    paddingBottom: spacing.s1,
+    paddingTop: spacing.s3,
+    paddingBottom: spacing.s2,
   },
   grabber: {
-    width: 36,
+    width: 42,
     height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
+    borderRadius: radius.pill,
+    backgroundColor: colors.borderDashed,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.s5,
-    paddingVertical: spacing.s3,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceMuted,
+    paddingTop: spacing.s1,
+    paddingBottom: spacing.s3,
+    gap: spacing.s3,
+  },
+  headerTextWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  kicker: {
+    ...type.micro,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
   },
   judul: {
     ...type.h2,
     color: colors.textPrimary,
-    flex: 1,
-    marginRight: spacing.s2,
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.surface,
   },
   closeButtonPressed: {
-    opacity: 0.7,
+    backgroundColor: colors.surfaceMuted,
   },
   closeButtonDisabled: {
-    opacity: 0.4,
-  },
-  closeIcon: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  closeIconDisabled: {
-    color: colors.disabledText,
+    opacity: 0.45,
   },
   body: {
     paddingHorizontal: spacing.s5,
   },
   bodyContent: {
-    paddingVertical: spacing.s4,
+    paddingVertical: spacing.s2,
     gap: spacing.s3,
   },
   footer: {
     paddingHorizontal: spacing.s5,
     paddingTop: spacing.s3,
-    borderTopWidth: 1,
-    borderTopColor: colors.surfaceMuted,
   },
 });

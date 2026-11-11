@@ -7,7 +7,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, radius, spacing, type } from '@/theme/tokens';
+import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 
 export interface FilterChipProps {
   label: string;
@@ -47,9 +47,9 @@ export function FilterChip({ label, aktif, onPress, style }: FilterChipProps) {
 
 const styles = StyleSheet.create({
   chip: {
-    height: 38,
+    height: 36,
     paddingHorizontal: spacing.s4,
-    borderRadius: radius.badge,
+    borderRadius: radius.pill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -57,7 +57,8 @@ const styles = StyleSheet.create({
   },
   chipAktif: {
     backgroundColor: colors.graphite,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: colors.graphite,
   },
   chipInaktif: {
     backgroundColor: colors.surface,
@@ -74,10 +75,10 @@ const styles = StyleSheet.create({
   },
   textAktif: {
     color: colors.onGraphite,
-    fontWeight: '600',
+    fontFamily: fontFamily.semibold,
   },
   textInaktif: {
-    color: colors.textPrimary,
-    fontWeight: '500',
+    color: colors.textSecondary,
+    fontFamily: fontFamily.semibold,
   },
 });
