@@ -1,281 +1,163 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import {
-  FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-
-import { useSession } from '@/context/SessionContext';
-import { type Sesi, type StatusSesi } from '@/data/dummy';
-import { colors, radius, spacing, type } from '@/theme/tokens';
-import { formatTanggal } from '@/utils/format';
+import { StatusBar } from 'expo-status-bar';
 import {
-  EmptyState,
-  FilterChip,
-  SheetModal,
-  StatusBadge,
-  Tombol,
-} from '@/components/ui';
+  ArrowRight,
+  CheckCircle2,
+  ShieldCheck,
+  Sparkles,
+  Zap,
+} from 'lucide-react-native';
 
-type FilterType = 'SEMUA' | StatusSesi;
+import { Brand, Tombol } from '@/components/ui';
+import { useSession } from '@/context/SessionContext';
+import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
 
 export default function LandingScreen() {
   const router = useRouter();
-  const { sesi, currentUser, users, logout } = useSession();
+  const { currentUser } = useSession();
 
-  const [filterAktif, setFilterAktif] = useState<FilterType>('SEMUA');
-  const [sesiTerpilih, setSesiTerpilih] = useState<Sesi | null>(null);
+  const handleMasuk = () => {
+    if (currentUser) {
+      router.replace(
+        (currentUser.peran === 'asisten'
+          ? '/beranda-asisten'
+          : '/beranda-praktikan') as any,
+      );
+      return;
+    }
+    router.push('/login');
+  };
 
-  const daftarSesiTerfilter = useMemo(() => {
-    if (filterAktif === 'SEMUA') return sesi;
-    return sesi.filter((item) => item.status === filterAktif);
-  }, [sesi, filterAktif]);
-
-  const getAsistenNama = (asistenId: string) => {
-    const asisten = users.find((u) => u.id === asistenId);
-    return asisten ? asisten.nama : 'Asisten Lab';
+  const handleDaftar = () => {
+    router.push({ pathname: '/login', params: { mode: 'register' } });
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <FlatList
-        data={daftarSesiTerfilter}
-        keyExtractor={(item) => item.id}
+      <StatusBar style="light" />
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <View style={styles.headerContainer}>
-            {/* Top Bar Branding */}
-            <View style={styles.topBar}>
-              <View>
-                <Text style={styles.logoText}>
-                  Tap<Text style={styles.logoAccent}>In</Text>
-                </Text>
-                <Text style={styles.tagline}>Tap once. You're in.</Text>
-              </View>
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Halaman login"
-                onPress={() => {
-                  if (currentUser) {
-                    logout();
-                  }
-                  router.push('/login');
-                }}
-                style={({ pressed }) => [
-                  styles.loginNavBtn,
-                  pressed && styles.loginNavBtnPressed,
-                ]}
-              >
-                <Text style={styles.loginNavBtnText}>
-                  {currentUser ? 'Ganti Akun' : 'Masuk'}
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* Status Login Card (Hanya muncul jika sudah login) */}
-            {currentUser && (
-              <View style={styles.activeUserCard}>
-                <View style={styles.activeUserRow}>
-                  <View style={styles.userDot} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.activeUserTitle}>
-                      Aktif: {currentUser.nama}
-                    </Text>
-                    <Text style={styles.activeUserSub}>
-                      {currentUser.peran === 'praktikan'
-                        ? `Praktikan • ${currentUser.kelas ?? 'IF-2A'}`
-                        : 'Asisten Laboratorium'}
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={logout}
-                    style={styles.logoutBtn}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.logoutBtnText}>Keluar</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
-
-            {/* Section Header & Filters */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Jadwal Praktikum</Text>
-              <Text style={styles.sectionSubtitle}>
-                Daftar sesi praktikum aktif dan terjadwal minggu ini.
-              </Text>
-            </View>
-
-            <View style={styles.filterScroll}>
-              <FilterChip
-                label="Semua"
-                aktif={filterAktif === 'SEMUA'}
-                onPress={() => setFilterAktif('SEMUA')}
-              />
-              <FilterChip
-                label="Dibuka"
-                aktif={filterAktif === 'DIBUKA'}
-                onPress={() => setFilterAktif('DIBUKA')}
-              />
-              <FilterChip
-                label="Terjadwal"
-                aktif={filterAktif === 'TERJADWAL'}
-                onPress={() => setFilterAktif('TERJADWAL')}
-              />
-              <FilterChip
-                label="Selesai"
-                aktif={filterAktif === 'SELESAI'}
-                onPress={() => setFilterAktif('SELESAI')}
-              />
-            </View>
-          </View>
-        }
-        renderItem={({ item }) => (
+      >
+        {/* Top Header */}
+        <View style={styles.header}>
+          <Brand compact onDark />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Lihat detail praktikum ${item.namaPraktikum}`}
-            onPress={() => setSesiTerpilih(item)}
+            accessibilityLabel="Masuk ke akun"
+            onPress={handleMasuk}
             style={({ pressed }) => [
-              styles.sessionCard,
-              pressed && styles.sessionCardPressed,
+              styles.loginPill,
+              pressed && styles.loginPillPressed,
             ]}
           >
-            <View style={styles.sessionHeaderRow}>
-              <Text style={styles.sessionTitle}>{item.namaPraktikum}</Text>
-              <StatusBadge status={item.status} />
-            </View>
-
-            <View style={styles.sessionMetaGroup}>
-              <Text style={styles.sessionMetaText}>
-                {item.kelas} • {item.lab}
-              </Text>
-              <Text style={styles.sessionTimeText}>
-                {formatTanggal(item.tanggal)} • {item.jamMulai}–{item.jamSelesai}
-              </Text>
-            </View>
-
-            <View style={styles.sessionCardFooter}>
-              <Text style={styles.sessionAsisten}>
-                Asisten: {getAsistenNama(item.asistenId)}
-              </Text>
-              <Text style={styles.sessionActionText}>Lihat Detail ›</Text>
-            </View>
+            <Text style={styles.loginPillText}>
+              {currentUser ? 'Beranda' : 'Masuk'}
+            </Text>
+            <ArrowRight size={15} color={colors.onGraphite} />
           </Pressable>
-        )}
-        ListEmptyComponent={
-          <EmptyState
-            judul="Tidak Ada Sesi"
-            pesan="Tidak ditemukan jadwal praktikum untuk kategori filter yang dipilih."
-            aksi={{
-              label: 'Tampilkan Semua Sesi',
-              onPress: () => setFilterAktif('SEMUA'),
-            }}
-          />
-        }
-        ListFooterComponent={
-          <View style={styles.footerInfo}>
-            <Text style={styles.footerInfoText}>
-              TapIn Sprint 1 • Antarmuka & Alur Praktikum
+        </View>
+
+        {/* Hero Section (Bersih tanpa demo/jadwal sebelum login) */}
+        <View style={styles.hero}>
+          <View style={styles. decorativeRing} />
+
+          <View style={styles.eyebrow}>
+            <Sparkles size={14} color={colors.primary} />
+            <Text style={styles.eyebrowText}>
+              PRESENSI PRAKTIKUM, DISEDERHANAKAN
             </Text>
           </View>
-        }
-      />
 
-      {/* Footer CTA jika belum login (posisi tetap di bawah, tidak ikut scroll) */}
-      {!currentUser && (
-        <View style={styles.footerCta}>
-          <Text style={styles.footerCtaText}>
-            Login untuk presensi atau kelola sesi.
+          <View style={styles.titleBlock}>
+            <Text style={styles.heroTitle}>Tap once.</Text>
+            <Text style={[styles.heroTitle, styles.heroTitleAccent]}>
+              You're in.
+            </Text>
+          </View>
+
+          <Text style={styles.heroSubtitle}>
+            Pantau jadwal praktikum, catat kehadiran secara real-time, dan
+            kelola pengajuan izin berbantuan AI dalam satu aplikasi terpadu.
           </Text>
-          <Tombol
-            variant="primer"
-            onPress={() => router.push('/login')}
-          >
-            Masuk untuk lanjut
-          </Tombol>
-        </View>
-      )}
 
-      {/* Detail Sesi Bottom Sheet (FR-01, FR-10) */}
-      <SheetModal
-        visible={Boolean(sesiTerpilih)}
-        judul={sesiTerpilih?.namaPraktikum ?? 'Detail Sesi'}
-        onClose={() => setSesiTerpilih(null)}
-        footer={
-          <View style={styles.modalFooterActions}>
+          {/* Highlight Pillars */}
+          <View style={styles.pillarsContainer}>
+            <View style={styles.pillarItem}>
+              <View style={styles.pillarIcon}>
+                <Zap size={18} color={colors.graphite} />
+              </View>
+              <View style={styles.pillarCopy}>
+                <Text style={styles.pillarTitle}>Presensi Real-Time</Text>
+                <Text style={styles.pillarDesc}>
+                  Tersinkronisasi langsung antara praktikan dan asisten laboratorium.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.pillarItem}>
+              <View style={styles.pillarIcon}>
+                <Sparkles size={18} color={colors.graphite} />
+              </View>
+              <View style={styles.pillarCopy}>
+                <Text style={styles.pillarTitle}>Izin Berbantuan AI</Text>
+                <Text style={styles.pillarDesc}>
+                  Klasifikasi kategori alasan izin otomatis untuk membantu peninjauan asisten.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.pillarItem}>
+              <View style={styles.pillarIcon}>
+                <ShieldCheck size={18} color={colors.graphite} />
+              </View>
+              <View style={styles.pillarCopy}>
+                <Text style={styles.pillarTitle}>Akses Sesuai Peran</Text>
+                <Text style={styles.pillarDesc}>
+                  Ruang kerja khusus untuk Praktikan dan Asisten dengan keamanan akun.
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* CTA Actions */}
+          <View style={styles.ctaGroup}>
             <Tombol
               variant="primer"
-              onPress={() => {
-                const peran = currentUser?.peran;
-                setSesiTerpilih(null);
-                if (currentUser) {
-                  router.push(
-                    peran === 'praktikan'
-                      ? '/jadwal'
-                      : '/sesi',
-                  );
-                } else {
-                  router.push('/login');
-                }
-              }}
+              onPress={handleMasuk}
+              rightIcon={<ArrowRight size={18} color={colors.onPrimary} />}
             >
-              {currentUser ? 'Buka Menu Praktikum' : 'Masuk untuk Presensi'}
+              {currentUser ? 'Lanjut ke Beranda' : 'Mulai sekarang'}
             </Tombol>
+
+            {!currentUser && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Daftar akun baru"
+                onPress={handleDaftar}
+                style={({ pressed }) => [
+                  styles.secondaryDarkBtn,
+                  pressed && styles.loginPillPressed,
+                ]}
+              >
+                <CheckCircle2 size={17} color={colors.primary} />
+                <Text style={styles.secondaryDarkBtnText}>
+                  Belum punya akun? Daftar sekarang
+                </Text>
+              </Pressable>
+            )}
           </View>
-        }
-      >
-        {sesiTerpilih && (
-          <View style={styles.sheetDetailContent}>
-            <View style={styles.sheetBadgeRow}>
-              <StatusBadge status={sesiTerpilih.status} />
-              <Text style={styles.sheetKelasLab}>
-                {sesiTerpilih.kelas} • {sesiTerpilih.lab}
-              </Text>
-            </View>
-
-            <View style={styles.sheetMetaCard}>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Waktu</Text>
-                <Text style={styles.metaValue}>
-                  {formatTanggal(sesiTerpilih.tanggal)}
-                </Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Jam</Text>
-                <Text style={styles.metaValue}>
-                  {sesiTerpilih.jamMulai} – {sesiTerpilih.jamSelesai} WIB
-                </Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Pengampu</Text>
-                <Text style={styles.metaValue}>
-                  {getAsistenNama(sesiTerpilih.asistenId)}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.deskripsiContainer}>
-              <Text style={styles.deskripsiTitle}>Materi / Pembahasan</Text>
-              <Text style={styles.deskripsiText}>
-                {sesiTerpilih.deskripsi}
-              </Text>
-            </View>
-
-            <View style={styles.sheetNotice}>
-              <Text style={styles.sheetNoticeText}>
-                Presensi hanya dapat dilakukan oleh praktikan saat sesi berstatus
-                DIBUKA.
-              </Text>
-            </View>
-          </View>
-        )}
-      </SheetModal>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -283,247 +165,146 @@ export default function LandingScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollContent: {
-    padding: spacing.s5,
-    gap: spacing.s3,
-  },
-  headerContainer: {
-    marginBottom: spacing.s2,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.s2,
-    marginBottom: spacing.s3,
-  },
-  logoText: {
-    ...type.h1,
-    color: colors.textPrimary,
-  },
-  logoAccent: {
-    color: colors.primaryPressed,
-  },
-  tagline: {
-    ...type.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  loginNavBtn: {
-    paddingHorizontal: spacing.s4,
-    paddingVertical: spacing.s2,
-    borderRadius: radius.button,
     backgroundColor: colors.graphite,
   },
-  loginNavBtnPressed: {
+  scrollContent: {
+    flexGrow: 1,
+    backgroundColor: colors.graphite,
+  },
+  header: {
+    height: layout.headerHeight,
+    paddingHorizontal: layout.screenPadding,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  loginPill: {
+    minHeight: 40,
+    paddingHorizontal: spacing.s4,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s2,
+  },
+  loginPillPressed: {
     opacity: 0.8,
   },
-  loginNavBtnText: {
+  loginPillText: {
     ...type.bodyStrong,
-    fontSize: 13,
+    fontFamily: fontFamily.bold,
     color: colors.onGraphite,
   },
-
-  // Active User Card
-  activeUserCard: {
-    backgroundColor: colors.surface,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.s4,
-  },
-  activeUserRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s2,
-  },
-  userDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primaryPressed,
-  },
-  activeUserTitle: {
-    ...type.bodyStrong,
-    color: colors.textPrimary,
-  },
-  activeUserSub: {
-    ...type.caption,
-    color: colors.textSecondary,
-  },
-  logoutBtn: {
-    paddingHorizontal: spacing.s3,
-    paddingVertical: spacing.s1,
-    borderRadius: radius.badge,
-    backgroundColor: colors.surfaceMuted,
-  },
-  logoutBtnText: {
-    ...type.caption,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-
-  // Footer CTA
-  footerCta: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.s5,
-    paddingTop: spacing.s3,
-    paddingBottom: spacing.s4,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    gap: spacing.s2,
-  },
-  footerCtaText: {
-    ...type.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-
-  // Section & Filter
-  sectionHeader: {
-    marginBottom: spacing.s3,
-  },
-  sectionTitle: {
-    ...type.h2,
-    color: colors.textPrimary,
-  },
-  sectionSubtitle: {
-    ...type.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  filterScroll: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.s2,
-    marginBottom: spacing.s3,
-  },
-
-  // Session Card
-  sessionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    padding: spacing.s4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.s2,
-  },
-  sessionCardPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  sessionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.s2,
-  },
-  sessionTitle: {
-    ...type.bodyStrong,
-    fontSize: 16,
-    color: colors.textPrimary,
+  hero: {
     flex: 1,
+    paddingHorizontal: spacing.s6,
+    paddingTop: spacing.s6,
+    paddingBottom: spacing.s8,
+    justifyContent: 'space-between',
+    position: 'relative',
+    overflow: 'hidden',
   },
-  sessionMetaGroup: {
-    gap: 2,
+  decorativeRing: {
+    position: 'absolute',
+    right: -120,
+    top: 20,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    borderWidth: 1,
+    borderColor: 'rgba(196, 241, 91, 0.14)',
   },
-  sessionMetaText: {
-    ...type.caption,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  sessionTimeText: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-  sessionCardFooter: {
+  eyebrow: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.s1,
-    paddingTop: spacing.s2,
-    borderTopWidth: 1,
-    borderTopColor: colors.surfaceMuted,
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(196, 241, 91, 0.22)',
+    backgroundColor: 'rgba(196, 241, 91, 0.08)',
   },
-  sessionAsisten: {
-    ...type.caption,
-    color: colors.textSecondary,
+  eyebrowText: {
+    ...type.micro,
+    color: colors.primary,
+    letterSpacing: 0.5,
   },
-  sessionActionText: {
-    ...type.caption,
-    fontWeight: '700',
-    color: colors.textPrimary,
+  titleBlock: {
+    marginTop: spacing.s5,
   },
-
-  // Footer info
-  footerInfo: {
-    paddingVertical: spacing.s6,
-    alignItems: 'center',
+  heroTitle: {
+    ...type.display,
+    color: colors.onGraphite,
   },
-  footerInfoText: {
-    ...type.caption,
-    color: colors.textMuted,
+  heroTitleAccent: {
+    color: colors.primary,
   },
-
-  // Sheet Detail
-  sheetDetailContent: {
+  heroSubtitle: {
+    ...type.body,
+    color: colors.textOnDarkMuted,
+    marginTop: spacing.s4,
+    lineHeight: 22,
+    maxWidth: 340,
+  },
+  pillarsContainer: {
+    marginTop: spacing.s6,
     gap: spacing.s3,
   },
-  sheetBadgeRow: {
+  pillarItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sheetKelasLab: {
-    ...type.bodyStrong,
-    color: colors.textSecondary,
-  },
-  sheetMetaCard: {
-    backgroundColor: colors.surfaceMuted,
-    padding: spacing.s3,
+    gap: spacing.s3,
+    padding: spacing.s4,
     borderRadius: radius.card,
-    gap: spacing.s2,
+    backgroundColor: colors.graphiteSurface,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  pillarIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  metaLabel: {
+  pillarCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  pillarTitle: {
+    ...type.bodyStrong,
+    fontFamily: fontFamily.bold,
+    color: colors.onGraphite,
+  },
+  pillarDesc: {
     ...type.caption,
-    color: colors.textMuted,
+    color: colors.textOnDarkMuted,
+    lineHeight: 17,
   },
-  metaValue: {
-    ...type.caption,
-    fontWeight: '600',
-    color: colors.textPrimary,
+  ctaGroup: {
+    marginTop: spacing.s8,
+    gap: spacing.s3,
   },
-  deskripsiContainer: {
-    gap: spacing.s1,
-  },
-  deskripsiTitle: {
-    ...type.caption,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-  },
-  deskripsiText: {
-    ...type.body,
-    color: colors.textPrimary,
-    lineHeight: 22,
-  },
-  sheetNotice: {
-    backgroundColor: colors.primarySoft,
-    padding: spacing.s3,
+  secondaryDarkBtn: {
+    minHeight: 48,
     borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.s2,
+    paddingHorizontal: spacing.s4,
   },
-  sheetNoticeText: {
+  secondaryDarkBtnText: {
     ...type.caption,
-    color: colors.textPrimary,
-    lineHeight: 18,
-  },
-  modalFooterActions: {
-    paddingVertical: spacing.s2,
+    fontFamily: fontFamily.bold,
+    color: colors.onGraphite,
   },
 });
