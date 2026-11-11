@@ -4,14 +4,15 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  View,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
 
-import { colors, layout, radius, spacing, type } from '@/theme/tokens';
+import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
 
-export type TombolVariant = 'primer' | 'sekunder' | 'graphite' | 'ghost';
+export type TombolVariant = 'primer' | 'sekunder' | 'graphite' | 'ghost' | 'danger';
 
 export interface TombolProps {
   variant?: TombolVariant;
@@ -19,6 +20,8 @@ export interface TombolProps {
   disabled?: boolean;
   onPress?: () => void;
   children: React.ReactNode;
+  icon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
 }
@@ -29,6 +32,8 @@ export function Tombol({
   disabled = false,
   onPress,
   children,
+  icon,
+  rightIcon,
   style,
   textStyle,
 }: TombolProps) {
@@ -69,6 +74,12 @@ export function Tombol({
           text: styles.sekunderText,
           indicator: colors.textPrimary,
         };
+      case 'danger':
+        return {
+          container: pressed ? styles.dangerPressed : styles.danger,
+          text: styles.dangerText,
+          indicator: colors.errorFg,
+        };
       case 'ghost':
         return {
           container: pressed ? styles.ghostPressed : styles.ghost,
@@ -93,15 +104,17 @@ export function Tombol({
       {({ pressed }) => {
         const currentStyle = getVariantStyles(pressed);
         return (
-          <>
-            {loading && (
+          <View style={styles.contentRow}>
+            {loading ? (
               <ActivityIndicator
                 size="small"
                 color={currentStyle.indicator}
                 style={styles.spinner}
               />
+            ) : (
+              icon
             )}
-            {typeof children === 'string' ? (
+            {typeof children === 'string' || typeof children === 'number' ? (
               <Text
                 style={[
                   styles.baseText,
@@ -115,7 +128,8 @@ export function Tombol({
             ) : (
               children
             )}
-          </>
+            {!loading && rightIcon}
+          </View>
         );
       }}
     </Pressable>
@@ -124,32 +138,42 @@ export function Tombol({
 
 const styles = StyleSheet.create({
   baseButton: {
-    height: layout.buttonHeight,
-    minHeight: layout.touchTarget,
+    minHeight: layout.buttonHeight,
     borderRadius: radius.button,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.s5,
+    paddingVertical: spacing.s2,
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.s2,
   },
   baseText: {
     ...type.bodyStrong,
+    fontFamily: fontFamily.bold,
     textAlign: 'center',
   },
   spinner: {
-    marginRight: spacing.s1,
+    marginRight: 2,
   },
   textLoading: {
-    opacity: 0.8,
+    opacity: 0.85,
   },
 
   // Primer (Lime)
   primer: {
     backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: colors.primary,
   },
   primerPressed: {
     backgroundColor: colors.primaryPressed,
+    borderWidth: 1,
+    borderColor: colors.primaryPressed,
   },
   primerText: {
     color: colors.onPrimary,
@@ -158,9 +182,13 @@ const styles = StyleSheet.create({
   // Graphite (Dark)
   graphite: {
     backgroundColor: colors.graphite,
+    borderWidth: 1,
+    borderColor: colors.graphite,
   },
   graphitePressed: {
-    backgroundColor: '#2A2E2E',
+    backgroundColor: colors.graphiteSurface,
+    borderWidth: 1,
+    borderColor: colors.graphiteSurface,
   },
   graphiteText: {
     color: colors.onGraphite,
@@ -181,6 +209,21 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
 
+  // Danger (Soft Red)
+  danger: {
+    backgroundColor: colors.errorBg,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+  },
+  dangerPressed: {
+    backgroundColor: colors.dangerBorder,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+  },
+  dangerText: {
+    color: colors.errorFg,
+  },
+
   // Ghost (Transparent)
   ghost: {
     backgroundColor: 'transparent',
@@ -189,13 +232,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   ghostText: {
-    color: colors.textPrimary,
+    color: colors.textSecondary,
   },
 
   // Disabled states
   disabledContainer: {
     backgroundColor: colors.disabledBg,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   disabledText: {
     color: colors.disabledText,

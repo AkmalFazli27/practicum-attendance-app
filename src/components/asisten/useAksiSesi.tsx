@@ -1,49 +1,45 @@
 import React, { useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { DoorOpen, LockKeyhole, RotateCcw } from 'lucide-react-native';
 
-import { SheetModal, Tombol } from '@/components/ui';
+import { ConfirmSheet, useToast } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
-import { colors, spacing, type } from '@/theme/tokens';
+import { colors } from '@/theme/tokens';
+import { formatHariTanggalSingkat, titikJam } from '@/utils/format';
 
 export type AksiSesi = 'buka' | 'tutup' | 'bukaLagi';
 
 type Target = { sesiId: string; aksi: AksiSesi };
 
-// Copywriting baku: DESIGN.md §8.2
-const COPY: Record<AksiSesi, { judul: string; isi: string; ya: string }> = {
+const COPY: Record<
+  AksiSesi,
+  { judul: string; isi: string; ya: string; toast: string }
+> = {
   buka: {
-    judul: 'Buka sesi?',
-    isi: 'Sesi akan dibuka dan praktikan dapat melakukan presensi.',
-    ya: 'Ya, buka',
+    judul: 'Buka sesi ini?',
+    isi: 'Sesi akan aktif dan praktikan dapat mulai melakukan presensi.',
+    ya: 'Ya, lanjutkan',
+    toast: 'Sesi berhasil dibuka.',
   },
   tutup: {
-    judul: 'Tutup sesi?',
-    isi: 'Presensi baru tidak dapat masuk setelah sesi ditutup.',
-    ya: 'Ya, tutup',
+    judul: 'Tutup sesi ini?',
+    isi: 'Praktikan tidak dapat melakukan presensi setelah sesi ditutup.',
+    ya: 'Ya, tutup sesi',
+    toast: 'Sesi berhasil ditutup.',
   },
   bukaLagi: {
-    judul: 'Buka kembali sesi ini?',
-    isi: 'Praktikan dapat kembali melakukan presensi.',
-    ya: 'Ya, buka',
+    judul: 'Buka kembali sesi?',
+    isi: 'Sesi akan kembali dibuka dan praktikan dapat melakukan presensi.',
+    ya: 'Ya, buka lagi',
+    toast: 'Sesi berhasil dibuka kembali.',
   },
 };
 
-/**
- * Satu pintu untuk aksi buka / tutup / buka lagi (FR-04, FR-10).
- * Dipakai beranda dan detail agar konfirmasinya tidak diduplikasi.
- *
- * Pemakaian:
- *   const { mulai, sheet } = useAksiSesi();
- *   <Tombol onPress={() => mulai(s.id, 'tutup')}>Tutup</Tombol>
- *   ...
- *   {sheet}   // letakkan sekali di JSX layar
- */
 export function useAksiSesi(onTidakDitemukan?: () => void) {
   const { openSession, closeSession, reopenSession, getSesiById } = useSession();
+  const { showToast } = useToast();
   const [target, setTarget] = useState<Target | null>(null);
-  const [galat, setGalat] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Simpan target terakhir agar isi sheet tidak kosong saat animasi tutup.
   const terakhir = useRef<Target | null>(null);
   if (target) terakhir.current = target;
   const tampil = target ?? terakhir.current;
@@ -55,74 +51,68 @@ export function useAksiSesi(onTidakDitemukan?: () => void) {
   }
 
   function batal() {
-    setTarget(null); // menutup sheet tidak menjalankan aksi
+    if (loading) return;
+    setTarget(null);
   }
 
   function konfirmasi() {
-    if (!target) return;
+    if (!target || loading) return;
     const { sesiId, aksi } = target;
-    setTarget(null);
 
     if (!getSesiById(sesiId)) {
-      setGalat(true);
+      setTarget(null);
+      showToast('Sesi tidak ditemukan.');
+      onTidakDitemukan?.();
       return;
     }
-    if (aksi === 'buka') openSession(sesiId);
-    else if (aksi === 'tutup') closeSession(sesiId);
-    else reopenSession(sesiId);
+
+    setLoading(true);
+    setTimeout(() => {
+      if (aksi === 'buka') openSession(sesiId);
+      else if (aksi === 'tutup') closeSession(sesiId);
+      else reopenSession(sesiId);
+
+      setLoading(false);
+      setTarget(null);
+      showToast(COPY[aksi].toast);
+    }, 220);
   }
 
-  function tutupGalat() {
-    setGalat(false);
-    onTidakDitemukan?.();
-  }
+  const isTutup = tampil?.aksi === 'tutup';
 
   const sheet = (
-    <>
-      <SheetModal
-        visible={target !== null}
-        judul={copy.judul}
-        onClose={batal}
-        footer={
-          <View style={styles.footer}>
-            <Tombol variant="sekunder" onPress={batal} style={styles.footerTombol}>
-              Batal
-            </Tombol>
-            <Tombol variant="primer" onPress={konfirmasi} style={styles.footerTombol}>
-              {copy.ya}
-            </Tombol>
-          </View>
-        }
-      >
-        {sesiTampil && (
-          <Text style={styles.sesi}>
-            {sesiTampil.namaPraktikum} · {sesiTampil.kelas}
-          </Text>
-        )}
-        <Text style={styles.isi}>{copy.isi}</Text>
-      </SheetModal>
-
-      <SheetModal
-        visible={galat}
-        judul="Sesi tidak ditemukan"
-        onClose={tutupGalat}
-        footer={
-          <Tombol variant="sekunder" onPress={tutupGalat}>
-            Tutup
-          </Tombol>
-        }
-      >
-        <Text style={styles.isi}>Sesi ini sudah tidak tersedia.</Text>
-      </SheetModal>
-    </>
+    <ConfirmSheet
+      visible={target !== null}
+      title={copy.judul}
+      body={copy.isi}
+      danger={isTutup}
+      loading={loading}
+      confirmLabel={copy.ya}
+      icon={
+        isTutup ? (
+          <LockKeyhole size={27} color={colors.errorFg} />
+        ) : tampil?.aksi === 'bukaLagi' ? (
+          <RotateCcw size={27} color={colors.graphite} />
+        ) : (
+          <DoorOpen size={28} color={colors.graphite} />
+        )
+      }
+      summary={
+        sesiTampil
+          ? [
+              { label: 'Praktikum', value: sesiTampil.namaPraktikum },
+              { label: 'Kelas & Lab', value: `${sesiTampil.kelas} · ${sesiTampil.lab}` },
+              {
+                label: 'Jadwal',
+                value: `${formatHariTanggalSingkat(sesiTampil.tanggal)}, ${titikJam(sesiTampil.jamMulai)}`,
+              },
+            ]
+          : []
+      }
+      onConfirm={konfirmasi}
+      onClose={batal}
+    />
   );
 
   return { mulai, sheet };
 }
-
-const styles = StyleSheet.create({
-  sesi: { ...type.bodyStrong, color: colors.textPrimary },
-  isi: { ...type.body, color: colors.textSecondary },
-  footer: { flexDirection: 'row', gap: spacing.s3, paddingBottom: spacing.s2 },
-  footerTombol: { flex: 1 },
-});
