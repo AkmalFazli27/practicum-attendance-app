@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -13,19 +12,27 @@ import { useRouter } from 'expo-router';
 import { useSession } from '@/context/SessionContext';
 import { type Peran, type User } from '@/data/dummy';
 import { colors, radius, spacing, type } from '@/theme/tokens';
-import { SheetModal, Tombol } from '@/components/ui';
+import { Tombol } from '@/components/ui';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { users, currentUser, login, logout } = useSession();
+  const { users, currentUser, login } = useSession();
 
   const [peranTerpilih, setPeranTerpilih] = useState<Peran>('praktikan');
   const [userIdTerpilih, setUserIdTerpilih] = useState<string | null>(null);
   const [sedangMemproses, setSedangMemproses] = useState(false);
-  const [modalSukses, setModalSukses] = useState(false);
-  const [infoLogin, setInfoLogin] = useState<User | null>(null);
 
   const daftarUserSesuaiPeran = users.filter((u) => u.peran === peranTerpilih);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    router.replace(
+      currentUser.peran === 'praktikan'
+        ? '/jadwal'
+        : '/sesi',
+    );
+  }, [currentUser, router]);
 
   const handleGantiPeran = (peranBaru: Peran) => {
     setPeranTerpilih(peranBaru);
@@ -37,19 +44,6 @@ export default function LoginScreen() {
     setTimeout(() => {
       login(user.id);
       setSedangMemproses(false);
-      setInfoLogin(user);
-
-      // Coba navigasi ke route peran masing-masing jika sudah ada
-      try {
-        if (user.peran === 'praktikan') {
-          router.replace('/(praktikan)' as any);
-        } else {
-          router.replace('/(asisten)' as any);
-        }
-      } catch {
-        // Jika route belum di-merge oleh rekan tim (Eileen/Nouvella), tampilkan modal konfirmasi
-        setModalSukses(true);
-      }
     }, 200);
   };
 
@@ -58,14 +52,6 @@ export default function LoginScreen() {
     const user = users.find((u) => u.id === userIdTerpilih);
     if (user) {
       handleLoginUser(user);
-    }
-  };
-
-  // Shortcut login cepat untuk mode dummy sprint awal
-  const handleQuickLogin = (peran: Peran) => {
-    const defaultUser = users.find((u) => u.peran === peran);
-    if (defaultUser) {
-      handleLoginUser(defaultUser);
     }
   };
 
@@ -87,22 +73,6 @@ export default function LoginScreen() {
             <Text style={styles.navButtonIcon}>‹</Text>
             <Text style={styles.navButtonText}>Kembali</Text>
           </Pressable>
-
-          {currentUser && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Keluar dari akun saat ini"
-              onPress={() => {
-                logout();
-                Alert.alert('Keluar', 'Kamu telah keluar dari akun.');
-              }}
-              style={styles.badgeKeluar}
-            >
-              <Text style={styles.badgeKeluarText}>
-                Keluar ({currentUser.nama.split(' ')[0]})
-              </Text>
-            </Pressable>
-          )}
         </View>
 
         <FlatList
@@ -114,56 +84,8 @@ export default function LoginScreen() {
             <View style={styles.headerSection}>
               <Text style={styles.title}>Masuk ke Akun</Text>
               <Text style={styles.subtitle}>
-                Pilih peran dan akun kamu untuk melanjutkan simulasi presensi
-                praktikum (Sprint 1 - Data Dummy).
+                Pilih peran dan nama kamu untuk melanjutkan ke aplikasi praktikum.
               </Text>
-
-              {/* Quick Demo Login Box */}
-              <View style={styles.quickLoginCard}>
-                <View style={styles.quickLoginHeader}>
-                  <View style={styles.quickLoginDot} />
-                  <Text style={styles.quickLoginTitle}>
-                    Akses Cepat (Demo Praktikum)
-                  </Text>
-                </View>
-                <Text style={styles.quickLoginDesc}>
-                  Pilih salah satu tombol di bawah untuk langsung mencoba peran
-                  tanpa konfigurasi manual:
-                </Text>
-
-                <View style={styles.quickButtonRow}>
-                  <View style={styles.quickButtonCol}>
-                    <Tombol
-                      variant="primer"
-                      onPress={() => handleQuickLogin('praktikan')}
-                    >
-                      Masuk Praktikan
-                    </Tombol>
-                    <Text style={styles.quickRoleCaption}>
-                      Sebagai: Andi Pratama (IF-2A)
-                    </Text>
-                  </View>
-
-                  <View style={styles.quickButtonCol}>
-                    <Tombol
-                      variant="graphite"
-                      onPress={() => handleQuickLogin('asisten')}
-                    >
-                      Masuk Asisten
-                    </Tombol>
-                    <Text style={styles.quickRoleCaption}>
-                      Sebagai: Budi Santoso
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Divider / Manual Selection Label */}
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>ATAU PILIH DARI DAFTAR</Text>
-                <View style={styles.dividerLine} />
-              </View>
 
               {/* Role Segmented Tabs */}
               <View style={styles.segmentContainer}>
@@ -261,7 +183,7 @@ export default function LoginScreen() {
                 loading={sedangMemproses}
                 onPress={handleLoginSubmit}
               >
-                Masuk ke Akun Terpilih
+                Masuk
               </Tombol>
               <Text style={styles.footerNote}>
                 Sistem simulasi lokal. Data sesi & kehadiran tersimpan di state
@@ -270,34 +192,6 @@ export default function LoginScreen() {
             </View>
           }
         />
-
-        {/* Modal Konfirmasi Sukses jika route tujuan belum ada di repo */}
-        <SheetModal
-          visible={modalSukses}
-          judul="Login Berhasil"
-          onClose={() => setModalSukses(false)}
-          footer={
-            <Tombol variant="primer" onPress={() => router.replace('/')}>
-              Kembali ke Beranda Jadwal
-            </Tombol>
-          }
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalSuccessBadge}>
-              <Text style={styles.modalSuccessCheck}>✓</Text>
-            </View>
-            <Text style={styles.modalSuccessTitle}>
-              Selamat datang, {infoLogin?.nama}!
-            </Text>
-            <Text style={styles.modalSuccessDesc}>
-              Status login kamu telah tersimpan sebagai{' '}
-              <Text style={{ fontWeight: '700' }}>
-                {infoLogin?.peran === 'praktikan' ? 'Praktikan' : 'Asisten'}
-              </Text>
-              . Data profil dan hak akses sudah aktif di sistem SessionContext.
-            </Text>
-          </View>
-        </SheetModal>
       </View>
     </SafeAreaView>
   );
@@ -341,17 +235,6 @@ const styles = StyleSheet.create({
     ...type.bodyStrong,
     color: colors.textPrimary,
   },
-  badgeKeluar: {
-    paddingHorizontal: spacing.s3,
-    paddingVertical: spacing.s1,
-    borderRadius: radius.badge,
-    backgroundColor: colors.surfaceMuted,
-  },
-  badgeKeluarText: {
-    ...type.caption,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
   scrollContent: {
     padding: spacing.s5,
     gap: spacing.s3,
@@ -370,77 +253,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // Quick Demo Box
-  quickLoginCard: {
-    marginTop: spacing.s4,
-    padding: spacing.s4,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    gap: spacing.s2,
-  },
-  quickLoginHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s2,
-  },
-  quickLoginDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primaryPressed,
-  },
-  quickLoginTitle: {
-    ...type.bodyStrong,
-    color: colors.textPrimary,
-  },
-  quickLoginDesc: {
-    ...type.caption,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  quickButtonRow: {
-    flexDirection: 'row',
-    gap: spacing.s3,
-    marginTop: spacing.s2,
-  },
-  quickButtonCol: {
-    flex: 1,
-    gap: spacing.s1,
-  },
-  quickRoleCaption: {
-    fontSize: 11,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-
-  // Divider
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: spacing.s5,
-    gap: spacing.s3,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 0.5,
-  },
-
   // Role Segments
   segmentContainer: {
     flexDirection: 'row',
     backgroundColor: colors.surfaceMuted,
     padding: 4,
     borderRadius: radius.button,
-    marginBottom: spacing.s4,
+    marginVertical: spacing.s4,
     gap: 4,
   },
   segmentTab: {
@@ -452,11 +271,6 @@ const styles = StyleSheet.create({
   },
   segmentTabActive: {
     backgroundColor: colors.graphite,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   segmentText: {
     ...type.bodyStrong,
@@ -549,37 +363,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 18,
-  },
-
-  // Modal
-  modalContent: {
-    alignItems: 'center',
-    paddingVertical: spacing.s3,
-    gap: spacing.s2,
-  },
-  modalSuccessBadge: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: colors.sesiDibukaBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.s2,
-  },
-  modalSuccessCheck: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.sesiDibukaFg,
-  },
-  modalSuccessTitle: {
-    ...type.h2,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  modalSuccessDesc: {
-    ...type.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
   },
 });

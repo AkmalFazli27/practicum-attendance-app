@@ -25,7 +25,7 @@ type FilterType = 'SEMUA' | StatusSesi;
 
 export default function LandingScreen() {
   const router = useRouter();
-  const { sesi, currentUser, users, login, logout } = useSession();
+  const { sesi, currentUser, users, logout } = useSession();
 
   const [filterAktif, setFilterAktif] = useState<FilterType>('SEMUA');
   const [sesiTerpilih, setSesiTerpilih] = useState<Sesi | null>(null);
@@ -34,15 +34,6 @@ export default function LandingScreen() {
     if (filterAktif === 'SEMUA') return sesi;
     return sesi.filter((item) => item.status === filterAktif);
   }, [sesi, filterAktif]);
-
-  // Shortcut login cepat di landing page
-  const handleQuickLogin = (peran: 'praktikan' | 'asisten') => {
-    const user = users.find((u) => u.peran === peran);
-    if (user) {
-      login(user.id);
-      router.push('/login');
-    }
-  };
 
   const getAsistenNama = (asistenId: string) => {
     const asisten = users.find((u) => u.id === asistenId);
@@ -70,7 +61,12 @@ export default function LandingScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Halaman login"
-                onPress={() => router.push('/login')}
+                onPress={() => {
+                  if (currentUser) {
+                    logout();
+                  }
+                  router.push('/login');
+                }}
                 style={({ pressed }) => [
                   styles.loginNavBtn,
                   pressed && styles.loginNavBtnPressed,
@@ -82,8 +78,8 @@ export default function LandingScreen() {
               </Pressable>
             </View>
 
-            {/* Status Login Card / Demo Fast-Login Card */}
-            {currentUser ? (
+            {/* Status Login Card (Hanya muncul jika sudah login) */}
+            {currentUser && (
               <View style={styles.activeUserCard}>
                 <View style={styles.activeUserRow}>
                   <View style={styles.userDot} />
@@ -104,32 +100,6 @@ export default function LandingScreen() {
                   >
                     <Text style={styles.logoutBtnText}>Keluar</Text>
                   </Pressable>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.heroDemoCard}>
-                <Text style={styles.heroTitle}>Simulasi Presensi Praktikum</Text>
-                <Text style={styles.heroDesc}>
-                  Pilih peran langsung untuk mencoba alur presensi atau kelola sesi:
-                </Text>
-
-                <View style={styles.heroBtnRow}>
-                  <View style={{ flex: 1 }}>
-                    <Tombol
-                      variant="primer"
-                      onPress={() => handleQuickLogin('praktikan')}
-                    >
-                      Login Praktikan
-                    </Tombol>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Tombol
-                      variant="graphite"
-                      onPress={() => handleQuickLogin('asisten')}
-                    >
-                      Login Asisten
-                    </Tombol>
-                  </View>
                 </View>
               </View>
             )}
@@ -217,6 +187,21 @@ export default function LandingScreen() {
         }
       />
 
+      {/* Footer CTA jika belum login (posisi tetap di bawah, tidak ikut scroll) */}
+      {!currentUser && (
+        <View style={styles.footerCta}>
+          <Text style={styles.footerCtaText}>
+            Login untuk presensi atau kelola sesi.
+          </Text>
+          <Tombol
+            variant="primer"
+            onPress={() => router.push('/login')}
+          >
+            Masuk untuk lanjut
+          </Tombol>
+        </View>
+      )}
+
       {/* Detail Sesi Bottom Sheet (FR-01, FR-10) */}
       <SheetModal
         visible={Boolean(sesiTerpilih)}
@@ -227,11 +212,20 @@ export default function LandingScreen() {
             <Tombol
               variant="primer"
               onPress={() => {
+                const peran = currentUser?.peran;
                 setSesiTerpilih(null);
-                router.push('/login');
+                if (currentUser) {
+                  router.push(
+                    peran === 'praktikan'
+                      ? '/jadwal'
+                      : '/sesi',
+                  );
+                } else {
+                  router.push('/login');
+                }
               }}
             >
-              {currentUser ? 'Buka Pengaturan Akun' : 'Masuk untuk Presensi'}
+              {currentUser ? 'Buka Menu Praktikum' : 'Masuk untuk Presensi'}
             </Tombol>
           </View>
         }
@@ -310,7 +304,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   logoAccent: {
-    color: '#84CC16',
+    color: colors.primaryPressed,
   },
   tagline: {
     ...type.caption,
@@ -372,30 +366,20 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 
-  // Hero Demo Card
-  heroDemoCard: {
+  // Footer CTA
+  footerCta: {
     backgroundColor: colors.surface,
-    padding: spacing.s4,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.s4,
+    paddingHorizontal: spacing.s5,
+    paddingTop: spacing.s3,
+    paddingBottom: spacing.s4,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
     gap: spacing.s2,
   },
-  heroTitle: {
-    ...type.bodyStrong,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  heroDesc: {
+  footerCtaText: {
     ...type.caption,
     color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  heroBtnRow: {
-    flexDirection: 'row',
-    gap: spacing.s2,
-    marginTop: spacing.s2,
+    textAlign: 'center',
   },
 
   // Section & Filter
