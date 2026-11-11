@@ -59,9 +59,9 @@ Jangan menambah dependensi atau fitur di luar daftar ini tanpa persetujuan PM.
 | Area | Kode | Pemilik | File utama |
 | ---- | ---- | ------- | ---------- |
 | Refactor UI Pra-Sprint, Fondasi Firebase & AI, UI Kit, Security Rules, Integrasi, Rilis | PM | **Farras** | `app.json`, `eas.json`, `firestore.rules`, `.env.example`, `src/config/**`, `src/services/**`, `src/context/**`, `src/data/**`, `src/theme/**`, `src/components/ui/**`, `src/app/_layout.tsx`, `README.md`, `docs/**` |
-| Autentikasi (Login & Registrasi), Landing Publik, dan Profil Akun | P1 | **Akmal** | `src/app/index.tsx`, `src/app/login.tsx`, `src/app/register.tsx`, `src/components/auth/**`, `src/app/(asisten)/(tabs)/profil.tsx`, `src/app/(praktikan)/(tabs)/profil.tsx` |
-| Asisten (Beranda, CRUD Sesi, Detail Sesi, Pemeriksaan Izin AI, Rekap Real-Time) | P2 | **Eileen** | `src/app/(asisten)/(tabs)/beranda-asisten.tsx`, `src/app/(asisten)/(tabs)/sesi.tsx`, `src/app/(asisten)/(tabs)/rekap.tsx`, `src/app/(asisten)/sesi/[id].tsx`, `src/components/asisten/**` |
-| Praktikan (Beranda, Jadwal, Detail Sesi, Presensi, Pengajuan Izin + AI, Riwayat Real-Time) | P3 | **Nouvella** | `src/app/(praktikan)/(tabs)/beranda-praktikan.tsx`, `src/app/(praktikan)/(tabs)/jadwal.tsx`, `src/app/(praktikan)/(tabs)/riwayat.tsx`, `src/app/(praktikan)/sesi/[id].tsx`, `src/components/praktikan/**` |
+| Autentikasi (Login & Registrasi Firebase), Guard Landing, dan Profil Akun | P1 | **Akmal** | `src/app/index.tsx`, `src/app/login.tsx`, `src/app/(asisten)/(tabs)/profil.tsx`, `src/app/(praktikan)/(tabs)/profil.tsx` |
+| Asisten (Integrasi Firestore Beranda, CRUD Sesi, Pemeriksaan Izin AI, Rekap Real-Time) | P2 | **Eileen** | `src/app/(asisten)/(tabs)/beranda-asisten.tsx`, `src/app/(asisten)/(tabs)/sesi.tsx`, `src/app/(asisten)/(tabs)/rekap.tsx`, `src/app/(asisten)/sesi/[id].tsx`, `src/components/asisten/**` |
+| Praktikan (Integrasi Firestore Beranda, Jadwal, Presensi, Pengajuan Izin + AI, Riwayat Real-Time) | P3 | **Nouvella** | `src/app/(praktikan)/(tabs)/beranda-praktikan.tsx`, `src/app/(praktikan)/(tabs)/jadwal.tsx`, `src/app/(praktikan)/(tabs)/riwayat.tsx`, `src/app/(praktikan)/sesi/[id].tsx`, `src/components/praktikan/**` |
 
 **Aturan kepemilikan:**
 1. **Tahap Pra-Sprint (H+0):** PM (Farras) menyentuh seluruh folder `src/` untuk menyelesaikan *Refactor UI Parity* sesuai prototipe dan melakukan merge ke `main` terlebih dahulu.
@@ -77,11 +77,15 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**.
 
 **Hasil yang harus ada:**
 
-1. **Refactor UI Parity (Selesai di H+0 sebelum sprint fitur dimulai):**
+1. **Refactor UI Parity & Antarmuka Fitur Sprint 2 (Selesai di H+0 sebelum sprint fitur dimulai):**
    - Token desain baru (`radius.cardLg`, `radius.sheet`, `shadows`, tipografi `Inter_800ExtraBold`) dan ikon `lucide-react-native`.
    - Komponen UI Kit baru & restyle: `Brand`, `AppHeader`, `SessionCard`, `ToastProvider`/`useToast`, `ConfirmSheet`, `SectionHeading`, `MetricCard`, `ScoreRing`, serta restyle `Tombol` (+ varian `danger`), `StatusBadge`, `SheetModal`, `EmptyState`, dan `FilterChip`.
    - Struktur navigasi 4 tab per peran (`Beranda | Sesi | Rekap | Profil` untuk Asisten; `Beranda | Jadwal | Riwayat | Profil` untuk Praktikan) dengan rute `/beranda-asisten` dan `/beranda-praktikan` yang bebas bentrok.
-   - Penyelarasan visual seluruh layar eksisting dengan prototipe Figma Make.
+   - Penyelarasan visual seluruh layar eksisting dengan prototipe Figma Make serta penyediaan antarmuka siap pakai untuk Sprint 2:
+     - **Landing (`src/app/index.tsx`):** Hero bersih (`"Tap once. You're in."`, 3 pilar fitur, CTA Masuk/Daftar) tanpa kartu demo atau daftar jadwal pra-login.
+     - **Auth (`src/app/login.tsx`):** Tab switch **Masuk** (Email & Password) dan **Daftar Akun** (Pilih Peran Praktikan/Asisten, Nama Lengkap, NIM, Kelas, Email, Password) tanpa daftar akun dummy.
+     - **CRUD Sesi Asisten (`src/components/asisten/SesiFormSheet.tsx`):** Sheet modal tambah & ubah sesi praktikum beserta aksi hapus dengan `ConfirmSheet`.
+     - **Pengajuan & Pemeriksaan Izin AI (`src/components/praktikan/IzinSheet.tsx` & `src/app/(asisten)/sesi/[id].tsx`):** Sheet form izin praktikan dan panel pemeriksaan izin asisten dengan badge hasil klasifikasi AI serta tombol Terima/Tolak.
 2. **Fondasi Firebase & State Real-Time (`src/config/firebase.ts` & `src/context/SessionContext.tsx`):**
    - Konfigurasi Firebase Authentication dan Cloud Firestore.
    - Penyediaan state & aksi terpusat di `useSession()` untuk autentikasi (`login`, `register`, `logout`), CRUD sesi (`createSession`, `updateSession`, `deleteSession`, `openSession`, `closeSession`, `reopenSession`), presensi (`markAttendance`), dan perizinan (`submitIzin`, `reviewIzin`) dengan *real-time listener* (`onSnapshot`).
@@ -106,31 +110,29 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**.
 
 ---
 
-### 4.2 P1 — Akmal — Autentikasi Firebase, Registrasi, Landing, dan Profil
+### 4.2 P1 — Akmal — Autentikasi Firebase, Registrasi, Guard Landing, dan Profil
 
 **Hasil yang harus ada:**
 
-1. **Halaman Login Firebase (`src/app/login.tsx`):**
-   - Form login menggunakan email dan password melalui Firebase Authentication (menggantikan pemilihan user dummy).
-   - Tetap mempertahankan tampilan header/orbit gelap sesuai prototipe dan mengarahkan pengguna secara otomatis ke `/beranda-praktikan` atau `/beranda-asisten` sesuai peran akun di Firestore.
-2. **Halaman / Alur Registrasi Akun Baru (`src/app/register.tsx` atau sheet/mode registrasi):**
-   - Pilihan peran (`Praktikan` / `Asisten`), input Nama Lengkap, Email, Password, NIM, dan Kelas (wajib bagi praktikan).
-   - Membuat akun di Firebase Authentication sekaligus menyimpan dokumen profil pengguna di koleksi `users/{uid}` Cloud Firestore.
-3. **Halaman Landing Publik Real-Time (`src/app/index.tsx`):**
-   - Menampilkan jadwal praktikum terdekat secara *real-time* dari Firestore (mode *read-only* untuk pengunjung), dilengkapi indikator *loading* saat data dimuat dan *empty state* bila belum ada jadwal.
+1. **Integrasi Login Firebase (`src/app/login.tsx` — tab Masuk):**
+   - Menghubungkan form login Email & Password (UI sudah disediakan PM) ke `signInWithEmailAndPassword` Firebase Authentication.
+   - Mengambil profil pengguna dari koleksi `users/{uid}` di Cloud Firestore dan mengarahkan pengguna secara otomatis ke `/beranda-praktikan` atau `/beranda-asisten` sesuai perannya.
+2. **Integrasi Registrasi Akun Baru (`src/app/login.tsx` — tab Daftar Akun):**
+   - Menghubungkan form registrasi (`Praktikan` / `Asisten`, Nama Lengkap, Email, Password, NIM, dan Kelas) ke `createUserWithEmailAndPassword` Firebase Authentication sekaligus menyimpan dokumen profil pengguna di koleksi `users/{uid}` Cloud Firestore.
+3. **Persistensi Sesi & Guard Landing (`src/app/index.tsx`):**
+   - Memastikan halaman Landing Hero bersih (`"Tap once. You're in."`) mendeteksi status sesi aktif (`onAuthStateChanged`): menampilkan indikator *loading* saat status autentikasi diperiksa dan otomatis mengarahkan pengguna yang sudah login ke beranda perannya tanpa perlu login ulang.
 4. **Halaman Profil & Logout (`profil.tsx` Asisten & Praktikan):**
    - Menampilkan identitas asli pengguna yang sedang login dari Firebase/Firestore (nama, email, NIM, kelas, peran, serta total presensi untuk praktikan).
-   - Tombol `Keluar dari akun` menjalankan `logout()` Firebase Auth dan mengembalikan pengguna ke Landing (`/`).
+   - Tombol `Keluar dari akun` menjalankan `signOut` Firebase Auth dan mengembalikan pengguna ke Landing (`/`).
 
 **Kriteria terima:**
 
-- [ ] Pengguna baru dapat melakukan registrasi sebagai Praktikan maupun Asisten, dan datanya langsung tercatat di Firebase Auth serta koleksi `users` Firestore.
+- [ ] Pengguna baru dapat melakukan registrasi sebagai Praktikan maupun Asisten pada `src/app/login.tsx`, dan datanya langsung tercatat di Firebase Auth serta koleksi `users` Firestore.
 - [ ] Pengguna terdaftar dapat login dan langsung diarahkan ke `/beranda-praktikan` atau `/beranda-asisten` sesuai perannya.
-- [ ] Sesi login bertahan saat aplikasi ditutup dan dibuka kembali; pengguna yang belum login tidak dapat mengakses rute `(asisten)` atau `(praktikan)`.
+- [ ] Sesi login bertahan saat aplikasi ditutup dan dibuka kembali; Landing (`src/app/index.tsx`) langsung mengarahkan pengguna yang masih login ke beranda perannya, dan pengguna yang belum login tidak dapat mengakses rute `(asisten)` atau `(praktikan)`.
 - [ ] Validasi input berjalan sebelum request dikirim (email kosong/tidak valid, password < 6 karakter, nama/NIM/kelas kosong).
 - [ ] Kegagalan autentikasi (email sudah dipakai, password salah, akun tidak ditemukan, gangguan jaringan) ditampilkan dengan pesan Bahasa Indonesia yang jelas (via `Toast` atau pesan form) tanpa menyebabkan crash.
 - [ ] Tombol submit menampilkan status `loading` dan nonaktif selama proses login/registrasi berlangsung.
-- [ ] Landing menampilkan data sesi dari Firestore secara *real-time* dan mengarahkan pengunjung ke halaman login saat menekan tombol aksi pada detail sesi.
 
 **Butir SRS terkait:** FR-01, FR-11, FR-14, FR-18.
 
@@ -256,7 +258,7 @@ Irama harian:
 Demo dapat dilakukan pada dua perangkat secara bersamaan (atau satu perangkat dengan berganti akun) untuk membuktikan sinkronisasi *real-time* dan persistensi Cloud Firestore:
 
 ### Skenario 1 — Alur Presensi & Pengelolaan Sesi Real-Time
-1. Buka aplikasi tanpa login: Landing menampilkan jadwal sesi langsung dari Cloud Firestore secara *read-only*.
+1. Buka aplikasi: Landing menampilkan Hero **TapIn** (`"Tap once. You're in."`) dan mengarahkan pengguna ke halaman Login/Registrasi.
 2. **Asisten** registrasi/login → membuat atau memilih sesi praktikum berstatus `TERJADWAL` → menekan **Buka Sesi**. Status sesi di Firestore berubah menjadi `DIBUKA`.
 3. **Praktikan** login → melihat sesi tersebut langsung berstatus `DIBUKA` secara *real-time* di Beranda/Jadwal → melakukan **Presensi** melalui sheet konfirmasi.
 4. Praktikan mencoba melakukan presensi kedua pada sesi yang sama → sistem menolak dan menampilkan waktu presensi pertama.
@@ -295,9 +297,9 @@ Demo dapat dilakukan pada dua perangkat secara bersamaan (atau satu perangkat de
 - [ ] Review & merge PR harian, build APK EAS, gladi demo, dan tag `v0.2-sprint2`
 
 ### P1 — Akmal
-- [ ] Halaman Login dengan Firebase Authentication + validasi & pesan error
-- [ ] Halaman / alur Registrasi akun baru (pilih peran, simpan profil ke `users/{uid}` Firestore)
-- [ ] Halaman Landing publik dengan data sesi *real-time* dari Firestore + *loading/empty state*
+- [ ] Integrasi Login dengan Firebase Authentication + validasi & pesan error
+- [ ] Integrasi Registrasi akun baru pada `src/app/login.tsx` (pilih peran, simpan profil ke `users/{uid}` Firestore)
+- [ ] Persistensi sesi (`onAuthStateChanged`) & auto-redirect berdasarkan peran pada Landing (`src/app/index.tsx`)
 - [ ] Halaman Profil (data user nyata dari Firestore) + aksi Logout Firebase Auth
 
 ### P2 — Eileen
