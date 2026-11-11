@@ -1,139 +1,190 @@
-// src/app/(praktikan)/(tabs)/profil.tsx
-import { StyleSheet, Text, View } from 'react-native';
-import { ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { CheckCircle2, LogOut, UserRound } from 'lucide-react-native';
+
 import { Tombol } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
-import { colors, radius, spacing, type } from '@/theme/tokens';
-
-function inisial(nama: string): string {
-  return nama
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((kata) => kata[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
-const LABEL_PERAN: Record<string, string> = {
-  praktikan: 'Praktikan',
-  asisten: 'Asisten',
-};
+import {
+  colors,
+  fontFamily,
+  layout,
+  radius,
+  shadows,
+  spacing,
+  type,
+} from '@/theme/tokens';
+import { inisialNama } from '@/utils/format';
 
 export default function ProfilScreen() {
-  const insets = useSafeAreaInsets();
-  const { currentUser, logout } = useSession();
+  const { currentUser, getKehadiranPraktikan, logout } = useSession();
 
-  if (!currentUser) return null; // guard di _layout yang me-redirect
+  if (!currentUser) return null;
 
-  function keluar() {
-    logout();
-  }
+  const emailTampil =
+    currentUser.email ??
+    `${currentUser.nama.toLowerCase().replace(/\s+/g, '.')}@tapin.ac.id`;
+  const totalPresensi = getKehadiranPraktikan(currentUser.id).length;
 
   return (
     <View style={styles.root}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.s4 }]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.h1}>Profil</Text>
-
-        {/* Kartu identitas */}
-        <View style={styles.kartuIdentitas}>
+        <View style={styles.hero}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{inisial(currentUser.nama)}</Text>
-          </View>
-          <View style={styles.identitasTeks}>
-            <Text style={styles.nama}>{currentUser.nama}</Text>
-            <Text style={styles.subNama}>
-              {LABEL_PERAN[currentUser.peran]}
-              {currentUser.nim ? ` · ${currentUser.nim}` : ''}
+            <Text style={styles.avatarText}>
+              {inisialNama(currentUser.nama)}
             </Text>
           </View>
-        </View>
-
-        {/* Kartu detail */}
-        <View style={styles.kartuDetail}>
-          <View style={styles.baris}>
-            <Text style={styles.label}>Peran</Text>
-            <Text style={styles.nilai}>{LABEL_PERAN[currentUser.peran]}</Text>
-          </View>
-          <View style={styles.pemisah} />
-          <View style={styles.baris}>
-            <Text style={styles.label}>NIM</Text>
-            <Text style={styles.nilai}>{currentUser.nim ?? '—'}</Text>
-          </View>
-          <View style={styles.pemisah} />
-          <View style={styles.baris}>
-            <Text style={styles.label}>Kelas</Text>
-            <Text style={styles.nilai}>{currentUser.kelas ?? '—'}</Text>
+          <Text style={styles.name}>{currentUser.nama}</Text>
+          <Text style={styles.meta}>
+            {currentUser.nim ?? '-'}
+            {currentUser.kelas ? ` · Kelas ${currentUser.kelas}` : ''}
+          </Text>
+          <View style={styles.roleBadge}>
+            <UserRound size={15} color={colors.sesiDibukaFg} />
+            <Text style={styles.roleBadgeText}>{currentUser.peran}</Text>
           </View>
         </View>
 
-        <Tombol variant="sekunder" onPress={keluar}>
-          Keluar
+        <View style={styles.profileCard}>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Email</Text>
+            <Text style={styles.rowValue} numberOfLines={1}>
+              {emailTampil}
+            </Text>
+          </View>
+          <View style={[styles.row, styles.rowBorder]}>
+            <Text style={styles.rowLabel}>Status akun</Text>
+            <View style={styles.verifiedWrap}>
+              <CheckCircle2 size={16} color={colors.sesiDibukaFg} />
+              <Text style={styles.verifiedText}>Terverifikasi</Text>
+            </View>
+          </View>
+          <View style={[styles.row, styles.rowBorder]}>
+            <Text style={styles.rowLabel}>Total presensi</Text>
+            <Text style={styles.rowValue}>{totalPresensi} sesi</Text>
+          </View>
+        </View>
+
+        <Tombol
+          variant="danger"
+          icon={<LogOut size={18} color={colors.errorFg} />}
+          onPress={logout}
+        >
+          Keluar dari akun
         </Tombol>
 
-        <Text style={styles.versi}>Sprint 1 · data lokal</Text>
+        <Text style={styles.version}>
+          TapIn v1.0 · Tap once. You're in.
+        </Text>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  content: {
-    paddingHorizontal: spacing.s5,
-    paddingBottom: spacing.s8,
-    gap: spacing.s4,
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  h1: { ...type.h1, color: colors.textPrimary, marginBottom: spacing.s2 },
-
-  kartuIdentitas: {
-    flexDirection: 'row',
+  content: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.s5,
+    paddingBottom: layout.tabContentBottomPadding,
+  },
+  hero: {
     alignItems: 'center',
-    gap: spacing.s3,
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.s4,
+    paddingVertical: spacing.s5,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primarySoft,
+    width: 84,
+    height: 84,
+    borderRadius: 27,
+    borderWidth: 6,
+    borderColor: colors.surface,
+    backgroundColor: colors.graphite,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: spacing.s4,
+    ...shadows.card,
   },
-  avatarText: { ...type.bodyStrong, color: colors.graphite },
-  identitasTeks: { flex: 1, gap: 2 },
-  nama: { ...type.bodyStrong, color: colors.textPrimary },
-  subNama: { ...type.caption, color: colors.textSecondary },
-
-  kartuDetail: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
+  avatarText: {
+    fontSize: 22,
+    lineHeight: 26,
+    fontFamily: fontFamily.extrabold,
+    color: colors.primary,
+  },
+  name: {
+    ...type.h1,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  meta: {
+    ...type.caption,
+    color: colors.textSecondary,
+    marginTop: 6,
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.s3,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+  },
+  roleBadgeText: {
+    ...type.micro,
+    color: colors.sesiDibukaFg,
+    textTransform: 'capitalize',
+  },
+  profileCard: {
+    marginBottom: spacing.s4,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.s4,
   },
-  baris: {
+  row: {
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.s3,
-    gap: spacing.s2,
+    gap: spacing.s3,
   },
-  pemisah: { height: 1, backgroundColor: colors.surfaceMuted },
-  label: { ...type.body, color: colors.textSecondary },
-  nilai: { ...type.bodyStrong, color: colors.textPrimary },
-
-  versi: {
+  rowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  rowLabel: {
     ...type.caption,
     color: colors.textMuted,
+  },
+  rowValue: {
+    ...type.caption,
+    fontFamily: fontFamily.bold,
+    color: colors.textPrimary,
+    maxWidth: '65%',
+  },
+  verifiedWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  verifiedText: {
+    ...type.caption,
+    fontFamily: fontFamily.bold,
+    color: colors.sesiDibukaFg,
+  },
+  version: {
+    ...type.micro,
+    fontFamily: fontFamily.regular,
+    color: colors.textMuted,
     textAlign: 'center',
-    marginTop: spacing.s2,
+    marginTop: spacing.s5,
   },
 });

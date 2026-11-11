@@ -1,4 +1,5 @@
 import { Redirect, Stack } from 'expo-router';
+
 import { useSession } from '@/context/SessionContext';
 import { colors } from '@/theme/tokens';
 
@@ -10,7 +11,7 @@ export default function PraktikanLayout() {
   }
 
   if (currentUser.peran !== 'praktikan') {
-    return <Redirect href="/sesi" />;
+    return <Redirect href={"/beranda-asisten" as any} />;
   }
 
   return (

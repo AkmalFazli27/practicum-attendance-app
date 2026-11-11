@@ -1,58 +1,108 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { EmptyState } from '@/components/ui';
-import { useSession } from '@/context/SessionContext';
-import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
-import { formatJam, formatTanggal } from '@/utils/format';
+import React, { useMemo } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Check, FileText } from 'lucide-react-native';
 
-const titik = (jam: string) => jam.replace(':', '.');
+import { EmptyState, StatusBadge } from '@/components/ui';
+import { useSession } from '@/context/SessionContext';
+import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
+import { formatHariTanggalSingkat, formatJam, titikJam } from '@/utils/format';
 
 export default function RiwayatScreen() {
-  const insets = useSafeAreaInsets();
-  const { currentUser, getKehadiranPraktikan, getSesiById } = useSession();
+  const {
+    currentUser,
+    getKehadiranPraktikan,
+    getIzinPraktikan,
+    getSesiById,
+  } = useSession();
 
-  if (!currentUser) return null; // guard di _layout yang me-redirect
+  const daftarCatatan = useMemo(() => {
+    if (!currentUser) return [];
 
-  // Hanya milik praktikan ini, urut dari waktu terbaru.
-  const riwayat = getKehadiranPraktikan(currentUser.id)
-    .slice()
-    .sort((a, b) => b.waktuHadir.localeCompare(a.waktuHadir));
+    const hadirItems = getKehadiranPraktikan(currentUser.id).map((k) => ({
+      id: k.id,
+      jenis: 'HADIR' as const,
+      sesiId: k.sesiId,
+      waktu: k.waktuHadir,
+      statusIzin: undefined,
+      kategoriAi: undefined,
+    }));
+
+    const izinItems = getIzinPraktikan(currentUser.id).map((iz) => ({
+      id: iz.id,
+      jenis: 'IZIN' as const,
+      sesiId: iz.sesiId,
+      waktu: iz.waktuPengajuan,
+      statusIzin: iz.status,
+      kategoriAi: iz.kategoriAi,
+    }));
+
+    return [...hadirItems, ...izinItems].sort((a, b) =>
+      b.waktu.localeCompare(a.waktu),
+    );
+  }, [currentUser, getKehadiranPraktikan, getIzinPraktikan]);
+
+  if (!currentUser) return null;
 
   return (
     <View style={styles.root}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.s4 }]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.h1}>Riwayat kehadiran</Text>
+        <View style={styles.pageTitle}>
+          <Text style={styles.kicker}>CATATANMU</Text>
+          <Text style={styles.h1}>Riwayat kehadiran</Text>
+          <Text style={styles.sub}>
+            Semua presensi dan status pengajuan izinmu.
+          </Text>
+        </View>
 
-        {riwayat.length === 0 ? (
+        {daftarCatatan.length === 0 ? (
           <EmptyState
-            judul="Belum ada catatan"
-            pesan="Presensi akan muncul di sini setelah kamu hadir."
+            judul="Belum ada riwayat"
+            pesan="Presensi berhasil dan pengajuan izin akan muncul di halaman ini."
           />
         ) : (
-          <View style={styles.list}>
-            {riwayat.map((k) => {
-              const s = getSesiById(k.sesiId);
-              if (!s) return null; // data tidak konsisten, lewati baris ini
+          <View style={styles.historyList}>
+            {daftarCatatan.map((item) => {
+              const s = getSesiById(item.sesiId);
+              if (!s) return null;
+
+              const isHadir = item.jenis === 'HADIR';
 
               return (
-                <View key={k.id} style={styles.card}>
-                  <Text style={styles.cardTitle} numberOfLines={2}>
-                    {s.namaPraktikum}
-                  </Text>
-                  <Text style={styles.cardMeta}>{formatTanggal(s.tanggal)}</Text>
-
-                  <View style={styles.cardBottom}>
-                    <Text style={styles.cardWaktu}>
-                      Hadir pukul {titik(formatJam(k.waktuHadir))}
-                    </Text>
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>Hadir</Text>
-                    </View>
+                <View key={item.id} style={styles.historyRow}>
+                  <View
+                    style={[
+                      styles.iconTile,
+                      isHadir ? styles.iconTileHadir : styles.iconTileIzin,
+                    ]}
+                  >
+                    {isHadir ? (
+                      <Check size={18} color={colors.sesiDibukaFg} />
+                    ) : (
+                      <FileText size={18} color={colors.izinFg} />
+                    )}
                   </View>
+
+                  <View style={styles.historyMain}>
+                    <Text style={styles.historyName} numberOfLines={1}>
+                      {s.namaPraktikum}
+                    </Text>
+                    <Text style={styles.historyMeta} numberOfLines={1}>
+                      {formatHariTanggalSingkat(s.tanggal)} ·{' '}
+                      {titikJam(formatJam(item.waktu))}
+                      {item.kategoriAi ? ` · AI: ${item.kategoriAi}` : ''}
+                    </Text>
+                  </View>
+
+                  {isHadir ? (
+                    <View style={styles.presentBadge}>
+                      <Text style={styles.presentBadgeText}>Hadir</Text>
+                    </View>
+                  ) : (
+                    item.statusIzin && <StatusBadge status={item.statusIzin} />
+                  )}
                 </View>
               );
             })}
@@ -64,38 +114,82 @@ export default function RiwayatScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  content: {
-    paddingHorizontal: spacing.s5,
-    paddingBottom: spacing.s8,
-    gap: spacing.s6,
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  h1: { ...type.h1, color: colors.textPrimary },
-
-  list: { gap: spacing.s3 },
-  card: {
-    backgroundColor: colors.surface,
+  content: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.s5,
+    paddingBottom: layout.tabContentBottomPadding,
+    gap: spacing.s5,
+  },
+  pageTitle: {
+    gap: 2,
+  },
+  kicker: {
+    ...type.micro,
+    color: colors.textMuted,
+    letterSpacing: 1.15,
+    marginBottom: 4,
+  },
+  h1: {
+    ...type.h1,
+    color: colors.textPrimary,
+  },
+  sub: {
+    ...type.caption,
+    color: colors.textSecondary,
+    marginTop: 5,
+  },
+  historyList: {
+    gap: 10,
+  },
+  historyRow: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s3,
+    padding: 13,
     borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.s4,
-    gap: spacing.s1,
+    backgroundColor: colors.surface,
   },
-  cardTitle: { ...type.bodyStrong, color: colors.textPrimary },
-  cardMeta: { ...type.caption, color: colors.textSecondary },
-  cardBottom: {
-    flexDirection: 'row',
+  iconTile: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.s2,
-    gap: spacing.s2,
+    justifyContent: 'center',
   },
-  cardWaktu: { ...type.body, color: colors.textSecondary },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radius.badge,
+  iconTileHadir: {
     backgroundColor: colors.sesiDibukaBg,
   },
-  badgeText: { ...type.caption, color: colors.sesiDibukaFg, fontFamily: fontFamily.semibold },
+  iconTileIzin: {
+    backgroundColor: colors.izinBg,
+  },
+  historyMain: {
+    flex: 1,
+    gap: 4,
+  },
+  historyName: {
+    ...type.bodyStrong,
+    fontFamily: fontFamily.bold,
+    color: colors.textPrimary,
+  },
+  historyMeta: {
+    ...type.caption,
+    color: colors.textMuted,
+  },
+  presentBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.sesiDibukaBg,
+  },
+  presentBadgeText: {
+    ...type.micro,
+    color: colors.sesiDibukaFg,
+  },
 });
