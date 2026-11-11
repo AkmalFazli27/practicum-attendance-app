@@ -1,27 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { ChevronRight } from 'lucide-react-native';
 
-import { tanggalSingkat, titik } from '@/components/asisten/helpers';
-import { EmptyState, SheetModal } from '@/components/ui';
+import { EmptyState } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
-import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
-import { formatJam } from '@/utils/format';
+import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
+import { getTileTanggal } from '@/utils/format';
 
-// Rekap kehadiran (FR-08)
 export default function RekapScreen() {
-  const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ sesiId?: string; t?: string }>();
-  const { currentUser, users, sesi, getKehadiranSesi } = useSession();
-
-  const [pilihId, setPilihId] = useState<string | undefined>(params.sesiId);
-  const [sheetPilih, setSheetPilih] = useState(false);
-
-  // "Lihat rekap" dari detail mengirim sesiId (+ t agar efek selalu jalan).
-  useEffect(() => {
-    if (params.sesiId) setPilihId(params.sesiId);
-  }, [params.sesiId, params.t]);
+  const router = useRouter();
+  const { currentUser, sesi, getKehadiranSesi, getIzinSesi } = useSession();
 
   const sesiSaya = useMemo(
     () =>
@@ -33,212 +22,169 @@ export default function RekapScreen() {
     [sesi, currentUser?.id],
   );
 
-  if (!currentUser) return null; // guard di _layout yang me-redirect
+  if (!currentUser) return null;
 
-  const terpilih =
-    sesiSaya.find((s) => s.id === pilihId) ??
-    sesiSaya.find((s) => s.status === 'DIBUKA') ??
-    sesiSaya[0];
-
-  if (!terpilih) {
-    return (
-      <View style={styles.root}>
-        <View style={[styles.content, { paddingTop: insets.top + spacing.s4 }]}>
-          <Text style={styles.h1}>Rekap kehadiran</Text>
-          <EmptyState
-            judul="Belum ada sesi"
-            pesan="Sesi yang kamu kelola akan tampil di sini."
-          />
-        </View>
-      </View>
-    );
-  }
-
-  const daftarHadir = getKehadiranSesi(terpilih.id)
-    .slice()
-    .sort((a, b) => a.waktuHadir.localeCompare(b.waktuHadir));
-
-  // Total = praktikan pada kelas sesi tersebut.
-  const total = users.filter(
-    (u) => u.peran === 'praktikan' && u.kelas === terpilih.kelas,
-  ).length;
-  const persen = total > 0 ? Math.min(100, Math.round((daftarHadir.length / total) * 100)) : 0;
-
-  const namaPraktikan = (praktikanId: string) =>
-    users.find((u) => u.id === praktikanId)?.nama ?? 'Praktikan';
+  const bukaDetail = (id: string) =>
+    router.push({ pathname: '/(asisten)/sesi/[id]', params: { id } } as any);
 
   return (
     <View style={styles.root}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.s4 }]}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.h1}>Rekap kehadiran</Text>
-
-        {/* Selector sesi */}
-        <View style={styles.selectorWrap}>
-          <Text style={styles.label}>Pilih sesi</Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Sesi dipilih: ${terpilih.namaPraktikum} ${terpilih.kelas}. Ketuk untuk mengganti.`}
-            onPress={() => setSheetPilih(true)}
-            style={({ pressed }) => [styles.selector, pressed && styles.selectorPressed]}
-          >
-            <Text style={styles.selectorText} numberOfLines={1}>
-              {terpilih.namaPraktikum} · {terpilih.kelas}
-            </Text>
-            <Text style={styles.selectorCaret}>▾</Text>
-          </Pressable>
-        </View>
-
-        {/* Ringkasan */}
-        <View style={styles.ringkasan}>
-          <Text style={styles.ringkasanTeks}>
-            {daftarHadir.length} dari {total} praktikan hadir
+        <View style={styles.pageTitle}>
+          <Text style={styles.kicker}>MONITOR</Text>
+          <Text style={styles.h1}>Rekap kehadiran</Text>
+          <Text style={styles.sub}>
+            Ringkasan kehadiran dan izin seluruh sesi.
           </Text>
-          <View style={styles.barTrack}>
-            <View style={[styles.barFill, { width: `${persen}%` }]} />
-          </View>
-          <Text style={styles.ringkasanPersen}>{persen}%</Text>
         </View>
 
-        {/* Daftar hadir */}
-        <Text style={styles.h2}>Daftar hadir</Text>
-        {daftarHadir.length === 0 ? (
+        {sesiSaya.length === 0 ? (
           <EmptyState
-            judul="Belum ada kehadiran"
-            pesan="Belum ada praktikan yang tercatat pada sesi ini."
+            judul="Belum ada sesi"
+            pesan="Sesi yang kamu kelola akan tampil di sini."
           />
         ) : (
-          <View style={styles.daftar}>
-            {daftarHadir.map((k, index) => (
-              <View key={k.id} style={[styles.baris, index > 0 && styles.barisGaris]}>
-                <Text style={styles.barisNama} numberOfLines={1}>
-                  {namaPraktikan(k.praktikanId)}
-                </Text>
-                <Text style={styles.barisWaktu}>{titik(formatJam(k.waktuHadir))}</Text>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>Hadir</Text>
-                </View>
-              </View>
-            ))}
+          <View style={styles.recapList}>
+            {sesiSaya.map((session) => {
+              const countHadir = getKehadiranSesi(session.id).length;
+              const countIzin = getIzinSesi(session.id).filter(
+                (iz) => iz.status === 'DITERIMA',
+              ).length;
+              const tile = getTileTanggal(session.tanggal);
+
+              return (
+                <Pressable
+                  key={session.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Rekap ${session.namaPraktikum}, ${countHadir} hadir`}
+                  onPress={() => bukaDetail(session.id)}
+                  style={({ pressed }) => [
+                    styles.recapRow,
+                    pressed && styles.recapRowPressed,
+                  ]}
+                >
+                  <View style={styles.recapDateTile}>
+                    <Text style={styles.recapDateDay}>{tile.hari}</Text>
+                    <Text style={styles.recapDateMonth}>{tile.bulan}</Text>
+                  </View>
+
+                  <View style={styles.recapMain}>
+                    <Text style={styles.recapName} numberOfLines={1}>
+                      {session.namaPraktikum}
+                    </Text>
+                    <Text style={styles.recapMeta} numberOfLines={1}>
+                      {session.kelas} · {session.lab}
+                      {countIzin > 0 ? ` · ${countIzin} izin` : ''}
+                    </Text>
+                  </View>
+
+                  <View style={styles.recapTotal}>
+                    <Text style={styles.recapCount}>{countHadir}</Text>
+                    <Text style={styles.recapCountLabel}>hadir</Text>
+                  </View>
+
+                  <ChevronRight size={18} color={colors.textSecondary} />
+                </Pressable>
+              );
+            })}
           </View>
         )}
       </ScrollView>
-
-      {/* Sheet pemilih sesi */}
-      <SheetModal
-        visible={sheetPilih}
-        judul="Pilih sesi"
-        onClose={() => setSheetPilih(false)}
-      >
-        {sesiSaya.map((s) => {
-          const aktif = s.id === terpilih.id;
-          return (
-            <Pressable
-              key={s.id}
-              accessibilityRole="button"
-              accessibilityState={{ selected: aktif }}
-              onPress={() => {
-                setPilihId(s.id);
-                setSheetPilih(false);
-              }}
-              style={({ pressed }) => [
-                styles.opsi,
-                aktif && styles.opsiAktif,
-                pressed && styles.selectorPressed,
-              ]}
-            >
-              <Text style={styles.opsiNama} numberOfLines={1}>
-                {s.namaPraktikum} · {s.kelas}
-              </Text>
-              <Text style={styles.opsiMeta}>
-                {tanggalSingkat(s.tanggal)} · {titik(s.jamMulai)}–{titik(s.jamSelesai)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </SheetModal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: spacing.s5, paddingBottom: spacing.s8, gap: spacing.s5 },
-  h1: { ...type.h1, color: colors.textPrimary },
-  h2: { ...type.h2, color: colors.textPrimary },
-  label: { ...type.caption, color: colors.textMuted },
-
-  selectorWrap: { gap: spacing.s2 },
-  selector: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.s2,
-    paddingHorizontal: spacing.s4,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  selectorPressed: { backgroundColor: colors.surfaceMuted },
-  selectorText: { ...type.bodyStrong, color: colors.textPrimary, flex: 1 },
-  selectorCaret: { ...type.body, color: colors.textSecondary },
-
-  ringkasan: {
-    backgroundColor: colors.graphite,
-    borderRadius: radius.card,
-    padding: spacing.s4,
-    gap: spacing.s3,
+  content: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.s5,
+    paddingBottom: layout.tabContentBottomPadding,
+    gap: spacing.s5,
   },
-  ringkasanTeks: { ...type.h2, color: colors.onGraphite },
-  barTrack: {
-    height: 8,
-    borderRadius: radius.badge,
-    backgroundColor: colors.surfaceMuted,
-    overflow: 'hidden',
-  },
-  barFill: { height: 8, borderRadius: radius.badge, backgroundColor: colors.primary },
-  ringkasanPersen: { ...type.caption, color: colors.onGraphite, opacity: 0.7 },
-
-  daftar: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.s4,
-  },
-  baris: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.s3,
-    gap: spacing.s3,
-  },
-  barisGaris: { borderTopWidth: 1, borderTopColor: colors.surfaceMuted },
-  barisNama: { ...type.bodyStrong, color: colors.textPrimary, flex: 1 },
-  barisWaktu: { ...type.body, color: colors.textSecondary },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radius.badge,
-    backgroundColor: colors.sesiDibukaBg,
-  },
-  badgeText: { ...type.caption, color: colors.sesiDibukaFg, fontFamily: fontFamily.semibold },
-
-  opsi: {
-    minHeight: 56,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.s4,
-    paddingVertical: spacing.s2,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+  pageTitle: {
     gap: 2,
   },
-  opsiAktif: { borderColor: colors.primaryPressed, backgroundColor: colors.primarySoft },
-  opsiNama: { ...type.bodyStrong, color: colors.textPrimary },
-  opsiMeta: { ...type.caption, color: colors.textSecondary },
+  kicker: {
+    ...type.micro,
+    color: colors.textMuted,
+    letterSpacing: 1.15,
+    marginBottom: 4,
+  },
+  h1: {
+    ...type.h1,
+    color: colors.textPrimary,
+  },
+  sub: {
+    ...type.caption,
+    color: colors.textSecondary,
+    marginTop: 5,
+  },
+  recapList: {
+    gap: 10,
+  },
+  recapRow: {
+    minHeight: 77,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s3,
+    padding: 12,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  recapRowPressed: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  recapDateTile: {
+    width: 48,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: colors.graphite,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recapDateDay: {
+    fontSize: 18,
+    lineHeight: 21,
+    fontFamily: fontFamily.extrabold,
+    color: colors.onGraphite,
+  },
+  recapDateMonth: {
+    ...type.micro,
+    color: colors.primary,
+  },
+  recapMain: {
+    flex: 1,
+    gap: 4,
+  },
+  recapName: {
+    ...type.bodyStrong,
+    fontFamily: fontFamily.bold,
+    color: colors.textPrimary,
+  },
+  recapMeta: {
+    ...type.caption,
+    color: colors.textMuted,
+  },
+  recapTotal: {
+    alignItems: 'flex-end',
+  },
+  recapCount: {
+    fontSize: 16,
+    lineHeight: 20,
+    fontFamily: fontFamily.extrabold,
+    color: colors.textPrimary,
+  },
+  recapCountLabel: {
+    ...type.micro,
+    color: colors.textMuted,
+  },
 });
