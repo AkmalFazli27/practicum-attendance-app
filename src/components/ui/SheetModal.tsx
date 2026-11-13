@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -7,10 +9,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 
@@ -40,92 +44,203 @@ export function SheetModal({
   style,
 }: SheetModalProps) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
 
-  const handleBackdropPress = () => {
-    if (dismissible) {
-      onClose();
+  const [mounted, setMounted] = useState(visible);
+  const mountedRef = useRef(visible);
+  const closingRef = useRef(false);
+
+  const windowHeightRef = useRef(windowHeight);
+  windowHeightRef.current = windowHeight;
+
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const fade = useRef(new Animated.Value(0)).current;
+  const slide = useRef(new Animated.Value(windowHeight)).current;
+
+  const animateOut = useCallback(
+    (onFinished?: () => void) => {
+      fade.stopAnimation();
+      slide.stopAnimation();
+
+      Animated.parallel([
+        Animated.timing(fade, {
+          toValue: 0,
+          duration: 180,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slide, {
+          toValue: windowHeightRef.current,
+          duration: 220,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) {
+          onFinished?.();
+        }
+      });
+    },
+    [fade, slide],
+  );
+
+  useEffect(() => {
+    if (visible) {
+      closingRef.current = false;
+      mountedRef.current = true;
+      setMounted(true);
+
+      fade.stopAnimation();
+      slide.stopAnimation();
+      fade.setValue(0);
+      slide.setValue(windowHeightRef.current);
+
+      Animated.parallel([
+        Animated.timing(fade, {
+          toValue: 1,
+          duration: 200,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.spring(slide, {
+          toValue: 0,
+          damping: 24,
+          stiffness: 220,
+          mass: 0.9,
+          overshootClamping: true,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
     }
+
+    if (!mountedRef.current) {
+      return;
+    }
+
+    animateOut(() => {
+      mountedRef.current = false;
+      setMounted(false);
+    });
+  }, [visible, animateOut, fade, slide]);
+
+  useEffect(
+    () => () => {
+      fade.stopAnimation();
+      slide.stopAnimation();
+    },
+    [fade, slide],
+  );
+
+  const requestClose = () => {
+    if (!dismissible || closingRef.current || !mountedRef.current) {
+      return;
+    }
+
+    closingRef.current = true;
+    animateOut(() => {
+      mountedRef.current = false;
+      setMounted(false);
+      closingRef.current = false;
+      onCloseRef.current();
+    });
   };
 
   return (
     <Modal
-      animationType="slide"
+      animationType="none"
       transparent
-      visible={visible}
-      onRequestClose={() => {
-        if (dismissible) {
-          onClose();
-        }
-      }}
+      visible={mounted}
+      onRequestClose={requestClose}
       statusBarTranslucent
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}
-      >
+      <View style={styles.overlay}>
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { opacity: fade }]}
+        >
+          {Platform.OS !== 'android' && (
+            <BlurView
+              intensity={30}
+              tint="dark"
+              style={StyleSheet.absoluteFill}
+            />
+          )}
+          <View style={[StyleSheet.absoluteFill, styles.backdropTint]} />
+        </Animated.View>
+
         <Pressable
-          style={styles.backdrop}
-          onPress={handleBackdropPress}
+          style={StyleSheet.absoluteFill}
+          onPress={requestClose}
           accessibilityRole="button"
           accessibilityLabel="Tutup dialog"
         />
 
-        <View
-          style={[
-            styles.sheetContainer,
-            { paddingBottom: Math.max(insets.bottom, spacing.s5) },
-            style,
-          ]}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.sheetArea}
+          pointerEvents="box-none"
         >
-          {/* Grabber bar */}
-          <View style={styles.grabberContainer}>
-            <View style={styles.grabber} />
-          </View>
-
-          {/* Header */}
-          {!hideHeader && (
-            <View style={styles.header}>
-              <View style={styles.headerTextWrap}>
-                {kicker && <Text style={styles.kicker}>{kicker}</Text>}
-                <Text style={styles.judul} numberOfLines={2}>
-                  {judul}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Tutup"
-                disabled={!dismissible}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                onPress={onClose}
-                style={({ pressed }) => [
-                  styles.closeButton,
-                  pressed && dismissible && styles.closeButtonPressed,
-                  !dismissible && styles.closeButtonDisabled,
-                ]}
-              >
-                <X
-                  size={20}
-                  color={dismissible ? colors.textPrimary : colors.disabledText}
-                />
-              </Pressable>
-            </View>
-          )}
-
-          {/* Body Content */}
-          <ScrollView
-            style={styles.body}
-            contentContainerStyle={styles.bodyContent}
-            bounces={false}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+          <Animated.View
+            style={[
+              styles.sheetContainer,
+              { paddingBottom: Math.max(insets.bottom, spacing.s5) },
+              style,
+              { transform: [{ translateY: slide }] },
+            ]}
           >
-            {children}
-          </ScrollView>
+            {/* Grabber bar */}
+            <View style={styles.grabberContainer}>
+              <View style={styles.grabber} />
+            </View>
 
-          {/* Optional Footer */}
-          {footer && <View style={styles.footer}>{footer}</View>}
-        </View>
-      </KeyboardAvoidingView>
+            {/* Header */}
+            {!hideHeader && (
+              <View style={styles.header}>
+                <View style={styles.headerTextWrap}>
+                  {kicker && <Text style={styles.kicker}>{kicker}</Text>}
+                  <Text style={styles.judul} numberOfLines={2}>
+                    {judul}
+                  </Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Tutup"
+                  disabled={!dismissible}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  onPress={requestClose}
+                  style={({ pressed }) => [
+                    styles.closeButton,
+                    pressed && dismissible && styles.closeButtonPressed,
+                    !dismissible && styles.closeButtonDisabled,
+                  ]}
+                >
+                  <X
+                    size={20}
+                    color={dismissible ? colors.textPrimary : colors.disabledText}
+                  />
+                </Pressable>
+              </View>
+            )}
+
+            {/* Body Content */}
+            <ScrollView
+              style={styles.body}
+              contentContainerStyle={styles.bodyContent}
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {children}
+            </ScrollView>
+
+            {/* Optional Footer */}
+            {footer && <View style={styles.footer}>{footer}</View>}
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -133,15 +248,14 @@ export function SheetModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: 'flex-end',
   },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(12, 14, 13, 0.62)',
+  backdropTint: {
+    backgroundColor: colors.graphite,
+    opacity: Platform.OS === 'android' ? 0.62 : 0.45,
+  },
+  sheetArea: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   sheetContainer: {
     backgroundColor: colors.background,
