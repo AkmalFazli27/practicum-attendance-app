@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -6,24 +6,64 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   ArrowRight,
-  CheckCircle2,
-  ShieldCheck,
-  Sparkles,
-  Zap,
+  CalendarDays,
+  Clock3,
+  Info,
+  LockKeyhole,
+  MapPin,
+  Users,
 } from 'lucide-react-native';
 
-import { Brand, Tombol } from '@/components/ui';
+import {
+  Brand,
+  EmptyState,
+  SectionHeading,
+  SessionCard,
+  SheetModal,
+  StatusBadge,
+  Tombol,
+} from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
-import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
+import { type Sesi } from '@/data/dummy';
+import {
+  colors,
+  fontFamily,
+  layout,
+  radius,
+  spacing,
+  type,
+} from '@/theme/tokens';
+import { formatHariTanggalSingkat, titikJam } from '@/utils/format';
 
 export default function LandingScreen() {
   const router = useRouter();
-  const { currentUser } = useSession();
+  const insets = useSafeAreaInsets();
+  const { currentUser, sesi } = useSession();
+
+  const [sesiDipilih, setSesiDipilih] = useState<Sesi | null>(null);
+  const sesiTerakhir = useRef<Sesi | null>(null);
+  if (sesiDipilih) sesiTerakhir.current = sesiDipilih;
+  const sesiTampil = sesiDipilih ?? sesiTerakhir.current;
+
+  const jadwalTerdekat = useMemo(() => {
+    const urut = (a: Sesi, b: Sesi) =>
+      `${a.tanggal} ${a.jamMulai}`.localeCompare(`${b.tanggal} ${b.jamMulai}`);
+
+    const belumSelesai = sesi
+      .filter((item) => item.status !== 'SELESAI')
+      .sort(urut);
+
+    if (belumSelesai.length > 0) {
+      return belumSelesai.slice(0, 3);
+    }
+
+    return [...sesi].sort(urut).slice(0, 3);
+  }, [sesi]);
 
   const handleMasuk = () => {
     if (currentUser) {
@@ -37,127 +77,202 @@ export default function LandingScreen() {
     router.push('/login');
   };
 
-  const handleDaftar = () => {
-    router.push({ pathname: '/login', params: { mode: 'register' } });
+  const tutupDetail = () => setSesiDipilih(null);
+
+  const handleLanjutDetail = () => {
+    if (!sesiTampil) return;
+
+    setSesiDipilih(null);
+
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
+
+    router.push({
+      pathname:
+        currentUser.peran === 'asisten'
+          ? '/(asisten)/sesi/[id]'
+          : '/(praktikan)/sesi/[id]',
+      params: { id: sesiTampil.id },
+    } as any);
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar style="light" />
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Header */}
-        <View style={styles.header}>
-          <Brand compact onDark />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Masuk ke akun"
-            onPress={handleMasuk}
-            style={({ pressed }) => [
-              styles.loginPill,
-              pressed && styles.loginPillPressed,
-            ]}
-          >
-            <Text style={styles.loginPillText}>
-              {currentUser ? 'Beranda' : 'Masuk'}
-            </Text>
-            <ArrowRight size={15} color={colors.onGraphite} />
-          </Pressable>
-        </View>
-
-        {/* Hero Section (Bersih tanpa demo/jadwal sebelum login) */}
-        <View style={styles.hero}>
-          <View style={styles. decorativeRing} />
-
-          <View style={styles.eyebrow}>
-            <Sparkles size={14} color={colors.primary} />
-            <Text style={styles.eyebrowText}>
-              PRESENSI PRAKTIKUM, DISEDERHANAKAN
-            </Text>
+        <View style={styles.heroShell}>
+          <View style={styles.header}>
+            <Brand compact onDark />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Masuk ke akun"
+              onPress={handleMasuk}
+              style={({ pressed }) => [
+                styles.loginPill,
+                pressed && styles.loginPillPressed,
+              ]}
+            >
+              <Text style={styles.loginPillText}>
+                {currentUser ? 'Beranda' : 'Masuk'}
+              </Text>
+              <ArrowRight size={15} color={colors.onGraphite} />
+            </Pressable>
           </View>
 
-          <View style={styles.titleBlock}>
-            <Text style={styles.heroTitle}>Tap once.</Text>
-            <Text style={[styles.heroTitle, styles.heroTitleAccent]}>
-              You're in.
+          <View style={styles.hero}>
+            <View style={styles.decorativeRing} />
+
+            <View style={styles.titleBlock}>
+              <Text style={styles.heroTitle}>Tap once.</Text>
+              <Text style={[styles.heroTitle, styles.heroTitleAccent]}>
+                You're in.
+              </Text>
+            </View>
+
+            <Text style={styles.heroSubtitle}>
+              Pantau jadwal, catat kehadiran real-time, dan kelola izin berbantuan AI dalam satu aplikasi.
             </Text>
-          </View>
 
-          <Text style={styles.heroSubtitle}>
-            Pantau jadwal praktikum, catat kehadiran secara real-time, dan
-            kelola pengajuan izin berbantuan AI dalam satu aplikasi terpadu.
-          </Text>
-
-          {/* Highlight Pillars */}
-          <View style={styles.pillarsContainer}>
-            <View style={styles.pillarItem}>
-              <View style={styles.pillarIcon}>
-                <Zap size={18} color={colors.graphite} />
-              </View>
-              <View style={styles.pillarCopy}>
-                <Text style={styles.pillarTitle}>Presensi Real-Time</Text>
-                <Text style={styles.pillarDesc}>
-                  Tersinkronisasi langsung antara praktikan dan asisten laboratorium.
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.pillarItem}>
-              <View style={styles.pillarIcon}>
-                <Sparkles size={18} color={colors.graphite} />
-              </View>
-              <View style={styles.pillarCopy}>
-                <Text style={styles.pillarTitle}>Izin Berbantuan AI</Text>
-                <Text style={styles.pillarDesc}>
-                  Klasifikasi kategori alasan izin otomatis untuk membantu peninjauan asisten.
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.pillarItem}>
-              <View style={styles.pillarIcon}>
-                <ShieldCheck size={18} color={colors.graphite} />
-              </View>
-              <View style={styles.pillarCopy}>
-                <Text style={styles.pillarTitle}>Akses Sesuai Peran</Text>
-                <Text style={styles.pillarDesc}>
-                  Ruang kerja khusus untuk Praktikan dan Asisten dengan keamanan akun.
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* CTA Actions */}
-          <View style={styles.ctaGroup}>
             <Tombol
               variant="primer"
               onPress={handleMasuk}
               rightIcon={<ArrowRight size={18} color={colors.onPrimary} />}
+              style={styles.heroCta}
             >
               {currentUser ? 'Lanjut ke Beranda' : 'Mulai sekarang'}
             </Tombol>
+          </View>
+        </View>
 
-            {!currentUser && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Daftar akun baru"
-                onPress={handleDaftar}
-                style={({ pressed }) => [
-                  styles.secondaryDarkBtn,
-                  pressed && styles.loginPillPressed,
-                ]}
-              >
-                <CheckCircle2 size={17} color={colors.primary} />
-                <Text style={styles.secondaryDarkBtnText}>
-                  Belum punya akun? Daftar sekarang
-                </Text>
-              </Pressable>
-            )}
+        <View
+          style={[
+            styles.publicSchedule,
+            { paddingBottom: Math.max(insets.bottom + spacing.s8, spacing.s8) },
+          ]}
+        >
+          <SectionHeading
+            kicker="JADWAL TERDEKAT"
+            title="Sesi praktikum"
+            right={
+              <View style={styles.readOnlyBadge}>
+                <LockKeyhole size={13} color={colors.textMuted} />
+                <Text style={styles.readOnlyText}>Read-only</Text>
+              </View>
+            }
+            style={styles.sectionHeading}
+          />
+
+          {jadwalTerdekat.length === 0 ? (
+            <EmptyState
+              judul="Belum ada jadwal"
+              pesan="Jadwal praktikum akan tampil di sini."
+            />
+          ) : (
+            <View style={styles.sessionList}>
+              {jadwalTerdekat.map((item) => (
+                <SessionCard
+                  key={item.id}
+                  session={item}
+                  onPress={() => setSesiDipilih(item)}
+                />
+              ))}
+            </View>
+          )}
+
+          <View style={styles.guestNote}>
+            <Info size={17} color={colors.textMuted} />
+            <Text style={styles.guestNoteText}>
+              Masuk untuk melakukan presensi atau mengelola sesi.
+            </Text>
           </View>
         </View>
       </ScrollView>
+
+      <SheetModal
+        visible={sesiDipilih !== null}
+        kicker="DETAIL SESI"
+        judul={sesiTampil?.namaPraktikum ?? ''}
+        onClose={tutupDetail}
+        footer={
+          <Tombol
+            variant="primer"
+            onPress={handleLanjutDetail}
+            rightIcon={<ArrowRight size={18} color={colors.onPrimary} />}
+          >
+            {currentUser ? 'Buka detail sesi' : 'Masuk untuk melanjutkan'}
+          </Tombol>
+        }
+      >
+        {sesiTampil && (
+          <>
+            <View style={styles.sheetStatusRow}>
+              <StatusBadge status={sesiTampil.status} />
+              {sesiTampil.topik && (
+                <Text style={styles.sheetTopik} numberOfLines={2}>
+                  {sesiTampil.topik}
+                </Text>
+              )}
+            </View>
+
+            <Text style={styles.sheetDeskripsi}>{sesiTampil.deskripsi}</Text>
+
+            <View style={styles.detailGrid}>
+              <View style={styles.gridCell}>
+                <CalendarDays size={18} color={colors.textMuted} />
+                <View style={styles.gridCopy}>
+                  <Text style={styles.gridLabel}>Tanggal</Text>
+                  <Text style={styles.gridValue}>
+                    {formatHariTanggalSingkat(sesiTampil.tanggal)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.gridCell}>
+                <Clock3 size={18} color={colors.textMuted} />
+                <View style={styles.gridCopy}>
+                  <Text style={styles.gridLabel}>Waktu</Text>
+                  <Text style={styles.gridValue}>
+                    {titikJam(sesiTampil.jamMulai)}–{titikJam(sesiTampil.jamSelesai)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.gridCell}>
+                <MapPin size={18} color={colors.textMuted} />
+                <View style={styles.gridCopy}>
+                  <Text style={styles.gridLabel}>Lokasi</Text>
+                  <Text style={styles.gridValue} numberOfLines={1}>
+                    {sesiTampil.lab}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.gridCell}>
+                <Users size={18} color={colors.textMuted} />
+                <View style={styles.gridCopy}>
+                  <Text style={styles.gridLabel}>Kelas</Text>
+                  <Text style={styles.gridValue}>{sesiTampil.kelas}</Text>
+                </View>
+              </View>
+            </View>
+
+            {!currentUser && (
+              <View style={styles.lockedBox}>
+                <LockKeyhole size={16} color={colors.textMuted} />
+                <Text style={styles.lockedText}>
+                  Mode pengunjung hanya dapat melihat detail sesi.
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+      </SheetModal>
     </SafeAreaView>
   );
 }
@@ -167,8 +282,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.graphite,
   },
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
+    backgroundColor: colors.background,
+  },
+  heroShell: {
     backgroundColor: colors.graphite,
   },
   header: {
@@ -198,43 +319,24 @@ const styles = StyleSheet.create({
     color: colors.onGraphite,
   },
   hero: {
-    flex: 1,
     paddingHorizontal: spacing.s6,
     paddingTop: spacing.s6,
     paddingBottom: spacing.s8,
-    justifyContent: 'space-between',
     position: 'relative',
     overflow: 'hidden',
   },
   decorativeRing: {
     position: 'absolute',
-    right: -120,
-    top: 20,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
+    right: -96,
+    top: -8,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
     borderWidth: 1,
     borderColor: 'rgba(196, 241, 91, 0.14)',
   },
-  eyebrow: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: 'rgba(196, 241, 91, 0.22)',
-    backgroundColor: 'rgba(196, 241, 91, 0.08)',
-  },
-  eyebrowText: {
-    ...type.micro,
-    color: colors.primary,
-    letterSpacing: 0.5,
-  },
   titleBlock: {
-    marginTop: spacing.s5,
+    marginTop: spacing.s2,
   },
   heroTitle: {
     ...type.display,
@@ -250,61 +352,111 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     maxWidth: 340,
   },
-  pillarsContainer: {
+  heroCta: {
     marginTop: spacing.s6,
-    gap: spacing.s3,
   },
-  pillarItem: {
+  publicSchedule: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.s6,
+    backgroundColor: colors.background,
+  },
+  sectionHeading: {
+    marginBottom: spacing.s4,
+  },
+  readOnlyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.s2,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceMuted,
+  },
+  readOnlyText: {
+    fontSize: 10,
+    lineHeight: 14,
+    fontFamily: fontFamily.semibold,
+    color: colors.textMuted,
+  },
+  sessionList: {
     gap: spacing.s3,
-    padding: spacing.s4,
-    borderRadius: radius.card,
-    backgroundColor: colors.graphiteSurface,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  pillarIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  guestNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    marginTop: spacing.s4,
+    borderRadius: 13,
+    paddingVertical: spacing.s3,
+    paddingHorizontal: spacing.s3 + 1,
+    backgroundColor: colors.surfaceMuted,
   },
-  pillarCopy: {
+  guestNoteText: {
+    ...type.caption,
+    color: colors.textSecondary,
     flex: 1,
-    gap: 2,
+    lineHeight: 18,
   },
-  pillarTitle: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.bold,
-    color: colors.onGraphite,
-  },
-  pillarDesc: {
-    ...type.caption,
-    color: colors.textOnDarkMuted,
-    lineHeight: 17,
-  },
-  ctaGroup: {
-    marginTop: spacing.s8,
-    gap: spacing.s3,
-  },
-  secondaryDarkBtn: {
-    minHeight: 48,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  sheetStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     gap: spacing.s2,
-    paddingHorizontal: spacing.s4,
   },
-  secondaryDarkBtnText: {
+  sheetTopik: {
+    ...type.caption,
+    fontFamily: fontFamily.semibold,
+    color: colors.textSecondary,
+    flex: 1,
+    textAlign: 'right',
+  },
+  sheetDeskripsi: {
+    ...type.caption,
+    color: colors.textSecondary,
+    lineHeight: 19,
+  },
+  detailGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.s2 + 1,
+  },
+  gridCell: {
+    width: '48%',
+    flexGrow: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.s2 + 1,
+    padding: spacing.s3,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  gridCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  gridLabel: {
+    ...type.micro,
+    color: colors.textMuted,
+  },
+  gridValue: {
     ...type.caption,
     fontFamily: fontFamily.bold,
-    color: colors.onGraphite,
+    color: colors.textPrimary,
+  },
+  lockedBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    borderRadius: 13,
+    padding: spacing.s3,
+    backgroundColor: colors.surfaceMuted,
+  },
+  lockedText: {
+    ...type.caption,
+    color: colors.textSecondary,
+    flex: 1,
+    lineHeight: 18,
   },
 });
