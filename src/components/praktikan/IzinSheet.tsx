@@ -31,7 +31,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
     }
   }, [visible]);
 
-  const handleKirim = () => {
+  const handleKirim = async () => {
     if (!sesi || mengirim) return;
     if (alasan.trim().length < 10) {
       setGalat('Tuliskan alasan ketidakhadiran minimal 10 karakter.');
@@ -41,8 +41,8 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
     setGalat(null);
     setMengirim(true);
 
-    setTimeout(() => {
-      const hasil = submitIzin(sesi.id, alasan);
+    try {
+      const hasil = await submitIzin(sesi.id, alasan);
       setMengirim(false);
       if (!hasil.ok) {
         setGalat(hasil.alasan);
@@ -52,7 +52,10 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
       showToast(
         `Izin diajukan (AI: ${hasil.izin.kategoriAi}). Menunggu pemeriksaan asisten.`,
       );
-    }, 320);
+    } catch (e: any) {
+      setMengirim(false);
+      setGalat(e?.message || 'Gagal mengirimkan pengajuan izin.');
+    }
   };
 
   return (
