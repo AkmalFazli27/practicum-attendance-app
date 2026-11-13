@@ -26,6 +26,10 @@ export function PresensiSheet({ sesi, onClose, onSuccess }: PresensiSheetProps) 
   if (sesi) terakhir.current = sesi;
   const tampil = sesi ?? terakhir.current;
 
+  const galatTerakhir = useRef<{ judul: string; pesan: string } | null>(null);
+  if (galat) galatTerakhir.current = galat;
+  const galatTampil = galat ?? galatTerakhir.current;
+
   const visible = sesi !== null;
 
   useEffect(() => {
@@ -99,7 +103,7 @@ export function PresensiSheet({ sesi, onClose, onSuccess }: PresensiSheetProps) 
 
       <SheetModal
         visible={galat !== null}
-        judul={galat?.judul ?? ''}
+        judul={galatTampil?.judul ?? ''}
         onClose={() => setGalat(null)}
         footer={
           <Tombol variant="sekunder" onPress={() => setGalat(null)}>
@@ -111,7 +115,7 @@ export function PresensiSheet({ sesi, onClose, onSuccess }: PresensiSheetProps) 
           <View style={styles.errorIcon}>
             <Text style={styles.errorIconText}>!</Text>
           </View>
-          <Text style={styles.errorPesan}>{galat?.pesan}</Text>
+          <Text style={styles.errorPesan}>{galatTampil?.pesan}</Text>
         </View>
       </SheetModal>
     </>

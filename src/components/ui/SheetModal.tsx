@@ -20,6 +20,8 @@ import { X } from 'lucide-react-native';
 
 import { colors, radius, shadows, spacing, type } from '@/theme/tokens';
 
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
+
 export interface SheetModalProps {
   visible: boolean;
   judul?: string;
@@ -47,6 +49,7 @@ export function SheetModal({
   const { height: windowHeight } = useWindowDimensions();
 
   const [mounted, setMounted] = useState(visible);
+  const [closing, setClosing] = useState(false);
   const mountedRef = useRef(visible);
   const closingRef = useRef(false);
 
@@ -61,6 +64,9 @@ export function SheetModal({
 
   const animateOut = useCallback(
     (onFinished?: () => void) => {
+      closingRef.current = true;
+      setClosing(true);
+
       fade.stopAnimation();
       slide.stopAnimation();
 
@@ -78,9 +84,12 @@ export function SheetModal({
           useNativeDriver: true,
         }),
       ]).start(({ finished }) => {
-        if (finished) {
-          onFinished?.();
+        if (!finished) {
+          return;
         }
+        closingRef.current = false;
+        setClosing(false);
+        onFinished?.();
       });
     },
     [fade, slide],
@@ -89,6 +98,7 @@ export function SheetModal({
   useEffect(() => {
     if (visible) {
       closingRef.current = false;
+      setClosing(false);
       mountedRef.current = true;
       setMounted(true);
 
@@ -135,15 +145,13 @@ export function SheetModal({
   );
 
   const requestClose = () => {
-    if (!dismissible || closingRef.current || !mountedRef.current) {
+    if (!visible || !dismissible || closingRef.current || !mountedRef.current) {
       return;
     }
 
-    closingRef.current = true;
     animateOut(() => {
       mountedRef.current = false;
       setMounted(false);
-      closingRef.current = false;
       onCloseRef.current();
     });
   };
@@ -157,17 +165,19 @@ export function SheetModal({
       statusBarTranslucent
     >
       <View style={styles.overlay}>
+        {Platform.OS !== 'android' && (
+          <AnimatedBlurView
+            pointerEvents="none"
+            intensity={30}
+            tint="dark"
+            style={[StyleSheet.absoluteFill, { opacity: fade }]}
+          />
+        )}
+
         <Animated.View
           pointerEvents="none"
           style={[StyleSheet.absoluteFill, { opacity: fade }]}
         >
-          {Platform.OS !== 'android' && (
-            <BlurView
-              intensity={30}
-              tint="dark"
-              style={StyleSheet.absoluteFill}
-            />
-          )}
           <View style={[StyleSheet.absoluteFill, styles.backdropTint]} />
         </Animated.View>
 
@@ -184,6 +194,7 @@ export function SheetModal({
           pointerEvents="box-none"
         >
           <Animated.View
+            pointerEvents={closing ? 'none' : 'auto'}
             style={[
               styles.sheetContainer,
               { paddingBottom: Math.max(insets.bottom, spacing.s5) },

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { Sparkles } from 'lucide-react-native';
 
@@ -20,6 +20,10 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
   const [alasan, setAlasan] = useState('');
   const [galat, setGalat] = useState<string | null>(null);
   const [mengirim, setMengirim] = useState(false);
+
+  const terakhir = useRef<Sesi | null>(null);
+  if (sesi) terakhir.current = sesi;
+  const tampil = sesi ?? terakhir.current;
 
   const visible = sesi !== null;
 
@@ -84,18 +88,18 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
         </View>
       }
     >
-      {sesi && (
+      {tampil && (
         <>
           <View style={styles.summaryBox}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Praktikum</Text>
-              <Text style={styles.summaryVal}>{sesi.namaPraktikum}</Text>
+              <Text style={styles.summaryVal}>{tampil.namaPraktikum}</Text>
             </View>
             <View style={[styles.summaryRow, styles.summaryRowBorder]}>
               <Text style={styles.summaryLabel}>Jadwal</Text>
               <Text style={styles.summaryVal}>
-                {formatHariTanggalSingkat(sesi.tanggal)} ·{' '}
-                {titikJam(sesi.jamMulai)}
+                {formatHariTanggalSingkat(tampil.tanggal)} ·{' '}
+                {titikJam(tampil.jamMulai)}
               </Text>
             </View>
             <View style={[styles.summaryRow, styles.summaryRowBorder]}>
