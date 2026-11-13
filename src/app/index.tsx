@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -45,10 +45,19 @@ export default function LandingScreen() {
   const insets = useSafeAreaInsets();
   const { currentUser, sesi } = useSession();
 
-  const [sesiDipilih, setSesiDipilih] = useState<Sesi | null>(null);
-  const sesiTerakhir = useRef<Sesi | null>(null);
-  if (sesiDipilih) sesiTerakhir.current = sesiDipilih;
-  const sesiTampil = sesiDipilih ?? sesiTerakhir.current;
+  const [sesiIdDipilih, setSesiIdDipilih] = useState<string | null>(null);
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const sesiTampil = sesiIdDipilih
+    ? (sesi.find((item) => item.id === sesiIdDipilih) ?? null)
+    : null;
+
+  const punyaAksesDetail = (item: Sesi) => {
+    if (!currentUser) return false;
+    if (currentUser.peran === 'asisten') return item.asistenId === currentUser.id;
+    return !currentUser.kelas || item.kelas === currentUser.kelas;
+  };
+
+  const aksesDetail = sesiTampil ? punyaAksesDetail(sesiTampil) : false;
 
   const jadwalTerdekat = useMemo(() => {
     const urut = (a: Sesi, b: Sesi) =>
@@ -77,17 +86,24 @@ export default function LandingScreen() {
     router.push('/login');
   };
 
-  const tutupDetail = () => setSesiDipilih(null);
+  const bukaDetail = (id: string) => {
+    setSesiIdDipilih(id);
+    setSheetVisible(true);
+  };
+
+  const tutupDetail = () => setSheetVisible(false);
 
   const handleLanjutDetail = () => {
     if (!sesiTampil) return;
 
-    setSesiDipilih(null);
+    setSheetVisible(false);
 
     if (!currentUser) {
       router.push('/login');
       return;
     }
+
+    if (!punyaAksesDetail(sesiTampil)) return;
 
     router.push({
       pathname:
@@ -111,7 +127,8 @@ export default function LandingScreen() {
             <Brand compact onDark />
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Masuk ke akun"
+              accessibilityLabel={currentUser ? 'Buka beranda' : 'Masuk ke akun'}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               onPress={handleMasuk}
               style={({ pressed }) => [
                 styles.loginPill,
@@ -179,34 +196,38 @@ export default function LandingScreen() {
                 <SessionCard
                   key={item.id}
                   session={item}
-                  onPress={() => setSesiDipilih(item)}
+                  onPress={() => bukaDetail(item.id)}
                 />
               ))}
             </View>
           )}
 
-          <View style={styles.guestNote}>
-            <Info size={17} color={colors.textMuted} />
-            <Text style={styles.guestNoteText}>
-              Masuk untuk melakukan presensi atau mengelola sesi.
-            </Text>
-          </View>
+          {!currentUser && (
+            <View style={styles.guestNote}>
+              <Info size={17} color={colors.textMuted} />
+              <Text style={styles.guestNoteText}>
+                Masuk untuk melakukan presensi atau mengelola sesi.
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
       <SheetModal
-        visible={sesiDipilih !== null}
+        visible={sheetVisible}
         kicker="DETAIL SESI"
         judul={sesiTampil?.namaPraktikum ?? ''}
         onClose={tutupDetail}
         footer={
-          <Tombol
-            variant="primer"
-            onPress={handleLanjutDetail}
-            rightIcon={<ArrowRight size={18} color={colors.onPrimary} />}
-          >
-            {currentUser ? 'Buka detail sesi' : 'Masuk untuk melanjutkan'}
-          </Tombol>
+          sesiTampil && (!currentUser || aksesDetail) ? (
+            <Tombol
+              variant="primer"
+              onPress={handleLanjutDetail}
+              rightIcon={<ArrowRight size={18} color={colors.onPrimary} />}
+            >
+              {currentUser ? 'Buka detail sesi' : 'Masuk untuk melanjutkan'}
+            </Tombol>
+          ) : undefined
         }
       >
         {sesiTampil && (
@@ -267,6 +288,15 @@ export default function LandingScreen() {
                 <LockKeyhole size={16} color={colors.textMuted} />
                 <Text style={styles.lockedText}>
                   Mode pengunjung hanya dapat melihat detail sesi.
+                </Text>
+              </View>
+            )}
+
+            {currentUser && !aksesDetail && (
+              <View style={styles.lockedBox}>
+                <LockKeyhole size={16} color={colors.textMuted} />
+                <Text style={styles.lockedText}>
+                  Sesi ini di luar kelas/area kamu. Kamu tetap dapat melihat detailnya di sini.
                 </Text>
               </View>
             )}
@@ -376,7 +406,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 14,
     fontFamily: fontFamily.semibold,
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
   sessionList: {
     gap: spacing.s3,
@@ -438,7 +468,7 @@ const styles = StyleSheet.create({
   },
   gridLabel: {
     ...type.micro,
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
   gridValue: {
     ...type.caption,
