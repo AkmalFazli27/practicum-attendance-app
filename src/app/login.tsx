@@ -81,14 +81,14 @@ export default function LoginScreen() {
         email.trim().length > 0 &&
         password.trim().length > 0;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isFormValid || sedangMemproses) return;
     setPesanError(null);
     setSedangMemproses(true);
 
-    setTimeout(() => {
+    try {
       if (authMode === 'login') {
-        const res = loginWithEmail(email, password, peran);
+        const res = await loginWithEmail(email, password, peran);
         setSedangMemproses(false);
         if (!res.ok) {
           setPesanError(res.alasan);
@@ -96,7 +96,7 @@ export default function LoginScreen() {
         }
         showToast(`Selamat datang kembali, ${res.user.nama.split(' ')[0]}!`);
       } else {
-        const res = registerUser({
+        const res = await registerUser({
           nama,
           email,
           password,
@@ -111,7 +111,10 @@ export default function LoginScreen() {
         }
         showToast(`Akun ${res.user.nama.split(' ')[0]} berhasil dibuat.`);
       }
-    }, 250);
+    } catch (err: any) {
+      setSedangMemproses(false);
+      setPesanError(err?.message || 'Terjadi kesalahan saat memproses akun.');
+    }
   };
 
   return (

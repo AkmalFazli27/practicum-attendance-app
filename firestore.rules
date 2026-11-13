@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAsisten() {
+      return isAuthenticated() && getUserData().peran == 'asisten';
+    }
+
+    function isPraktikan() {
+      return isAuthenticated() && getUserData().peran == 'praktikan';
+    }
+
+    // Koleksi users: identitas dan peran pengguna
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isAsisten();
+      allow delete: if false;
+    }
+
+    // Koleksi sesi praktikum: dikelola oleh Asisten, dibaca oleh semua pengguna terautentikasi
+    match /sesi/{sesiId} {
+      allow read: if true; // Publik/read-only agar Landing page dapat menampilkan jadwal
+      allow create, update, delete: if isAsisten();
+    }
+
+    // Koleksi kehadiran: dicatat oleh praktikan bersangkutan, ditinjau oleh asisten
+    match /kehadiran/{kehadiranId} {
+      allow read: if isAuthenticated();
+      // Praktikan hanya boleh mencatat kehadiran untuk dirinya sendiri
+      allow create: if isPraktikan() && request.resource.data.praktikanId == request.auth.uid;
+      // Perubahan status/koreksi kehadiran hanya boleh oleh Asisten
+      allow update, delete: if isAsisten();
+    }
+
+    // Koleksi izin: diajukan oleh praktikan, diperiksa/diputuskan oleh asisten
+    match /izin/{izinId} {
+      allow read: if isAuthenticated();
+      // Praktikan membuat pengajuan izin untuk dirinya sendiri dengan status awal MENUNGGU
+      allow create: if isPraktikan() 
+                    && request.resource.data.praktikanId == request.auth.uid
+                    && request.resource.data.status == 'MENUNGGU';
+      // Hanya Asisten yang berhak mengubah status izin (DITERIMA / DITOLAK)
+      allow update: if isAsisten() 
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedAt', 'reviewedBy']);
+      allow delete: if isAsisten();
+    }
+  }
+}
+

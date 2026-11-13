@@ -1,5 +1,31 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  type User as FirebaseUser,
+} from 'firebase/auth';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
+import { auth, db, isFirebaseConfigured } from '@/config/firebase';
 import {
   IZIN_SEED,
   KEHADIRAN_SEED,
@@ -13,6 +39,7 @@ import {
   type StatusIzin,
   type User,
 } from '@/data/dummy';
+import { klasifikasikanAlasanIzin } from '@/services/ai';
 import { formatJam, nowLocalISO } from '@/utils/format';
 
 export type PresensiResult =
@@ -36,25 +63,37 @@ export type IzinResult =
   | { ok: true; izin: Izin }
   | { ok: false; alasan: string };
 
-type SessionContextValue = {
+export type SessionContextValue = {
+  isLiveFirebase: boolean;
+  loading: boolean;
   users: User[];
   currentUser: User | null;
   sesi: Sesi[];
   kehadiran: Kehadiran[];
   izin: Izin[];
   login: (userId: string) => void;
-  loginWithEmail: (email: string, password: string, peranFallback?: Peran) => AuthResult;
-  registerUser: (payload: RegisterPayload) => AuthResult;
-  logout: () => void;
-  openSession: (sesiId: string) => void;
-  closeSession: (sesiId: string) => void;
-  reopenSession: (sesiId: string) => void;
-  createSession: (input: SesiInput) => Sesi | null;
-  updateSession: (sesiId: string, input: Partial<SesiInput>) => boolean;
-  deleteSession: (sesiId: string) => boolean;
-  markAttendance: (sesiId: string) => PresensiResult;
-  submitIzin: (sesiId: string, alasan: string) => IzinResult;
-  reviewIzin: (izinId: string, status: Exclude<StatusIzin, 'MENUNGGU'>) => boolean;
+  loginWithEmail: (
+    email: string,
+    password: string,
+    peranFallback?: Peran,
+  ) => Promise<AuthResult> | AuthResult;
+  registerUser: (payload: RegisterPayload) => Promise<AuthResult> | AuthResult;
+  logout: () => Promise<void> | void;
+  openSession: (sesiId: string) => Promise<void> | void;
+  closeSession: (sesiId: string) => Promise<void> | void;
+  reopenSession: (sesiId: string) => Promise<void> | void;
+  createSession: (input: SesiInput) => Promise<Sesi | null> | Sesi | null;
+  updateSession: (
+    sesiId: string,
+    input: Partial<SesiInput>,
+  ) => Promise<boolean> | boolean;
+  deleteSession: (sesiId: string) => Promise<boolean> | boolean;
+  markAttendance: (sesiId: string) => Promise<PresensiResult> | PresensiResult;
+  submitIzin: (sesiId: string, alasan: string) => Promise<IzinResult> | IzinResult;
+  reviewIzin: (
+    izinId: string,
+    status: Exclude<StatusIzin, 'MENUNGGU'>,
+  ) => Promise<boolean> | boolean;
   getSesiById: (sesiId: string) => Sesi | undefined;
   getKehadiranSesi: (sesiId: string) => Kehadiran[];
   getKehadiranPraktikan: (praktikanId: string) => Kehadiran[];
@@ -66,249 +105,504 @@ type SessionContextValue = {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
-/**
- * Klasifikasi heuristik ringan sebagai placeholder UI sebelum dihubungkan
- * ke endpoint API Model AI pengajar pada Sprint 2.
- */
-function klasifikasiAlasanAiPlaceholder(alasan: string): {
-  kategoriAi: string;
-  ringkasanAi: string;
-} {
-  const teks = alasan.toLowerCase();
-  if (
-    teks.includes('sakit') ||
-    teks.includes('demam') ||
-    teks.includes('dokter') ||
-    teks.includes('klinik') ||
-    teks.includes('rumah sakit') ||
-    teks.includes('medis')
-  ) {
-    return {
-      kategoriAi: 'Sakit / Medis',
-      ringkasanAi: 'Terdeteksi kata kunci kondisi kesehatan atau pemeriksaan medis.',
-    };
-  }
-  if (
-    teks.includes('lomba') ||
-    teks.includes('delegasi') ||
-    teks.includes('seminar') ||
-    teks.includes('dekanat') ||
-    teks.includes('kampus') ||
-    teks.includes('akademik')
-  ) {
-    return {
-      kategoriAi: 'Kegiatan Akademik / Delegasi',
-      ringkasanAi: 'Terdeteksi kegiatan akademik, kompetisi, atau penugasan institusi.',
-    };
-  }
-  if (
-    teks.includes('keluarga') ||
-    teks.includes('duka') ||
-    teks.includes('orang tua') ||
-    teks.includes('acara keluarga')
-  ) {
-    return {
-      kategoriAi: 'Urusan Keluarga',
-      ringkasanAi: 'Terdeteksi keperluan mendesak keluarga.',
-    };
-  }
-  return {
-    kategoriAi: 'Keperluan Lainnya',
-    ringkasanAi: 'Perlu peninjauan manual alasan ketidakhadiran oleh asisten.',
-  };
-}
-
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const [loading, setLoading] = useState<boolean>(true);
   const [users, setUsers] = useState<User[]>(USERS);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [sesi, setSesi] = useState<Sesi[]>(SESI_SEED);
   const [kehadiran, setKehadiran] = useState<Kehadiran[]>(KEHADIRAN_SEED);
   const [izin, setIzin] = useState<Izin[]>(IZIN_SEED);
 
-  function login(userId: string) {
-    const user = users.find((item) => item.id === userId);
-    if (user) {
-      setCurrentUser(user);
+  // ===========================================================================
+  // SINKRONISASI FIREBASE REAL-TIME (JIKA DIKONFIGURASI)
+  // ===========================================================================
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      setLoading(false);
+      return;
     }
-  }
 
-  function loginWithEmail(
+    setLoading(true);
+
+    // 1. Auth state listener
+    const unsubscribeAuth = onAuthStateChanged(
+      auth,
+      async (fbUser: FirebaseUser | null) => {
+        if (!fbUser) {
+          setCurrentUser(null);
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            setCurrentUser({
+              id: fbUser.uid,
+              nama: data.nama || fbUser.displayName || 'Pengguna TapIn',
+              email: fbUser.email || '',
+              nim: data.nim || '',
+              kelas: data.kelas || '',
+              peran: data.peran || 'praktikan',
+            });
+          } else {
+            setCurrentUser({
+              id: fbUser.uid,
+              nama: fbUser.displayName || fbUser.email?.split('@')[0] || 'Pengguna TapIn',
+              email: fbUser.email || '',
+              peran: 'praktikan',
+            });
+          }
+        } catch {
+          // Fallback user jika dokumen users belum terbaca
+          setCurrentUser({
+            id: fbUser.uid,
+            nama: fbUser.email?.split('@')[0] || 'Pengguna TapIn',
+            email: fbUser.email || '',
+            peran: 'praktikan',
+          });
+        } finally {
+          setLoading(false);
+        }
+      },
+    );
+
+    // 2. Sesi real-time listener
+    const sesiQuery = query(collection(db, 'sesi'));
+    const unsubscribeSesi = onSnapshot(
+      sesiQuery,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const liveSesi: Sesi[] = snapshot.docs.map((docSnap) => {
+            const d = docSnap.data();
+            return {
+              id: docSnap.id,
+              namaPraktikum: d.namaPraktikum || '',
+              topik: d.topik || '',
+              kelas: d.kelas || '',
+              lab: d.lab || '',
+              tanggal: d.tanggal || '',
+              jamMulai: d.jamMulai || '',
+              jamSelesai: d.jamSelesai || '',
+              kapasitas: d.kapasitas || 30,
+              asistenId: d.asistenId || '',
+              status: d.status || 'TERJADWAL',
+              deskripsi: d.deskripsi || '',
+            };
+          });
+          setSesi(liveSesi);
+        }
+      },
+      () => {},
+    );
+
+    // 3. Kehadiran real-time listener
+    const kehadiranQuery = query(collection(db, 'kehadiran'));
+    const unsubscribeKehadiran = onSnapshot(
+      kehadiranQuery,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const liveKehadiran: Kehadiran[] = snapshot.docs.map((docSnap) => {
+            const d = docSnap.data();
+            return {
+              id: docSnap.id,
+              sesiId: d.sesiId || '',
+              praktikanId: d.praktikanId || '',
+              waktuHadir: d.waktuHadir || '',
+            };
+          });
+          setKehadiran(liveKehadiran);
+        }
+      },
+      () => {},
+    );
+
+    // 4. Izin real-time listener
+    const izinQuery = query(collection(db, 'izin'));
+    const unsubscribeIzin = onSnapshot(
+      izinQuery,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const liveIzin: Izin[] = snapshot.docs.map((docSnap) => {
+            const d = docSnap.data();
+            return {
+              id: docSnap.id,
+              sesiId: d.sesiId || '',
+              praktikanId: d.praktikanId || '',
+              namaPraktikan: d.namaPraktikan || '',
+              nimPraktikan: d.nimPraktikan || '',
+              kelasPraktikan: d.kelasPraktikan || '',
+              alasan: d.alasan || '',
+              kategoriAi: d.kategoriAi || 'Belum Terklasifikasi',
+              ringkasanAi: d.ringkasanAi || '',
+              status: d.status || 'MENUNGGU',
+              waktuPengajuan: d.waktuPengajuan || '',
+              waktuKeputusan: d.waktuKeputusan || undefined,
+            };
+          });
+          setIzin(liveIzin);
+        }
+      },
+      () => {},
+    );
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribeSesi();
+      unsubscribeKehadiran();
+      unsubscribeIzin();
+    };
+  }, []);
+
+  // ===========================================================================
+  // FUNGSI AUTENTIKASI
+  // ===========================================================================
+
+  const login = (userId: string) => {
+    const userDitemukan = users.find((u) => u.id === userId);
+    if (userDitemukan) {
+      setCurrentUser(userDitemukan);
+    }
+  };
+
+  const loginWithEmail = async (
     emailInput: string,
     passwordInput: string,
     peranFallback: Peran = 'praktikan',
-  ): AuthResult {
-    const normalizedEmail = emailInput.trim().toLowerCase();
-    if (!normalizedEmail || !normalizedEmail.includes('@')) {
-      return { ok: false, alasan: 'Masukkan alamat email yang valid.' };
-    }
-    if (passwordInput.trim().length < 6) {
-      return { ok: false, alasan: 'Kata sandi minimal 6 karakter.' };
+  ): Promise<AuthResult> => {
+    const cleanEmail = emailInput.trim();
+    const cleanPassword = passwordInput.trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      return { ok: false, alasan: 'Email dan password tidak boleh kosong.' };
     }
 
-    const existing = users.find(
-      (u) => u.email?.toLowerCase() === normalizedEmail,
+    if (isFirebaseConfigured) {
+      try {
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          cleanEmail,
+          cleanPassword,
+        );
+        const fbUid = userCredential.user.uid;
+
+        const userDoc = await getDoc(doc(db, 'users', fbUid));
+        let userProfil: User;
+        if (userDoc.exists()) {
+          const d = userDoc.data();
+          userProfil = {
+            id: fbUid,
+            nama: d.nama || userCredential.user.displayName || 'Pengguna',
+            email: cleanEmail,
+            nim: d.nim || '',
+            kelas: d.kelas || '',
+            peran: d.peran || peranFallback,
+          };
+        } else {
+          userProfil = {
+            id: fbUid,
+            nama: userCredential.user.displayName || cleanEmail.split('@')[0],
+            email: cleanEmail,
+            peran: peranFallback,
+          };
+        }
+        setCurrentUser(userProfil);
+        return { ok: true, user: userProfil };
+      } catch (err: any) {
+        let pesan = 'Gagal masuk. Periksa kembali email dan password Anda.';
+        if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+          pesan = 'Email atau password yang Anda masukkan salah.';
+        } else if (err.code === 'auth/user-not-found') {
+          pesan = 'Akun dengan email tersebut tidak ditemukan.';
+        } else if (err.code === 'auth/invalid-email') {
+          pesan = 'Format email tidak valid.';
+        } else if (err.code === 'auth/network-request-failed') {
+          pesan = 'Gagal terhubung ke server Firebase. Periksa koneksi internet.';
+        }
+        return { ok: false, alasan: pesan };
+      }
+    }
+
+    // Fallback mode dummy / offline
+    const userDitemukan = users.find(
+      (u) => u.email?.toLowerCase() === cleanEmail.toLowerCase(),
     );
-    if (existing) {
-      setCurrentUser(existing);
-      return { ok: true, user: existing };
+
+    if (userDitemukan) {
+      setCurrentUser(userDitemukan);
+      return { ok: true, user: userDitemukan };
     }
 
-    // Jika belum dihubungkan ke Firebase Auth oleh P1, gunakan akun sesuai peran
-    // atau buat sesi pengguna berdasarkan email agar alur UI dapat langsung diuji.
-    const defaultRoleUser = users.find((u) => u.peran === peranFallback);
-    if (defaultRoleUser) {
-      setCurrentUser(defaultRoleUser);
-      return { ok: true, user: defaultRoleUser };
-    }
-
-    return { ok: false, alasan: 'Akun tidak ditemukan. Silakan daftar terlebih dahulu.' };
-  }
-
-  function registerUser(payload: RegisterPayload): AuthResult {
-    const nama = payload.nama.trim();
-    const email = payload.email.trim().toLowerCase();
-    const nim = payload.nim?.trim();
-    const kelas = payload.kelas?.trim().toUpperCase();
-
-    if (!nama) {
-      return { ok: false, alasan: 'Nama lengkap wajib diisi.' };
-    }
-    if (!email || !email.includes('@')) {
-      return { ok: false, alasan: 'Alamat email tidak valid.' };
-    }
-    if (payload.password.trim().length < 6) {
-      return { ok: false, alasan: 'Kata sandi minimal 6 karakter.' };
-    }
-    if (!nim) {
-      return { ok: false, alasan: 'NIM / ID wajib diisi.' };
-    }
-    if (payload.peran === 'praktikan' && !kelas) {
-      return { ok: false, alasan: 'Kelas wajib diisi untuk praktikan.' };
-    }
-
-    const emailSudahAda = users.some((u) => u.email?.toLowerCase() === email);
-    if (emailSudahAda) {
-      return { ok: false, alasan: 'Email sudah terdaftar. Silakan masuk.' };
-    }
-
-    const newUser: User = {
-      id: `${payload.peran === 'asisten' ? 'a' : 'p'}-${Date.now()}`,
-      nama,
-      email,
-      nim,
-      peran: payload.peran,
-      kelas: payload.peran === 'praktikan' ? kelas : undefined,
+    const userBaru: User = {
+      id: `user-${Date.now()}`,
+      nama: cleanEmail.split('@')[0].toUpperCase(),
+      email: cleanEmail,
+      peran: peranFallback,
+      nim: peranFallback === 'praktikan' ? '2310512999' : '2210512999',
+      kelas: peranFallback === 'praktikan' ? 'IF-2A' : undefined,
     };
 
-    setUsers((prev) => [...prev, newUser]);
-    setCurrentUser(newUser);
-    return { ok: true, user: newUser };
-  }
+    setUsers((prev) => [...prev, userBaru]);
+    setCurrentUser(userBaru);
+    return { ok: true, user: userBaru };
+  };
 
-  function logout() {
+  const registerUser = async (payload: RegisterPayload): Promise<AuthResult> => {
+    const cleanNama = payload.nama.trim();
+    const cleanEmail = payload.email.trim();
+    const cleanPassword = payload.password.trim();
+    const cleanNim = (payload.nim || '').trim();
+    const cleanKelas = (payload.kelas || '').trim();
+
+    if (!cleanNama || !cleanEmail || !cleanPassword) {
+      return { ok: false, alasan: 'Nama, email, dan password wajib diisi.' };
+    }
+
+    if (payload.peran === 'praktikan' && (!cleanNim || !cleanKelas)) {
+      return { ok: false, alasan: 'NIM dan Kelas wajib diisi untuk praktikan.' };
+    }
+
+    if (cleanPassword.length < 6) {
+      return { ok: false, alasan: 'Password minimal 6 karakter.' };
+    }
+
+    if (isFirebaseConfigured) {
+      try {
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          cleanEmail,
+          cleanPassword,
+        );
+        const fbUid = userCredential.user.uid;
+
+        const dataDoc = {
+          nama: cleanNama,
+          email: cleanEmail,
+          peran: payload.peran,
+          nim: cleanNim,
+          kelas: payload.peran === 'praktikan' ? cleanKelas : '',
+          createdAt: serverTimestamp(),
+        };
+
+        await setDoc(doc(db, 'users', fbUid), dataDoc);
+
+        const userObj: User = {
+          id: fbUid,
+          nama: cleanNama,
+          email: cleanEmail,
+          peran: payload.peran,
+          nim: cleanNim,
+          kelas: payload.peran === 'praktikan' ? cleanKelas : undefined,
+        };
+
+        setCurrentUser(userObj);
+        return { ok: true, user: userObj };
+      } catch (err: any) {
+        let pesan = 'Gagal mendaftarkan akun.';
+        if (err.code === 'auth/email-already-in-use') {
+          pesan = 'Email sudah terdaftar. Silakan masuk menggunakan email ini.';
+        } else if (err.code === 'auth/invalid-email') {
+          pesan = 'Format email tidak valid.';
+        } else if (err.code === 'auth/weak-password') {
+          pesan = 'Password terlalu lemah.';
+        }
+        return { ok: false, alasan: pesan };
+      }
+    }
+
+    // Fallback mode dummy / offline
+    const idBaru = `user-${Date.now()}`;
+    const userBaru: User = {
+      id: idBaru,
+      nama: cleanNama,
+      email: cleanEmail,
+      peran: payload.peran,
+      nim: cleanNim,
+      kelas: payload.peran === 'praktikan' ? cleanKelas : undefined,
+    };
+
+    setUsers((prev) => [...prev, userBaru]);
+    setCurrentUser(userBaru);
+    return { ok: true, user: userBaru };
+  };
+
+  const logout = async () => {
+    if (isFirebaseConfigured) {
+      try {
+        await signOut(auth);
+      } catch {}
+    }
     setCurrentUser(null);
-  }
+  };
 
-  function updateStatus(sesiId: string, status: Sesi['status']) {
+  // ===========================================================================
+  // FUNGSI KELOLA SESI PRAKTIKUM (CRUD ASISTEN)
+  // ===========================================================================
+
+  const openSession = async (sesiId: string) => {
+    if (isFirebaseConfigured) {
+      try {
+        await updateDoc(doc(db, 'sesi', sesiId), { status: 'DIBUKA' });
+      } catch {}
+    }
     setSesi((prev) =>
-      prev.map((item) => (item.id === sesiId ? { ...item, status } : item)),
+      prev.map((s) => (s.id === sesiId ? { ...s, status: 'DIBUKA' } : s)),
     );
-  }
+  };
 
-  function openSession(sesiId: string) {
-    updateStatus(sesiId, 'DIBUKA');
-  }
+  const closeSession = async (sesiId: string) => {
+    if (isFirebaseConfigured) {
+      try {
+        await updateDoc(doc(db, 'sesi', sesiId), { status: 'SELESAI' });
+      } catch {}
+    }
+    setSesi((prev) =>
+      prev.map((s) => (s.id === sesiId ? { ...s, status: 'SELESAI' } : s)),
+    );
+  };
 
-  function closeSession(sesiId: string) {
-    updateStatus(sesiId, 'SELESAI');
-  }
+  const reopenSession = async (sesiId: string) => {
+    if (isFirebaseConfigured) {
+      try {
+        await updateDoc(doc(db, 'sesi', sesiId), { status: 'DIBUKA' });
+      } catch {}
+    }
+    setSesi((prev) =>
+      prev.map((s) => (s.id === sesiId ? { ...s, status: 'DIBUKA' } : s)),
+    );
+  };
 
-  function reopenSession(sesiId: string) {
-    updateStatus(sesiId, 'DIBUKA');
-  }
-
-  function createSession(input: SesiInput): Sesi | null {
-    if (!currentUser || currentUser.peran !== 'asisten') return null;
-    const sesiBaru: Sesi = {
-      id: `ses-${Date.now()}`,
+  const createSession = async (input: SesiInput): Promise<Sesi | null> => {
+    const sesiBaruData = {
       namaPraktikum: input.namaPraktikum.trim(),
-      topik: input.topik?.trim() || 'Materi Praktikum',
-      kelas: input.kelas.trim().toUpperCase(),
+      topik: (input.topik || '').trim(),
+      kelas: input.kelas.trim(),
       lab: input.lab.trim(),
       tanggal: input.tanggal.trim(),
       jamMulai: input.jamMulai.trim(),
       jamSelesai: input.jamSelesai.trim(),
+      kapasitas: input.kapasitas || 30,
+      asistenId: currentUser?.id || 'asisten-1',
+      status: 'TERJADWAL' as const,
       deskripsi: input.deskripsi.trim(),
-      kapasitas: input.kapasitas ?? 32,
-      asistenId: currentUser.id,
-      status: 'TERJADWAL',
+    };
+
+    if (isFirebaseConfigured) {
+      try {
+        const docRef = await addDoc(collection(db, 'sesi'), sesiBaruData);
+        return { id: docRef.id, ...sesiBaruData };
+      } catch {
+        return null;
+      }
+    }
+
+    const sesiBaru: Sesi = {
+      id: `sesi-${Date.now()}`,
+      ...sesiBaruData,
     };
     setSesi((prev) => [sesiBaru, ...prev]);
     return sesiBaru;
-  }
+  };
 
-  function updateSession(sesiId: string, input: Partial<SesiInput>): boolean {
-    const existing = sesi.find((item) => item.id === sesiId);
-    if (!existing) return false;
+  const updateSession = async (
+    sesiId: string,
+    input: Partial<SesiInput>,
+  ): Promise<boolean> => {
+    if (isFirebaseConfigured) {
+      try {
+        await updateDoc(doc(db, 'sesi', sesiId), input);
+      } catch {
+        return false;
+      }
+    }
     setSesi((prev) =>
-      prev.map((item) =>
-        item.id === sesiId
-          ? {
-              ...item,
-              ...input,
-              namaPraktikum: input.namaPraktikum?.trim() ?? item.namaPraktikum,
-              topik: input.topik?.trim() ?? item.topik,
-              kelas: input.kelas?.trim().toUpperCase() ?? item.kelas,
-              lab: input.lab?.trim() ?? item.lab,
-              tanggal: input.tanggal?.trim() ?? item.tanggal,
-              jamMulai: input.jamMulai?.trim() ?? item.jamMulai,
-              jamSelesai: input.jamSelesai?.trim() ?? item.jamSelesai,
-              deskripsi: input.deskripsi?.trim() ?? item.deskripsi,
-              kapasitas: input.kapasitas ?? item.kapasitas,
-            }
-          : item,
-      ),
+      prev.map((s) => (s.id === sesiId ? { ...s, ...input } : s)),
     );
     return true;
-  }
+  };
 
-  function deleteSession(sesiId: string): boolean {
-    const existing = sesi.find((item) => item.id === sesiId);
-    if (!existing) return false;
-    setSesi((prev) => prev.filter((item) => item.id !== sesiId));
-    setKehadiran((prev) => prev.filter((item) => item.sesiId !== sesiId));
-    setIzin((prev) => prev.filter((item) => item.sesiId !== sesiId));
+  const deleteSession = async (sesiId: string): Promise<boolean> => {
+    if (isFirebaseConfigured) {
+      try {
+        await deleteDoc(doc(db, 'sesi', sesiId));
+      } catch {
+        return false;
+      }
+    }
+    setSesi((prev) => prev.filter((s) => s.id !== sesiId));
+    setKehadiran((prev) => prev.filter((k) => k.sesiId !== sesiId));
+    setIzin((prev) => prev.filter((i) => i.sesiId !== sesiId));
     return true;
-  }
+  };
 
-  function markAttendance(sesiId: string): PresensiResult {
-    if (!currentUser || currentUser.peran !== 'praktikan') {
+  // ===========================================================================
+  // FUNGSI PRESENSI PRAKTIKAN
+  // ===========================================================================
+
+  const markAttendance = async (sesiId: string): Promise<PresensiResult> => {
+    if (!currentUser) {
+      return { ok: false, alasan: 'Pengguna belum masuk.' };
+    }
+    if (currentUser.peran !== 'praktikan') {
       return { ok: false, alasan: 'Hanya praktikan yang dapat melakukan presensi.' };
     }
 
-    const sesiDipilih = sesi.find((item) => item.id === sesiId);
-    if (!sesiDipilih) {
-      return { ok: false, alasan: 'Sesi tidak ditemukan.' };
+    const sesiTarget = sesi.find((s) => s.id === sesiId);
+    if (!sesiTarget) {
+      return { ok: false, alasan: 'Sesi praktikum tidak ditemukan.' };
     }
-    if (sesiDipilih.status !== 'DIBUKA') {
-      return { ok: false, alasan: 'Sesi belum dibuka atau sudah ditutup.' };
+    if (sesiTarget.status !== 'DIBUKA') {
+      return { ok: false, alasan: 'Presensi hanya dapat dilakukan saat sesi berstatus DIBUKA.' };
     }
 
-    const presensiSebelumnya = kehadiran.find(
-      (item) => item.sesiId === sesiId && item.praktikanId === currentUser.id,
+    // Guard izin
+    const izinAda = izin.find(
+      (i) => i.sesiId === sesiId && i.praktikanId === currentUser.id,
     );
-    if (presensiSebelumnya) {
+    if (izinAda) {
       return {
         ok: false,
-        alasan: `Kamu sudah presensi pukul ${formatJam(presensiSebelumnya.waktuHadir)}.`,
+        alasan: `Anda sudah mengajukan izin untuk sesi ini (status: ${izinAda.status}).`,
+      };
+    }
+
+    // Guard presensi ganda
+    const presensiLama = kehadiran.find(
+      (k) => k.sesiId === sesiId && k.praktikanId === currentUser.id,
+    );
+    if (presensiLama) {
+      return {
+        ok: false,
+        alasan: `Presensi sudah tercatat pada pukul ${formatJam(presensiLama.waktuHadir)}.`,
       };
     }
 
     const waktuHadir = nowLocalISO();
+    const docId = `${sesiId}_${currentUser.id}`;
+
+    if (isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'kehadiran', docId), {
+          sesiId,
+          praktikanId: currentUser.id,
+          namaPraktikan: currentUser.nama,
+          nimPraktikan: currentUser.nim || '',
+          kelasPraktikan: currentUser.kelas || '',
+          waktuHadir,
+        });
+      } catch (err: any) {
+        return {
+          ok: false,
+          alasan: `Gagal menyimpan presensi ke database: ${err?.message || 'Gangguan koneksi'}`,
+        };
+      }
+    }
+
     setKehadiran((prev) => [
       ...prev,
       {
-        id: `kehadiran-${sesiId}-${currentUser.id}`,
+        id: docId,
         sesiId,
         praktikanId: currentUser.id,
         waktuHadir,
@@ -316,76 +610,100 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     ]);
 
     return { ok: true, waktuHadir };
-  }
+  };
 
-  function submitIzin(sesiId: string, alasanInput: string): IzinResult {
-    if (!currentUser || currentUser.peran !== 'praktikan') {
+  // ===========================================================================
+  // FUNGSI PENGAJUAN & PEMERIKSAAN IZIN (BERBANTUAN MODEL AI)
+  // ===========================================================================
+
+  const submitIzin = async (
+    sesiId: string,
+    alasanInput: string,
+  ): Promise<IzinResult> => {
+    if (!currentUser) {
+      return { ok: false, alasan: 'Pengguna belum masuk.' };
+    }
+    if (currentUser.peran !== 'praktikan') {
       return { ok: false, alasan: 'Hanya praktikan yang dapat mengajukan izin.' };
     }
-    const alasan = alasanInput.trim();
-    if (alasan.length < 10) {
-      return {
-        ok: false,
-        alasan: 'Tuliskan alasan ketidakhadiran dengan jelas (minimal 10 karakter).',
-      };
+
+    const teksAlasan = alasanInput.trim();
+    if (teksAlasan.length < 10) {
+      return { ok: false, alasan: 'Alasan izin minimal 10 karakter.' };
     }
 
-    const sudahHadir = kehadiran.find(
-      (item) => item.sesiId === sesiId && item.praktikanId === currentUser.id,
-    );
-    if (sudahHadir) {
-      return {
-        ok: false,
-        alasan: 'Kamu sudah tercatat hadir pada sesi ini.',
-      };
-    }
+    // Panggil service integrasi API AI pengajar (dengan timeout & fallback aman)
+    const hasilAi = await klasifikasikanAlasanIzin(teksAlasan);
 
-    const izinSebelumnya = izin.find(
-      (item) => item.sesiId === sesiId && item.praktikanId === currentUser.id,
-    );
-    if (izinSebelumnya) {
-      return {
-        ok: false,
-        alasan: 'Kamu sudah mengajukan izin untuk sesi ini.',
-      };
-    }
-
-    const { kategoriAi, ringkasanAi } = klasifikasiAlasanAiPlaceholder(alasan);
-    const izinBaru: Izin = {
-      id: `izin-${sesiId}-${currentUser.id}`,
+    const waktuPengajuan = nowLocalISO();
+    const izinBaruData = {
       sesiId,
       praktikanId: currentUser.id,
-      alasan,
-      kategoriAi,
-      ringkasanAi,
-      status: 'MENUNGGU',
-      waktuPengajuan: nowLocalISO(),
+      namaPraktikan: currentUser.nama,
+      nimPraktikan: currentUser.nim || '',
+      kelasPraktikan: currentUser.kelas || '',
+      alasan: teksAlasan,
+      kategoriAi: hasilAi.kategori,
+      ringkasanAi: hasilAi.keterangan || 'Hasil klasifikasi inferensi AI',
+      status: 'MENUNGGU' as const,
+      waktuPengajuan,
+    };
+
+    if (isFirebaseConfigured) {
+      try {
+        const docRef = await addDoc(collection(db, 'izin'), izinBaruData);
+        const izinTersimpan: Izin = { id: docRef.id, ...izinBaruData };
+        return { ok: true, izin: izinTersimpan };
+      } catch (err: any) {
+        return {
+          ok: false,
+          alasan: `Gagal menyimpan izin ke Firestore: ${err?.message || 'Gangguan koneksi'}`,
+        };
+      }
+    }
+
+    const izinBaru: Izin = {
+      id: `izin-${Date.now()}`,
+      ...izinBaruData,
     };
 
     setIzin((prev) => [izinBaru, ...prev]);
     return { ok: true, izin: izinBaru };
-  }
+  };
 
-  function reviewIzin(
+  const reviewIzin = async (
     izinId: string,
     status: Exclude<StatusIzin, 'MENUNGGU'>,
-  ): boolean {
-    const target = izin.find((item) => item.id === izinId);
-    if (!target) return false;
+  ): Promise<boolean> => {
+    const waktuKeputusan = nowLocalISO();
+
+    if (isFirebaseConfigured) {
+      try {
+        await updateDoc(doc(db, 'izin', izinId), {
+          status,
+          waktuKeputusan,
+          reviewedBy: currentUser?.id || 'asisten',
+        });
+      } catch {
+        return false;
+      }
+    }
+
     setIzin((prev) =>
       prev.map((item) =>
         item.id === izinId
           ? {
               ...item,
               status,
-              waktuKeputusan: nowLocalISO(),
+              waktuKeputusan,
             }
           : item,
       ),
     );
     return true;
-  }
+  };
 
+  // Helper getters
   function getSesiById(sesiId: string) {
     return sesi.find((item) => item.id === sesiId);
   }
@@ -419,6 +737,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }
 
   const value: SessionContextValue = {
+    isLiveFirebase: isFirebaseConfigured,
+    loading,
     users,
     currentUser,
     sesi,
