@@ -235,3 +235,42 @@ Aturan: folder `src/app/` hanya berisi route. Komponen, hook, dan utilitas disim
 - Expo SDK 58: https://docs.expo.dev/versions/v58.0.0/
 - EAS Build: https://docs.expo.dev/build/introduction/
 - Panduan agen Expo (jika memakai AI): lihat `AGENTS.md` di root proyek.
+
+
+---
+
+## 12. Kelanjutan Setup Sprint 2 — Firebase & API Model AI
+
+Bagian ini melanjutkan panduan setup Sprint 1 di atas untuk kebutuhan **Sprint 2 (Firebase Authentication, Cloud Firestore, & API Model AI)**.
+
+### 12.1 Menyiapkan Proyek Firebase di Console
+
+1. Buka [Firebase Console](https://console.firebase.google.com) dan buat proyek baru (mis. `tapin-practicum-attendance`).
+2. Daftarkan aplikasi **Web (`</>`)** pada Project Overview untuk memperoleh objek `firebaseConfig` (digunakan secara universal oleh Firebase JS SDK di Android Expo Go, iOS, dan Web).
+3. Aktifkan **Build → Authentication → Sign-in method → Email/Password**.
+4. Aktifkan **Build → Firestore Database → Create database** dengan Database ID `(default)` dan lokasi `asia-southeast2 (Jakarta)`.
+5. Buka tab **Firestore Database → Rules**, salin seluruh isi file `firestore.rules` di root proyek, lalu klik **Publish**.
+
+### 12.2 Mengatur File `.env` Lokal
+
+1. Salin template `.env.example` menjadi `.env` di root proyek:
+   ```bash
+   cp .env.example .env
+   ```
+2. Isi variabel konfigurasi Firebase dan API Model AI pada `.env`:
+   ```env
+   EXPO_PUBLIC_FIREBASE_API_KEY=...
+   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+   EXPO_PUBLIC_FIREBASE_PROJECT_ID=...
+   EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+   EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+   EXPO_PUBLIC_FIREBASE_APP_ID=...
+
+   EXPO_PUBLIC_AI_API_URL=...
+   EXPO_PUBLIC_AI_API_KEY=...
+   ```
+3. Setiap kali mengubah isi `.env`, jalankan ulang server Expo dengan membersihkan cache Metro:
+   ```bash
+   npx expo start --clear
+   ```
+4. **Penting:** File `.env` sudah terdaftar di `.gitignore`. Jangan pernah melakukan commit file `.env` ke repository GitHub.

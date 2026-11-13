@@ -311,3 +311,51 @@ Skenario berikut menjadi acuan penerimaan produk pada tahap saat ini. Dilakukan 
 - `docs/SETUP.md` — panduan menyiapkan proyek dan build.
 - `docs/sprints/sprint-1.md` — tujuan, tugas, jadwal, dan demo sprint berjalan.
 - `docs/sprints/sprint-2.md`, `sprint-3.md`, `sprint-4.md` — diisi saat sprint terkait dimulai.
+
+
+---
+
+## 17. Kelanjutan Spesifikasi Sprint 2 — Data Dinamis dengan Firebase & AI
+
+Bagian ini melanjutkan spesifikasi Sprint 1 di atas untuk kebutuhan **Sprint 2** tanpa menghapus riwayat spesifikasi awal.
+
+### 17.1 Kebutuhan Fungsional Sprint 2 (FR-11 s.d. FR-18)
+
+#### FR-11 — Autentikasi Pengguna (Firebase Authentication)
+Pengguna dapat melakukan registrasi, login, dan logout menggunakan Firebase Authentication. Setiap akun memiliki identitas dan peran sebagai `praktikan` atau `asisten` yang disimpan pada koleksi `users/{uid}` di Cloud Firestore. Aplikasi menampilkan informasi dan menyediakan tindakan sesuai peran pengguna.
+
+#### FR-12 — Pengelolaan Data Praktikum (Cloud Firestore CRUD)
+Data kelas, peserta, jadwal, dan sesi praktikum disimpan menggunakan Cloud Firestore pada koleksi `sesi/{sesiId}`. Asisten dapat melakukan operasi tambah, lihat, ubah, dan hapus (CRUD) terhadap data sesi praktikum serta membuka/menutup sesi. Praktikan dapat melihat jadwal dan informasi sesi yang berkaitan dengan kelasnya.
+
+#### FR-13 — Presensi Terintegrasi & Pencegahan Presensi Ganda
+Praktikan dapat melakukan presensi ketika sesi dibuka (`DIBUKA`) oleh asisten. Data kehadiran disimpan di Cloud Firestore pada koleksi `kehadiran/{sesiId_praktikanId}` berdasarkan identitas praktikan dan sesi yang diikuti. Praktikan tidak dapat melakukan presensi lebih dari satu kali pada sesi yang sama.
+
+#### FR-14 — Sinkronisasi Data Real-Time (`onSnapshot`) & Persistensi
+Perubahan status sesi, pencatatan presensi, pengajuan/keputusan izin, dan rekap kehadiran langsung terlihat oleh pengguna terkait secara *real-time* menggunakan listener `onSnapshot` tanpa perlu memuat ulang aplikasi. Data yang tersimpan tetap tersedia setelah aplikasi ditutup dan dibuka kembali.
+
+#### FR-15 — Pengajuan Izin Ketidakhadiran
+Praktikan dapat mengajukan izin untuk sesi tertentu dengan mengisi alasan ketidakhadiran (minimal 10 karakter). Setiap pengajuan disimpan di Cloud Firestore pada koleksi `izin/{izinId}` dengan status awal `MENUNGGU` dan dapat dipantau statusnya oleh praktikan.
+
+#### FR-16 — Integrasi Model AI untuk Klasifikasi Alasan Izin
+Saat pengajuan izin dikirim, aplikasi mengirimkan alasan izin ke API Model AI yang disediakan pengajar (`EXPO_PUBLIC_AI_API_URL`) untuk mendapatkan prediksi kategori alasan (misal: `Sakit / Medis`, `Kegiatan Akademik / Delegasi`, `Keluarga / Mendesak`, `Kendala Teknis / Transportasi`, `Keperluan Pribadi`). Hasil klasifikasi ditampilkan sebagai informasi pendukung dan disimpan bersama dokumen pengajuan izin. **Model AI tidak menentukan apakah izin diterima atau ditolak.** Bila layanan AI mengalami gangguan atau *timeout*, sistem menggunakan *fallback* aman sehingga pengajuan izin tetap tersimpan.
+
+#### FR-17 — Pemeriksaan & Keputusan Izin oleh Asisten
+Asisten dapat melihat daftar pengajuan izin pada sesi praktikum beserta alasan praktikan dan badge hasil klasifikasi AI, kemudian memberikan keputusan **Terima** (`DITERIMA`) atau **Tolak** (`DITOLAK`). Keputusan tersebut tersimpan di Cloud Firestore dan langsung terlihat oleh praktikan secara *real-time*.
+
+#### FR-18 — Validasi Input, Penanganan Kondisi, & Keamanan Data
+Aplikasi menangani input yang tidak valid, kegagalan autentikasi, kondisi data sedang dimuat (*loading*), daftar kosong (*empty state*), serta kesalahan komunikasi dengan Firestore atau API AI. Akses dan perubahan data dibatasi sesuai identitas serta peran pengguna melalui aplikasi dan `firestore.rules`.
+
+### 17.2 Struktur Koleksi Cloud Firestore Sprint 2
+
+```text
+users/{uid}                           { nama, email, nim, kelas, peran, createdAt }
+sesi/{sesiId}                         { namaPraktikum, topik, kelas, lab, tanggal,
+                                        jamMulai, jamSelesai, kapasitas, asistenId,
+                                        status, deskripsi }
+kehadiran/{sesiId}_{praktikanId}      { sesiId, praktikanId, namaPraktikan,
+                                        nimPraktikan, kelasPraktikan, waktuHadir }
+izin/{izinId}                         { sesiId, praktikanId, namaPraktikan,
+                                        nimPraktikan, kelasPraktikan, alasan,
+                                        kategoriAi, ringkasanAi, status,
+                                        waktuPengajuan, waktuKeputusan, reviewedBy }
+```
