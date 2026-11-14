@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Redirect } from 'expo-router';
 import { CheckCircle2, LogOut, UserRound } from 'lucide-react-native';
 
 import { Tombol, useToast } from '@/components/ui';
@@ -18,20 +19,28 @@ import { inisialNama } from '@/utils/format';
 export default function ProfilScreen() {
   const { currentUser, getKehadiranPraktikan, logout } = useSession();
   const { showToast } = useToast();
+  const [sedangKeluar, setSedangKeluar] = useState(false);
 
-  if (!currentUser) return null;
+  if (!currentUser) return <Redirect href="/" />;
+
+  const emailTampil = currentUser.email?.trim() || '-';
+  const labelPeran = currentUser.peran === 'asisten' ? 'Asisten' : 'Praktikan';
+  const totalPresensi = getKehadiranPraktikan(currentUser.id).length;
 
   const handleLogout = async () => {
-    const hasil = await logout();
-    if (!hasil.ok) {
-      showToast(hasil.alasan);
+    if (sedangKeluar) return;
+    setSedangKeluar(true);
+    try {
+      const hasil = await logout();
+      if (!hasil.ok) {
+        showToast(hasil.alasan);
+        return;
+      }
+      showToast('Anda berhasil keluar.');
+    } finally {
+      setSedangKeluar(false);
     }
   };
-
-  const emailTampil =
-    currentUser.email ??
-    `${currentUser.nama.toLowerCase().replace(/\s+/g, '.')}@tapin.ac.id`;
-  const totalPresensi = getKehadiranPraktikan(currentUser.id).length;
 
   return (
     <View style={styles.root}>
@@ -52,7 +61,7 @@ export default function ProfilScreen() {
           </Text>
           <View style={styles.roleBadge}>
             <UserRound size={15} color={colors.sesiDibukaFg} />
-            <Text style={styles.roleBadgeText}>{currentUser.peran}</Text>
+            <Text style={styles.roleBadgeText}>{labelPeran}</Text>
           </View>
         </View>
 
@@ -65,9 +74,9 @@ export default function ProfilScreen() {
           </View>
           <View style={[styles.row, styles.rowBorder]}>
             <Text style={styles.rowLabel}>Status akun</Text>
-            <View style={styles.verifiedWrap}>
+            <View style={styles.statusWrap}>
               <CheckCircle2 size={16} color={colors.sesiDibukaFg} />
-              <Text style={styles.verifiedText}>Terverifikasi</Text>
+              <Text style={styles.statusText}>Aktif</Text>
             </View>
           </View>
           <View style={[styles.row, styles.rowBorder]}>
@@ -80,6 +89,7 @@ export default function ProfilScreen() {
           variant="danger"
           icon={<LogOut size={18} color={colors.errorFg} />}
           onPress={handleLogout}
+          loading={sedangKeluar}
         >
           Keluar dari akun
         </Tombol>
@@ -178,12 +188,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     maxWidth: '65%',
   },
-  verifiedWrap: {
+  statusWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
   },
-  verifiedText: {
+  statusText: {
     ...type.caption,
     fontFamily: fontFamily.bold,
     color: colors.sesiDibukaFg,
