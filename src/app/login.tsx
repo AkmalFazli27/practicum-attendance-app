@@ -115,7 +115,7 @@ function validateAuthForm({
     hasil.email = 'Masukkan alamat email yang valid.';
   }
 
-  if (password.trim().length < 6) {
+  if (password.length < 6) {
     hasil.password = 'Kata sandi minimal 6 karakter.';
   }
 
@@ -125,8 +125,7 @@ function validateAuthForm({
 export default function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string }>();
-  const { currentUser, loading, loginWithEmail, registerUser, logout } =
-    useSession();
+  const { currentUser, loading, loginWithEmail, registerUser } = useSession();
   const { showToast } = useToast();
 
   const [authMode, setAuthMode] = useState<AuthMode>(
@@ -157,6 +156,7 @@ export default function LoginScreen() {
   useEffect(() => {
     if (params.mode === 'register') {
       setAuthMode('register');
+      setPeran('praktikan');
     }
   }, [params.mode]);
 
@@ -194,6 +194,9 @@ export default function LoginScreen() {
 
   const handleGantiMode = (modeBaru: AuthMode) => {
     setAuthMode(modeBaru);
+    if (modeBaru === 'register') {
+      setPeran('praktikan');
+    }
     setErrors({});
     setPesanError(null);
     setSubmitted(false);
@@ -215,11 +218,7 @@ export default function LoginScreen() {
         email.trim().length > 0 &&
         password.trim().length > 0;
 
-  const tanganiKegagalanAuth = async (alasan: string) => {
-    // TODO(auth): mitigasi sementara — logout() mencegah fallback user dari
-    // SessionContext ikut terpakai saat autentikasi gagal. PM akan memperbaiki
-    // fallback tersebut langsung di SessionContext.
-    await logout();
+  const tanganiKegagalanAuth = (alasan: string) => {
     setPesanError(pesanUntukAlasan(alasan));
   };
 
@@ -229,9 +228,11 @@ export default function LoginScreen() {
     redirectAwalSelesai.current = true;
     setPesanError(null);
 
+    const peranForm: Peran = authMode === 'register' ? 'praktikan' : peran;
+
     const hasilValidasi = validateAuthForm({
       authMode,
-      peran,
+      peran: peranForm,
       nama,
       nim,
       kelas,
@@ -245,7 +246,7 @@ export default function LoginScreen() {
 
       const urutanField: AuthField[] =
         authMode === 'register'
-          ? peran === 'praktikan'
+          ? peranForm === 'praktikan'
             ? ['nama', 'nim', 'kelas', 'email', 'password']
             : ['nama', 'nim', 'email', 'password']
           : ['email', 'password'];
@@ -272,10 +273,14 @@ export default function LoginScreen() {
 
     try {
       if (authMode === 'login') {
-        const res = await loginWithEmail(email.trim().toLowerCase(), password);
+        const res = await loginWithEmail(
+          email.trim().toLowerCase(),
+          password,
+          peran,
+        );
 
         if (!res.ok) {
-          await tanganiKegagalanAuth(res.alasan);
+          tanganiKegagalanAuth(res.alasan);
           return;
         }
 
@@ -288,13 +293,14 @@ export default function LoginScreen() {
         nama: nama.trim(),
         email: email.trim().toLowerCase(),
         password,
-        peran,
+        peran: peranForm,
         nim: nim.trim(),
-        kelas: peran === 'praktikan' ? kelas.trim().toUpperCase() : undefined,
+        kelas:
+          peranForm === 'praktikan' ? kelas.trim().toUpperCase() : undefined,
       });
 
       if (!res.ok) {
-        await tanganiKegagalanAuth(res.alasan);
+        tanganiKegagalanAuth(res.alasan);
         return;
       }
 
@@ -351,7 +357,7 @@ export default function LoginScreen() {
             <Text style={styles.introSub}>
               {authMode === 'login'
                 ? 'Masuk dengan akun sesuai peranmu untuk melanjutkan.'
-                : 'Daftarkan identitas dan peranmu untuk mengakses praktikum.'}
+                : 'Daftarkan identitasmu untuk mengakses praktikum sebagai Praktikan.'}
             </Text>
           </View>
 
@@ -409,77 +415,87 @@ export default function LoginScreen() {
               </Pressable>
             </View>
 
-            {/* Role Switch */}
-            <Text style={styles.fieldLabel}>
-              {authMode === 'login' ? 'Masuk sebagai' : 'Daftar sebagai'}
-            </Text>
-            <View style={styles.roleSwitch}>
-              <Pressable
-                accessibilityRole="radio"
-                accessibilityLabel="Peran praktikan"
-                accessibilityHint="Pilih peran praktikan untuk akun ini."
-                accessibilityState={{
-                  selected: peran === 'praktikan',
-                  disabled: sedangMemproses,
-                }}
-                disabled={sedangMemproses}
-                onPress={() => handleGantiPeran('praktikan')}
-                style={[
-                  styles.roleButton,
-                  peran === 'praktikan' && styles.roleButtonActive,
-                ]}
-              >
-                <UserRound
-                  size={18}
-                  color={
-                    peran === 'praktikan'
-                      ? colors.textPrimary
-                      : colors.textSecondary
-                  }
-                />
-                <Text
-                  style={[
-                    styles.roleButtonText,
-                    peran === 'praktikan' && styles.roleButtonTextActive,
-                  ]}
-                >
-                  Praktikan
-                </Text>
-              </Pressable>
+            {/* Role Switch / Info Registrasi */}
+            {authMode === 'login' ? (
+              <>
+                <Text style={styles.fieldLabel}>Masuk sebagai</Text>
+                <View style={styles.roleSwitch}>
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityLabel="Peran praktikan"
+                    accessibilityHint="Pilih peran praktikan untuk akun ini."
+                    accessibilityState={{
+                      selected: peran === 'praktikan',
+                      disabled: sedangMemproses,
+                    }}
+                    disabled={sedangMemproses}
+                    onPress={() => handleGantiPeran('praktikan')}
+                    style={[
+                      styles.roleButton,
+                      peran === 'praktikan' && styles.roleButtonActive,
+                    ]}
+                  >
+                    <UserRound
+                      size={18}
+                      color={
+                        peran === 'praktikan'
+                          ? colors.textPrimary
+                          : colors.textSecondary
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.roleButtonText,
+                        peran === 'praktikan' && styles.roleButtonTextActive,
+                      ]}
+                    >
+                      Praktikan
+                    </Text>
+                  </Pressable>
 
-              <Pressable
-                accessibilityRole="radio"
-                accessibilityLabel="Peran asisten"
-                accessibilityHint="Pilih peran asisten untuk akun ini."
-                accessibilityState={{
-                  selected: peran === 'asisten',
-                  disabled: sedangMemproses,
-                }}
-                disabled={sedangMemproses}
-                onPress={() => handleGantiPeran('asisten')}
-                style={[
-                  styles.roleButton,
-                  peran === 'asisten' && styles.roleButtonActive,
-                ]}
-              >
-                <ShieldCheck
-                  size={18}
-                  color={
-                    peran === 'asisten'
-                      ? colors.textPrimary
-                      : colors.textSecondary
-                  }
-                />
-                <Text
-                  style={[
-                    styles.roleButtonText,
-                    peran === 'asisten' && styles.roleButtonTextActive,
-                  ]}
-                >
-                  Asisten
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityLabel="Peran asisten"
+                    accessibilityHint="Pilih peran asisten untuk akun ini."
+                    accessibilityState={{
+                      selected: peran === 'asisten',
+                      disabled: sedangMemproses,
+                    }}
+                    disabled={sedangMemproses}
+                    onPress={() => handleGantiPeran('asisten')}
+                    style={[
+                      styles.roleButton,
+                      peran === 'asisten' && styles.roleButtonActive,
+                    ]}
+                  >
+                    <ShieldCheck
+                      size={18}
+                      color={
+                        peran === 'asisten'
+                          ? colors.textPrimary
+                          : colors.textSecondary
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.roleButtonText,
+                        peran === 'asisten' && styles.roleButtonTextActive,
+                      ]}
+                    >
+                      Asisten
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <View style={styles.registerInfo}>
+                <UserRound size={16} color={colors.textSecondary} />
+                <Text style={styles.registerInfoText}>
+                  Pendaftaran mandiri hanya untuk Praktikan. Akun Asisten dibuat
+                  oleh admin melalui Firebase Console.
                 </Text>
-              </Pressable>
-            </View>
+              </View>
+            )}
 
             {/* Register-only Fields */}
             {authMode === 'register' && (
@@ -828,6 +844,21 @@ const styles = StyleSheet.create({
   roleButtonTextActive: {
     color: colors.textPrimary,
     fontFamily: fontFamily.bold,
+  },
+  registerInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.s2,
+    padding: spacing.s3,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceMuted,
+    marginBottom: spacing.s4,
+  },
+  registerInfoText: {
+    ...type.caption,
+    fontFamily: fontFamily.regular,
+    color: colors.textSecondary,
+    flex: 1,
   },
   rowFields: {
     flexDirection: 'row',
