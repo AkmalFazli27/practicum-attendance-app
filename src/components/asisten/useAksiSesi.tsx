@@ -55,7 +55,7 @@ export function useAksiSesi(onTidakDitemukan?: () => void) {
     setTarget(null);
   }
 
-  function konfirmasi() {
+  async function konfirmasi() {
     if (!target || loading) return;
     const { sesiId, aksi } = target;
 
@@ -67,15 +67,18 @@ export function useAksiSesi(onTidakDitemukan?: () => void) {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      if (aksi === 'buka') openSession(sesiId);
-      else if (aksi === 'tutup') closeSession(sesiId);
-      else reopenSession(sesiId);
+    let berhasil = false;
+    if (aksi === 'buka') berhasil = await openSession(sesiId);
+    else if (aksi === 'tutup') berhasil = await closeSession(sesiId);
+    else berhasil = await reopenSession(sesiId);
 
-      setLoading(false);
-      setTarget(null);
-      showToast(COPY[aksi].toast);
-    }, 220);
+    setLoading(false);
+    setTarget(null);
+    if (!berhasil) {
+      showToast('Gagal mengubah status sesi praktikum. Silakan coba lagi.');
+      return;
+    }
+    showToast(COPY[aksi].toast);
   }
 
   const isTutup = tampil?.aksi === 'tutup';

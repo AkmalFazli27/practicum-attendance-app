@@ -59,7 +59,7 @@ function SplashLayar() {
 export default function LandingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser, loading, sesi } = useSession();
+  const { currentUser, loading, error, retrySync, sesi } = useSession();
 
   const [sesiIdDipilih, setSesiIdDipilih] = useState<string | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -213,8 +213,13 @@ export default function LandingScreen() {
 
           {jadwalTerdekat.length === 0 ? (
             <EmptyState
-              judul="Belum ada jadwal"
-              pesan="Jadwal praktikum akan tampil di sini."
+              judul={error ? 'Koneksi bermasalah' : 'Belum ada jadwal'}
+              pesan={error ?? 'Jadwal praktikum akan tampil di sini.'}
+              aksi={
+                error
+                  ? { label: 'Muat ulang', onPress: retrySync }
+                  : undefined
+              }
             />
           ) : (
             <View style={styles.sessionList}>

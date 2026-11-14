@@ -2,28 +2,46 @@
  * Service Integrasi API Model AI Pengajar
  *
  * Mengirimkan alasan ketidakhadiran praktikan ke API model AI
- * untuk mendapatkan prediksi kategori alasan (misal: "Sakit / Medis", "Kegiatan Akademik / Delegasi",
- * "Keluarga / Mendesak", "Kendala Teknis / Transportasi", atau "Keperluan Pribadi").
+ * untuk mendapatkan prediksi kategori alasan yang di-whitelist ke lima kategori resmi:
+ * - "Sakit / Medis"
+ * - "Kegiatan Akademik / Delegasi"
+ * - "Keluarga / Mendesak"
+ * - "Kendala Teknis / Transportasi"
+ * - "Keperluan Pribadi"
  *
- * Mendukung dua mode endpoint secara otomatis:
- * 1. OpenAI-Compatible Endpoint (mis. `https://.../v1` atau `/v1/chat/completions` dengan API Key `sk-...`)
- * 2. Custom Classification Endpoint (POST `{ alasan, text }` -> `{ kategori }`)
+ * Apabila layanan AI gagal/timeout/tidak terkonfigurasi, fungsi mengembalikan
+ * fallback sesuai spesifikasi (`kategori: "Belum Terklasifikasi"`).
  *
- * CATATAN PENTING ARSITEKTUR:
+ * CATATAN KEAMANAN & ARSITEKTUR:
  * - Hasil klasifikasi HANYA digunakan sebagai informasi pendukung bagi Asisten.
  * - Model AI TIDAK BOLEH memutuskan izin diterima atau ditolak.
- * - Dilengkapi batas waktu (timeout 8 detik) dan nilai fallback aman agar
- *   kegagalan jaringan/API tidak menggagalkan penyimpanan izin ke Firestore.
+ * - Gunakan endpoint proxy/Cloud Function (`EXPO_PUBLIC_AI_PROXY_URL` / `EXPO_PUBLIC_AI_API_URL`)
+ *   agar kunci rahasia tidak ter-bundle di aplikasi klien produksi.
  */
 
+export const KATEGORI_IZIN_RESMI = [
+  'Sakit / Medis',
+  'Kegiatan Akademik / Delegasi',
+  'Keluarga / Mendesak',
+  'Kendala Teknis / Transportasi',
+  'Keperluan Pribadi',
+] as const;
+
+export type KategoriIzinResmi = (typeof KATEGORI_IZIN_RESMI)[number];
+export const KATEGORI_FALLBACK = 'Belum Terklasifikasi' as const;
+
 export interface HasilKlasifikasiAI {
-  kategori: string;
+  kategori: KategoriIzinResmi | typeof KATEGORI_FALLBACK;
   confidence?: number;
   isFallback: boolean;
   keterangan?: string;
 }
 
-const AI_API_URL = (process.env.EXPO_PUBLIC_AI_API_URL || '').trim();
+const AI_API_URL = (
+  process.env.EXPO_PUBLIC_AI_PROXY_URL ||
+  process.env.EXPO_PUBLIC_AI_API_URL ||
+  ''
+).trim();
 const AI_API_KEY = (process.env.EXPO_PUBLIC_AI_API_KEY || '').trim();
 const AI_MODEL_ENV = (process.env.EXPO_PUBLIC_AI_MODEL || '').trim();
 const TIMEOUT_MS = 8000;
@@ -31,11 +49,66 @@ const TIMEOUT_MS = 8000;
 let cachedModelId: string | null = AI_MODEL_ENV || null;
 
 /**
- * Fallback heuristik lokal berbasis kata kunci jika API AI pengajar tidak tersedia / timeout.
- * Memastikan pengalaman pengguna tidak macet saat demonstrasi offline atau server AI down.
+ * Memvalidasi dan menormalisasi kategori dari respons model AI agar hanya
+ * mengembalikan salah satu dari lima kategori resmi di KATEGORI_IZIN_RESMI.
+ * Mengembalikan `null` jika respons di luar whitelist.
  */
-function fallbackKlasifikasiLokal(alasan: string): {
-  kategori: string;
+export function normalisasiKategoriResmi(
+  rawKategori: string,
+): KategoriIzinResmi | null {
+  const bersih = (rawKategori || '').trim();
+  if (!bersih) return null;
+
+  const lower = bersih.toLowerCase();
+
+  // 1. Cek kecocokan langsung (case-insensitive) dengan 5 kategori resmi
+  for (const resmi of KATEGORI_IZIN_RESMI) {
+    if (resmi.toLowerCase() === lower) {
+      return resmi;
+    }
+  }
+
+  // 2. Normalisasi variasi penulisan dari model ke 5 kategori resmi
+  if (lower.includes('sakit') || lower.includes('medis') || lower.includes('kesehatan')) {
+    return 'Sakit / Medis';
+  }
+  if (
+    lower.includes('akademik') ||
+    lower.includes('delegasi') ||
+    lower.includes('lomba') ||
+    lower.includes('kampus')
+  ) {
+    return 'Kegiatan Akademik / Delegasi';
+  }
+  if (
+    lower.includes('keluarga') ||
+    lower.includes('mendesak') ||
+    lower.includes('darurat') ||
+    lower.includes('duka')
+  ) {
+    return 'Keluarga / Mendesak';
+  }
+  if (
+    lower.includes('teknis') ||
+    lower.includes('transportasi') ||
+    lower.includes('kendaraan') ||
+    lower.includes('cuaca')
+  ) {
+    return 'Kendala Teknis / Transportasi';
+  }
+  if (lower.includes('pribadi')) {
+    return 'Keperluan Pribadi';
+  }
+
+  return null;
+}
+
+/**
+ * Petunjuk heuristik lokal berbasis kata kunci untuk memperkaya keterangan
+ * saat sistem menggunakan kategori fallback "Belum Terklasifikasi".
+ */
+function indikasiHeuristikLokal(alasan: string): {
+  indikasi: KategoriIzinResmi;
   ringkasan: string;
 } {
   const teks = (alasan || '').toLowerCase();
@@ -52,8 +125,8 @@ function fallbackKlasifikasiLokal(alasan: string): {
     teks.includes('medis')
   ) {
     return {
-      kategori: 'Sakit / Medis',
-      ringkasan: 'Terdeteksi kondisi kesehatan atau pemeriksaan medis.',
+      indikasi: 'Sakit / Medis',
+      ringkasan: 'Indikasi awal: kondisi kesehatan atau pemeriksaan medis.',
     };
   }
 
@@ -69,8 +142,8 @@ function fallbackKlasifikasiLokal(alasan: string): {
     teks.includes('akademik')
   ) {
     return {
-      kategori: 'Kegiatan Akademik / Delegasi',
-      ringkasan: 'Terdeteksi kegiatan akademik, ujian, atau penugasan kampus.',
+      indikasi: 'Kegiatan Akademik / Delegasi',
+      ringkasan: 'Indikasi awal: kegiatan akademik, ujian, atau delegasi kampus.',
     };
   }
 
@@ -83,8 +156,8 @@ function fallbackKlasifikasiLokal(alasan: string): {
     teks.includes('kecelakaan')
   ) {
     return {
-      kategori: 'Keluarga / Mendesak',
-      ringkasan: 'Terdeteksi urusan keluarga mendesak atau kondisi darurat.',
+      indikasi: 'Keluarga / Mendesak',
+      ringkasan: 'Indikasi awal: urusan keluarga mendesak atau kondisi darurat.',
     };
   }
 
@@ -97,14 +170,23 @@ function fallbackKlasifikasiLokal(alasan: string): {
     teks.includes('hujan deras')
   ) {
     return {
-      kategori: 'Kendala Teknis / Transportasi',
-      ringkasan: 'Terdeteksi kendala perjalanan, cuaca, atau teknis.',
+      indikasi: 'Kendala Teknis / Transportasi',
+      ringkasan: 'Indikasi awal: kendala perjalanan, cuaca, atau teknis.',
     };
   }
 
   return {
-    kategori: 'Keperluan Pribadi',
-    ringkasan: 'Alasan ketidakhadiran umum di luar kategori medis/akademik.',
+    indikasi: 'Keperluan Pribadi',
+    ringkasan: 'Indikasi awal: keperluan pribadi di luar kategori medis/akademik.',
+  };
+}
+
+function buatHasilFallback(alasan: string, sebab: string): HasilKlasifikasiAI {
+  const lokal = indikasiHeuristikLokal(alasan);
+  return {
+    kategori: KATEGORI_FALLBACK,
+    isFallback: true,
+    keterangan: `${lokal.ringkasan} (${sebab} — fallback lokal: ${lokal.indikasi})`,
   };
 }
 
@@ -174,20 +256,15 @@ export async function klasifikasikanAlasanIzin(
 
   if (!alasanBersih) {
     return {
-      kategori: 'Tidak Ada Alasan',
+      kategori: KATEGORI_FALLBACK,
       isFallback: true,
-      keterangan: 'Alasan kosong',
+      keterangan: 'Alasan kosong (fallback lokal)',
     };
   }
 
-  // Jika URL API belum dikonfigurasi, gunakan fallback lokal
+  // Jika URL API belum dikonfigurasi, gunakan fallback resmi ("Belum Terklasifikasi")
   if (!AI_API_URL || AI_API_URL.includes('placeholder')) {
-    const lokal = fallbackKlasifikasiLokal(alasanBersih);
-    return {
-      kategori: lokal.kategori,
-      isFallback: true,
-      keterangan: `${lokal.ringkasan} (Mode fallback lokal)`,
-    };
+    return buatHasilFallback(alasanBersih, 'Endpoint AI belum dikonfigurasi');
   }
 
   const controller = new AbortController();
@@ -203,7 +280,7 @@ export async function klasifikasikanAlasanIzin(
       headers['Authorization'] = `Bearer ${AI_API_KEY}`;
     }
 
-    // Mode 1: OpenAI-Compatible Chat Completions API (misal https://aotianzz.xyz/v1)
+    // Mode 1: OpenAI-Compatible Chat Completions API
     if (isOpenAiCompatibleUrl(AI_API_URL)) {
       const cleanUrl = AI_API_URL.replace(/\/+$/, '');
       const baseV1Url = cleanUrl.endsWith('/chat/completions')
@@ -229,11 +306,11 @@ export async function klasifikasikanAlasanIzin(
               role: 'system',
               content:
                 'Kamu adalah asisten pengklasifikasi alasan izin praktikum mahasiswa. ' +
-                'Klasifikasikan alasan izin ke tepat SATU kategori berikut: ' +
+                'Klasifikasikan alasan izin ke tepat SATU kategori resmi berikut: ' +
                 '"Sakit / Medis", "Kegiatan Akademik / Delegasi", "Keluarga / Mendesak", ' +
                 '"Kendala Teknis / Transportasi", atau "Keperluan Pribadi". ' +
                 'Jawab HANYA dengan JSON valid tanpa markdown: ' +
-                '{"kategori": "<nama kategori>", "keterangan": "<ringkasan singkat 1 kalimat Bahasa Indonesia>"}',
+                '{"kategori": "<nama kategori resmi>", "keterangan": "<ringkasan singkat 1 kalimat Bahasa Indonesia>"}',
             },
             {
               role: 'user',
@@ -264,21 +341,28 @@ export async function klasifikasikanAlasanIzin(
             .trim();
           const parsed = JSON.parse(cleanedJson);
           if (parsed.kategori && typeof parsed.kategori === 'string') {
-            return {
-              kategori: parsed.kategori.trim(),
-              isFallback: false,
-              keterangan:
-                typeof parsed.keterangan === 'string'
-                  ? parsed.keterangan.trim()
-                  : 'Diklasifikasikan oleh Model AI.',
-            };
+            const kategoriValid = normalisasiKategoriResmi(parsed.kategori);
+            if (kategoriValid) {
+              return {
+                kategori: kategoriValid,
+                isFallback: false,
+                keterangan:
+                  typeof parsed.keterangan === 'string' &&
+                  parsed.keterangan.trim().length > 0
+                    ? parsed.keterangan.trim()
+                    : 'Diklasifikasikan oleh Model AI.',
+              };
+            }
           }
         } catch {
-          // Jika balasan berupa teks biasa (bukan JSON), ambil baris pertamanya sebagai kategori
-          const barisPertama = rawContent.split('\n')[0].replace(/["']/g, '').trim();
-          if (barisPertama.length > 0 && barisPertama.length <= 45) {
+          const barisPertama = rawContent
+            .split('\n')[0]
+            .replace(/["']/g, '')
+            .trim();
+          const kategoriValid = normalisasiKategoriResmi(barisPertama);
+          if (kategoriValid) {
             return {
-              kategori: barisPertama,
+              kategori: kategoriValid,
               isFallback: false,
               keterangan: 'Diklasifikasikan oleh Model AI.',
             };
@@ -286,7 +370,7 @@ export async function klasifikasikanAlasanIzin(
         }
       }
     } else {
-      // Mode 2: Custom REST Endpoint
+      // Mode 2: Custom REST / Proxy Endpoint (tanpa perlu mengekspos API key di klien)
       const response = await fetch(AI_API_URL, {
         method: 'POST',
         headers,
@@ -313,37 +397,33 @@ export async function klasifikasikanAlasanIzin(
         data.data?.kategori;
 
       if (kategoriHasil && typeof kategoriHasil === 'string') {
-        return {
-          kategori: kategoriHasil.trim(),
-          confidence:
-            typeof data.confidence === 'number' ? data.confidence : undefined,
-          isFallback: false,
-          keterangan:
-            data.keterangan ||
-            data.ringkasan ||
-            'Diklasifikasikan oleh Model AI.',
-        };
+        const kategoriValid = normalisasiKategoriResmi(kategoriHasil);
+        if (kategoriValid) {
+          return {
+            kategori: kategoriValid,
+            confidence:
+              typeof data.confidence === 'number' ? data.confidence : undefined,
+            isFallback: false,
+            keterangan:
+              data.keterangan ||
+              data.ringkasan ||
+              'Diklasifikasikan oleh Model AI.',
+          };
+        }
       }
     }
 
-    const lokal = fallbackKlasifikasiLokal(alasanBersih);
-    return {
-      kategori: lokal.kategori,
-      isFallback: true,
-      keterangan: `${lokal.ringkasan} (Format respons AI fallback)`,
-    };
+    return buatHasilFallback(
+      alasanBersih,
+      'Kategori respons AI di luar daftar resmi',
+    );
   } catch (error: any) {
     clearTimeout(timer);
 
     const isTimeout = error?.name === 'AbortError';
-    const lokal = fallbackKlasifikasiLokal(alasanBersih);
-
-    return {
-      kategori: lokal.kategori,
-      isFallback: true,
-      keterangan: isTimeout
-        ? `${lokal.ringkasan} (Layanan AI timeout — fallback)`
-        : `${lokal.ringkasan} (Fallback lokal)`,
-    };
+    return buatHasilFallback(
+      alasanBersih,
+      isTimeout ? 'Layanan AI timeout' : 'Layanan AI tidak terjangkau',
+    );
   }
 }

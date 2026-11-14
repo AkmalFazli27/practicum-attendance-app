@@ -61,7 +61,8 @@ export function SesiFormSheet({
     }
   }, [visible, initialSesi]);
 
-  const handleSimpan = () => {
+  const handleSimpan = async () => {
+    if (menyimpan) return;
     if (!namaPraktikum.trim() || !kelas.trim() || !lab.trim() || !tanggal.trim()) {
       setGalat('Nama praktikum, kelas, laboratorium, dan tanggal wajib diisi.');
       return;
@@ -92,17 +93,30 @@ export function SesiFormSheet({
         `Pertemuan praktikum ${namaPraktikum.trim()} untuk kelas ${kelas.trim().toUpperCase()}.`,
     };
 
-    setTimeout(() => {
+    try {
       if (isEdit && initialSesi) {
-        updateSession(initialSesi.id, payload);
+        const berhasil = await updateSession(initialSesi.id, payload);
+        setMenyimpan(false);
+        if (!berhasil) {
+          setGalat('Gagal memperbarui data sesi praktikum. Periksa koneksi Anda.');
+          return;
+        }
         showToast('Data sesi praktikum berhasil diperbarui.');
+        onClose();
       } else {
-        createSession(payload);
+        const sesiBaru = await createSession(payload);
+        setMenyimpan(false);
+        if (!sesiBaru) {
+          setGalat('Gagal menambahkan sesi praktikum baru. Periksa koneksi Anda.');
+          return;
+        }
         showToast('Sesi praktikum baru berhasil ditambahkan.');
+        onClose();
       }
+    } catch {
       setMenyimpan(false);
-      onClose();
-    }, 220);
+      setGalat('Terjadi kesalahan saat menyimpan sesi praktikum.');
+    }
   };
 
   return (
