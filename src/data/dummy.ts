@@ -47,6 +47,9 @@ export type Kehadiran = {
   id: string;
   sesiId: string;
   praktikanId: string;
+  namaPraktikan?: string;
+  nimPraktikan?: string;
+  kelasPraktikan?: string;
   /** ISO string, diisi otomatis saat presensi */
   waktuHadir: string;
 };
@@ -55,6 +58,9 @@ export type Izin = {
   id: string;
   sesiId: string;
   praktikanId: string;
+  namaPraktikan?: string;
+  nimPraktikan?: string;
+  kelasPraktikan?: string;
   alasan: string;
   /** Prediksi kategori dari model AI (sebagai informasi pendukung asisten) */
   kategoriAi: string;
@@ -62,6 +68,7 @@ export type Izin = {
   status: StatusIzin;
   waktuPengajuan: string;
   waktuKeputusan?: string;
+  reviewedBy?: string;
 };
 
 export const USERS: User[] = [
