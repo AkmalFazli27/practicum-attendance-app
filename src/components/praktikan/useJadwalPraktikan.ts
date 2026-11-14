@@ -14,7 +14,7 @@ export type RingkasanKehadiran = {
 const normKelas = (k?: string) => (k ?? '').trim().toUpperCase();
 
 export function useJadwalPraktikan() {
-  const { currentUser, sesi, kehadiran, izin, loading } = useSession();
+    const { currentUser, sesi, kehadiran, izin, loading, error, retrySync } = useSession();
 
   const data = useMemo(() => {
     const uid = currentUser?.id;
@@ -55,5 +55,5 @@ export function useJadwalPraktikan() {
     return { daftarKelas, hadirMap, izinMap, sesiAktif, ringkasan };
   }, [currentUser?.id, currentUser?.kelas, sesi, kehadiran, izin]);
 
-  return { ...data, loading };
+  return { ...data, loading, error, retrySync };
 }

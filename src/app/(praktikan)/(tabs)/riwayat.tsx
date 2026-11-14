@@ -18,7 +18,7 @@ type Catatan = {
 };
 
 export default function RiwayatScreen() {
-  const { currentUser, sesi, kehadiran, izin, loading } = useSession();
+  const { currentUser, sesi, kehadiran, izin, loading, error, retrySync } = useSession();
 
   const daftarCatatan = useMemo<Catatan[]>(() => {
     if (!currentUser) return [];
@@ -67,7 +67,13 @@ export default function RiwayatScreen() {
           </Text>
         </View>
 
-        {loading ? (
+        {error ? (
+          <EmptyState
+            judul="Gagal memuat riwayat"
+            pesan={error}
+            aksi={{ label: 'Coba lagi', onPress: retrySync }}
+          />
+        ) : loading ? (
           <EmptyState judul="Memuat riwayat…" pesan="Mohon tunggu sebentar." />
         ) : daftarCatatan.length === 0 ? (
           <EmptyState
