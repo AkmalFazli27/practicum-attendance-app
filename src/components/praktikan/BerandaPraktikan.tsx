@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -29,52 +29,33 @@ import {
 } from '@/theme/tokens';
 import { formatJam, titikJam } from '@/utils/format';
 import { PresensiSheet } from './PresensiSheet';
+import { useJadwalPraktikan } from './useJadwalPraktikan';
 
 export function BerandaPraktikan() {
   const router = useRouter();
-  const {
-    currentUser,
-    sesi,
-    getKehadiranPraktikan,
-    getIzinPraktikan,
-  } = useSession();
+  const { currentUser } = useSession();
+  // TODO setelah kontrak Firebase di-merge Farras:
+  // const { loading, error } = useSession();
+  const { daftarKelas, hadirMap, izinMap, sesiAktif, ringkasan } =
+    useJadwalPraktikan();
 
   const [sesiPresensi, setSesiPresensi] = useState<Sesi | null>(null);
 
-  const daftarKelas = useMemo(
-    () =>
-      sesi
-        .filter((s) => !currentUser?.kelas || s.kelas === currentUser.kelas)
-        .sort((a, b) =>
-          `${a.tanggal} ${a.jamMulai}`.localeCompare(`${b.tanggal} ${b.jamMulai}`),
-        ),
-    [sesi, currentUser?.kelas],
-  );
-
   if (!currentUser) return null;
 
-  const riwayatHadir = getKehadiranPraktikan(currentUser.id);
-  const riwayatIzin = getIzinPraktikan(currentUser.id);
-
-  const hadirMap = new Map(
-    riwayatHadir.map((k) => [k.sesiId, titikJam(formatJam(k.waktuHadir))]),
-  );
-  const izinMap = new Map(riwayatIzin.map((iz) => [iz.sesiId, iz.status]));
-
-  const sesiAktif = daftarKelas.find((s) => s.status === 'DIBUKA');
-  const sudahHadirAktif = sesiAktif ? hadirMap.has(sesiAktif.id) : false;
-
-  const totalSesi = daftarKelas.length;
-  const jumlahHadir = riwayatHadir.filter((k) =>
-    daftarKelas.some((s) => s.id === k.sesiId),
-  ).length;
-  const belumHadir = Math.max(totalSesi - jumlahHadir, 0);
-  const persentase =
-    totalSesi > 0 ? Math.round((jumlahHadir / totalSesi) * 100) : 0;
+  const sesiBerjalan = sesiAktif[0];
+  const sudahHadirAktif = sesiBerjalan ? hadirMap.has(sesiBerjalan.id) : false;
+  const sudahIzinAktif = sesiBerjalan ? izinMap.has(sesiBerjalan.id) : false;
+  const tombolNonaktif = sudahHadirAktif || sudahIzinAktif;
 
   const jadwalMendatang = daftarKelas
     .filter((s) => s.status === 'TERJADWAL')
     .slice(0, 2);
+
+  const waktuHadirText = (sesiId: string) => {
+    const waktu = hadirMap.get(sesiId);
+    return waktu ? titikJam(formatJam(waktu)) : undefined;
+  };
 
   const bukaDetail = (id: string) =>
     router.push({ pathname: '/(praktikan)/sesi/[id]', params: { id } } as any);
@@ -85,6 +66,13 @@ export function BerandaPraktikan() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* TODO setelah ada loading/error:
+        {error ? (
+          <EmptyState judul="Gagal memuat data" pesan={error} />
+        ) : loading ? (
+          <EmptyState judul="Memuat data…" pesan="Mohon tunggu sebentar." />
+        ) : null} */}
+
         {/* 1. Sapaan */}
         <View style={styles.welcome}>
           <Text style={styles.welcomeKicker}>Selamat datang,</Text>
@@ -95,7 +83,7 @@ export function BerandaPraktikan() {
         </View>
 
         {/* 2. Kartu Sesi Aktif */}
-        {sesiAktif ? (
+        {sesiBerjalan ? (
           <View style={styles.activeCard}>
             <View style={styles.activeGlowRing} />
             <View style={styles.activeCardHead}>
@@ -106,42 +94,47 @@ export function BerandaPraktikan() {
               <MoreHorizontal size={20} color={colors.textOnDarkMuted} />
             </View>
 
-            <Text style={styles.activeTitle}>{sesiAktif.namaPraktikum}</Text>
+            <Text style={styles.activeTitle}>{sesiBerjalan.namaPraktikum}</Text>
             <Text style={styles.activeTopic}>
-              {sesiAktif.topik ?? sesiAktif.deskripsi}
+              {sesiBerjalan.topik ?? sesiBerjalan.deskripsi}
             </Text>
 
             <View style={styles.activeInfoRow}>
               <View style={styles.activeInfoItem}>
                 <Clock3 size={16} color={colors.primary} />
                 <Text style={styles.activeInfoText}>
-                  {titikJam(sesiAktif.jamMulai)}–{titikJam(sesiAktif.jamSelesai)}
+                  {titikJam(sesiBerjalan.jamMulai)}–
+                  {titikJam(sesiBerjalan.jamSelesai)}
                 </Text>
               </View>
               <View style={styles.activeInfoItem}>
                 <MapPin size={16} color={colors.primary} />
                 <Text style={styles.activeInfoText} numberOfLines={1}>
-                  {sesiAktif.lab}
+                  {sesiBerjalan.lab}
                 </Text>
               </View>
             </View>
 
             <Tombol
               variant="primer"
-              disabled={sudahHadirAktif}
+              disabled={tombolNonaktif}
               icon={
-                sudahHadirAktif ? (
+                tombolNonaktif ? (
                   <CheckCircle2 size={18} color={colors.disabledText} />
                 ) : undefined
               }
               rightIcon={
-                !sudahHadirAktif ? (
+                !tombolNonaktif ? (
                   <ArrowRight size={18} color={colors.onPrimary} />
                 ) : undefined
               }
-              onPress={() => setSesiPresensi(sesiAktif)}
+              onPress={() => setSesiPresensi(sesiBerjalan)}
             >
-              {sudahHadirAktif ? 'Sudah presensi' : 'Tap untuk presensi'}
+              {sudahHadirAktif
+                ? 'Sudah presensi'
+                : sudahIzinAktif
+                  ? 'Sudah mengajukan izin'
+                  : 'Tap untuk presensi'}
             </Tombol>
           </View>
         ) : (
@@ -160,20 +153,24 @@ export function BerandaPraktikan() {
               <Text style={styles.kicker}>RINGKASANMU</Text>
               <Text style={styles.summaryTitle}>Kehadiran semester ini</Text>
             </View>
-            <ScoreRing value={persentase} label="hadir" />
+            <ScoreRing value={ringkasan.persen} label="hadir" />
           </View>
 
           <View style={styles.summaryStatsRow}>
             <View style={styles.statCol}>
-              <Text style={styles.statValue}>{jumlahHadir}</Text>
+              <Text style={styles.statValue}>{ringkasan.hadir}</Text>
               <Text style={styles.statLabel}>Hadir</Text>
             </View>
-            <View style={[styles.statCol, styles.statColDivider]}>
-              <Text style={styles.statValue}>{belumHadir}</Text>
+            <View style={[styles.statCol, styles.statColBorder]}>
+              <Text style={styles.statValue}>{ringkasan.izin}</Text>
+              <Text style={styles.statLabel}>Izin</Text>
+            </View>
+            <View style={[styles.statCol, styles.statColBorder]}>
+              <Text style={styles.statValue}>{ringkasan.belumHadir}</Text>
               <Text style={styles.statLabel}>Belum hadir</Text>
             </View>
-            <View style={styles.statCol}>
-              <Text style={styles.statValue}>{totalSesi}</Text>
+            <View style={[styles.statCol, styles.statColBorder]}>
+              <Text style={styles.statValue}>{ringkasan.total}</Text>
               <Text style={styles.statLabel}>Total sesi</Text>
             </View>
           </View>
@@ -197,7 +194,7 @@ export function BerandaPraktikan() {
               <SessionCard
                 key={item.id}
                 session={item}
-                attendedTime={hadirMap.get(item.id)}
+                attendedTime={waktuHadirText(item.id)}
                 izinStatus={izinMap.get(item.id)}
                 onPress={() => bukaDetail(item.id)}
               />
@@ -305,7 +302,7 @@ const styles = StyleSheet.create({
   },
   activeInfoText: {
     ...type.caption,
-    color: '#D6DBD6',
+    color: colors.textOnDarkMuted,
     flex: 1,
   },
   emptyActiveWrap: {
@@ -350,10 +347,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
   },
-  statColDivider: {
+  statColBorder: {
     borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: colors.border,
+    borderLeftColor: colors.border,
   },
   statValue: {
     fontSize: 17,
@@ -373,4 +369,3 @@ const styles = StyleSheet.create({
     gap: spacing.s3,
   },
 });
-
