@@ -47,8 +47,8 @@ export function PresensiSheet({ sesi, onClose, onSuccess }: PresensiSheetProps) 
     sedangProses.current = true;
     setMemproses(true);
 
-    timer.current = setTimeout(() => {
-      const hasil = markAttendance(sesi.id);
+    timer.current = setTimeout(async () => {
+      const hasil = await markAttendance(sesi.id);
       sedangProses.current = false;
       setMemproses(false);
       onClose();

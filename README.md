@@ -217,3 +217,74 @@ Checklist manual:
   ```
 - Data identitas, jadwal, dan sesi masih dummy.
 - Tag rilis `v0.1-sprint1` belum dibuat sampai demo akhir lolos.
+
+
+---
+
+## Kelanjutan Sprint 2 — Data Dinamis dengan Firebase & Integrasi AI
+
+Pada **Sprint 2**, aplikasi **TapIn** dikembangkan dari fondasi data lokal/dummy pada Sprint 1 menjadi aplikasi *real-time* multi-pengguna yang terhubung dengan **Firebase Authentication**, **Cloud Firestore**, serta **API Model AI** untuk klasifikasi alasan izin ketidakhadiran praktikan.
+
+Sebelum ketiga programmer memulai pengembangan fitur Sprint 2, **PM (Farras)** telah menyelesaikan **Refactor UI Parity Pra-Sprint** sesuai prototipe Figma Make (*Graphite Lime*), mencakup struktur navigasi 4 tab dengan halaman Beranda terpisah (`/beranda-asisten` dan `/beranda-praktikan`), komponen UI Kit baru (`AppHeader`, `Toast`, `ConfirmSheet`, `SessionCard`, `ScoreRing`, `MetricCard`), Landing Hero bersih, form Auth 2 tab (Masuk & Daftar Akun), sheet CRUD sesi asisten, serta sheet pengajuan & panel pemeriksaan izin berbantuan AI.
+
+Detail lengkap pembagian area, kriteria terima, dan jadwal kerja berada di [`docs/sprints/sprint-2.md`](docs/sprints/sprint-2.md).
+
+### Fitur Sprint 2 (FR-11 s.d. FR-18)
+
+| FR | Fitur | Area | Status |
+| --- | --- | --- | --- |
+| FR-00 | Refactor UI Parity Pra-Sprint (4 tab + Beranda, UI Kit baru, antarmuka fitur Sprint 2) | PM (Farras) | Selesai |
+| FR-11 | Autentikasi pengguna (Registrasi, Login, Logout dengan Firebase Auth & peran di Firestore) | PM + P1 (Akmal) | Berjalan |
+| FR-12 | Pengelolaan data praktikum (CRUD sesi praktikum oleh asisten di Firestore & jadwal praktikan) | PM + P2 (Eileen) + P3 (Nouvella) | Berjalan |
+| FR-13 | Presensi terintegrasi di Firestore & pencegahan presensi ganda per akun dan sesi | PM + P3 (Nouvella) | Berjalan |
+| FR-14 | Sinkronisasi data *real-time* (`onSnapshot`) untuk status sesi, presensi, izin, dan rekap | PM + P1 / P2 / P3 | Berjalan |
+| FR-15 | Pengajuan izin praktikan dengan alasan ketidakhadiran & pemantauan status di Firestore | P3 (Nouvella) + PM | Berjalan |
+| FR-16 | Integrasi API Model AI untuk prediksi kategori alasan izin sebagai informasi pendukung | PM (Service) + P3 (Trigger) | Berjalan |
+| FR-17 | Pemeriksaan izin oleh asisten (melihat alasan, kategori AI, serta menerima/menolak izin) | P2 (Eileen) + PM | Berjalan |
+| FR-18 | Validasi input, penanganan kondisi (*loading*, *empty*, *error*), dan Firebase Security Rules | PM + P1 / P2 / P3 | Berjalan |
+
+### Pembagian Tugas Sprint 2
+
+| Peran | Nama | Tanggung jawab Sprint 2 |
+| --- | --- | --- |
+| PM | Farras | Refactor UI Pra-Sprint, konfigurasi Firebase & API AI (`src/config/firebase.ts`, `src/services/ai.ts`, `firestore.rules`, `SessionContext.tsx`), review/merge PR, build APK EAS, rilis `v0.2-sprint2` |
+| P1 | Akmal | Integrasi Login & Registrasi Firebase Authentication (`src/app/login.tsx`), persistensi sesi & guard Landing (`src/app/index.tsx`), serta halaman Profil & Logout nyata (`profil.tsx`) |
+| P2 | Eileen | Area Asisten: Beranda *real-time*, CRUD Sesi Praktikum di Firestore (`SesiFormSheet`), panel pemeriksaan pengajuan izin berbantuan AI, dan Rekap kehadiran *real-time* |
+| P3 | Nouvella | Area Praktikan: Beranda & Jadwal *real-time* sesuai kelas, presensi terintegrasi Firestore (`PresensiSheet`), pengajuan izin + pemicu klasifikasi AI (`IzinSheet`), dan Riwayat *real-time* |
+
+### Route Utama Sprint 2 (Navigasi 4 Tab)
+
+| Halaman | Route internal | URL web |
+| --- | --- | --- |
+| Landing (Hero Bersih) | `/` | `/` |
+| Login & Registrasi | `/login` | `/login` |
+| Beranda asisten | `/(asisten)/(tabs)/beranda-asisten` | `/beranda-asisten` |
+| Sesi asisten (CRUD) | `/(asisten)/(tabs)/sesi` | `/sesi` |
+| Rekap asisten | `/(asisten)/(tabs)/rekap` | `/rekap` |
+| Profil asisten | `/(asisten)/(tabs)/profil` | `/profil` |
+| Detail sesi asisten + Panel Izin AI | `/(asisten)/sesi/[id]` | `/sesi/[id]` |
+| Beranda praktikan | `/(praktikan)/(tabs)/beranda-praktikan` | `/beranda-praktikan` |
+| Jadwal praktikan | `/(praktikan)/(tabs)/jadwal` | `/jadwal` |
+| Riwayat praktikan (Hadir & Izin) | `/(praktikan)/(tabs)/riwayat` | `/riwayat` |
+| Profil praktikan | `/(praktikan)/(tabs)/profil` | `/profil` |
+| Detail sesi praktikan (Presensi & Izin) | `/(praktikan)/sesi/[id]` | `/sesi/[id]` |
+
+### Konfigurasi Environment Sprint 2 (`.env`)
+
+Salin `.env.example` menjadi `.env` di root proyek dan isi dengan kredensial proyek Firebase serta endpoint API Model AI:
+
+```bash
+cp .env.example .env
+npx expo start --clear
+```
+
+Variabel yang digunakan:
+- `EXPO_PUBLIC_FIREBASE_API_KEY`, `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`, `EXPO_PUBLIC_FIREBASE_PROJECT_ID`, `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`, `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `EXPO_PUBLIC_FIREBASE_APP_ID`
+- `EXPO_PUBLIC_AI_API_URL` dan `EXPO_PUBLIC_AI_API_KEY`
+
+### Alur Demo Sprint 2
+
+1. **Alur Presensi & Pengelolaan Sesi Real-Time:**
+   Asisten login → menambah/membuka sesi praktikum → praktikan login dan melakukan presensi → data tersimpan di Cloud Firestore (percobaan presensi kedua ditolak) → asisten langsung melihat daftar hadir & rekap secara *real-time* → asisten menutup sesi.
+2. **Alur Pengajuan & Pemeriksaan Izin Berbantuan AI:**
+   Praktikan login → mengajukan izin pada sesi tertentu dengan mengisi alasan → aplikasi mengirim alasan ke API Model AI untuk mendapatkan prediksi kategori alasan sebagai informasi pendukung → asisten memeriksa pengajuan beserta badge klasifikasi AI lalu memilih **Terima** atau **Tolak** → praktikan melihat status pengajuannya berubah secara *real-time*.
