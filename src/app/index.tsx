@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,7 +30,7 @@ import {
   Tombol,
 } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
-import { type Sesi } from '@/data/dummy';
+import { type Peran, type Sesi } from '@/data/dummy';
 import {
   colors,
   fontFamily,
@@ -40,16 +41,41 @@ import {
 } from '@/theme/tokens';
 import { formatHariTanggalSingkat, titikJam } from '@/utils/format';
 
+function berandaUntuk(peran: Peran): '/beranda-asisten' | '/beranda-praktikan' {
+  return peran === 'asisten' ? '/beranda-asisten' : '/beranda-praktikan';
+}
+
+function SplashLayar() {
+  return (
+    <View style={styles.splash}>
+      <StatusBar style="light" />
+      <Brand large onDark />
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={styles.splashCaption}>Memeriksa sesi...</Text>
+    </View>
+  );
+}
+
 export default function LandingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser, sesi } = useSession();
+  const { currentUser, loading, sesi } = useSession();
 
   const [sesiIdDipilih, setSesiIdDipilih] = useState<string | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const sesiTampil = sesiIdDipilih
     ? (sesi.find((item) => item.id === sesiIdDipilih) ?? null)
     : null;
+
+  const redirectAwalSelesai = useRef(false);
+
+  useEffect(() => {
+    if (loading || redirectAwalSelesai.current) return;
+    redirectAwalSelesai.current = true;
+    if (currentUser) {
+      router.replace(berandaUntuk(currentUser.peran));
+    }
+  }, [loading, currentUser, router]);
 
   const punyaAksesDetail = (item: Sesi) => {
     if (!currentUser) return false;
@@ -74,13 +100,13 @@ export default function LandingScreen() {
     return [...sesi].sort(urut).slice(0, 3);
   }, [sesi]);
 
+  if (loading) {
+    return <SplashLayar />;
+  }
+
   const handleMasuk = () => {
     if (currentUser) {
-      router.replace(
-        (currentUser.peran === 'asisten'
-          ? '/beranda-asisten'
-          : '/beranda-praktikan') as any,
-      );
+      router.replace(berandaUntuk(currentUser.peran));
       return;
     }
     router.push('/login');
@@ -308,6 +334,17 @@ export default function LandingScreen() {
 }
 
 const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.s4,
+    backgroundColor: colors.graphite,
+  },
+  splashCaption: {
+    ...type.caption,
+    color: colors.textOnDarkMuted,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: colors.graphite,
