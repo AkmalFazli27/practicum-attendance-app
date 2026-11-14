@@ -10,6 +10,13 @@ import { formatJam, titikJam } from '@/utils/format';
 
 type Filter = 'SEMUA' | 'DIBUKA' | 'HADIR' | 'IZIN';
 
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: 'SEMUA', label: 'Semua' },
+  { key: 'DIBUKA', label: 'Dibuka' },
+  { key: 'HADIR', label: 'Dihadiri' },
+  { key: 'IZIN', label: 'Izin' },
+];
+
 const EMPTY_COPY: Record<Filter, { judul: string; pesan: string }> = {
   SEMUA: { judul: 'Belum ada jadwal', pesan: 'Jadwal praktikum akan tampil di sini.' },
   DIBUKA: { judul: 'Belum ada sesi', pesan: 'Tidak ada sesi yang sedang dibuka saat ini.' },
@@ -20,9 +27,7 @@ const EMPTY_COPY: Record<Filter, { judul: string; pesan: string }> = {
 export default function JadwalScreen() {
   const router = useRouter();
   const { currentUser } = useSession();
-  // TODO setelah kontrak Firebase di-merge Farras:
-  // const { loading, error } = useSession();
-  const { daftarKelas, hadirMap, izinMap } = useJadwalPraktikan();
+  const { daftarKelas, hadirMap, izinMap, loading } = useJadwalPraktikan();
 
   const [filter, setFilter] = useState<Filter>('SEMUA');
 
@@ -41,13 +46,6 @@ export default function JadwalScreen() {
 
   const bukaDetail = (id: string) =>
     router.push({ pathname: '/(praktikan)/sesi/[id]', params: { id } } as any);
-
-  const FILTERS: { key: Filter; label: string }[] = [
-    { key: 'SEMUA', label: 'Semua' },
-    { key: 'DIBUKA', label: 'Dibuka' },
-    { key: 'HADIR', label: 'Dihadiri' },
-    { key: 'IZIN', label: 'Izin' },
-  ];
 
   return (
     <View style={styles.root}>
@@ -73,14 +71,9 @@ export default function JadwalScreen() {
           ))}
         </ScrollView>
 
-        {/* TODO setelah ada loading/error:
-        {error ? (
-          <EmptyState judul="Gagal memuat jadwal" pesan={error} />
-        ) : loading ? (
+        {loading ? (
           <EmptyState judul="Memuat jadwal…" pesan="Mohon tunggu sebentar." />
-        ) : null} */}
-
-        {data.length === 0 ? (
+        ) : data.length === 0 ? (
           <EmptyState
             judul={EMPTY_COPY[filter].judul}
             pesan={EMPTY_COPY[filter].pesan}

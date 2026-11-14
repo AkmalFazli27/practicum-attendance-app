@@ -11,7 +11,6 @@ import {
 
 import {
   EmptyState,
-  ScoreRing,
   SectionHeading,
   SessionCard,
   Tombol,
@@ -29,14 +28,13 @@ import {
 } from '@/theme/tokens';
 import { formatJam, titikJam } from '@/utils/format';
 import { PresensiSheet } from './PresensiSheet';
+import { ScoreRingSvg } from './ScoreRingSvg';
 import { useJadwalPraktikan } from './useJadwalPraktikan';
 
 export function BerandaPraktikan() {
   const router = useRouter();
   const { currentUser } = useSession();
-  // TODO setelah kontrak Firebase di-merge Farras:
-  // const { loading, error } = useSession();
-  const { daftarKelas, hadirMap, izinMap, sesiAktif, ringkasan } =
+  const { daftarKelas, hadirMap, izinMap, sesiAktif, ringkasan, loading } =
     useJadwalPraktikan();
 
   const [sesiPresensi, setSesiPresensi] = useState<Sesi | null>(null);
@@ -66,13 +64,6 @@ export function BerandaPraktikan() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* TODO setelah ada loading/error:
-        {error ? (
-          <EmptyState judul="Gagal memuat data" pesan={error} />
-        ) : loading ? (
-          <EmptyState judul="Memuat data…" pesan="Mohon tunggu sebentar." />
-        ) : null} */}
-
         {/* 1. Sapaan */}
         <View style={styles.welcome}>
           <Text style={styles.welcomeKicker}>Selamat datang,</Text>
@@ -83,7 +74,11 @@ export function BerandaPraktikan() {
         </View>
 
         {/* 2. Kartu Sesi Aktif */}
-        {sesiBerjalan ? (
+        {loading ? (
+          <View style={styles.emptyActiveWrap}>
+            <EmptyState judul="Memuat data…" pesan="Mohon tunggu sebentar." />
+          </View>
+        ) : sesiBerjalan ? (
           <View style={styles.activeCard}>
             <View style={styles.activeGlowRing} />
             <View style={styles.activeCardHead}>
@@ -96,7 +91,7 @@ export function BerandaPraktikan() {
 
             <Text style={styles.activeTitle}>{sesiBerjalan.namaPraktikum}</Text>
             <Text style={styles.activeTopic}>
-              {sesiBerjalan.topik ?? sesiBerjalan.deskripsi}
+              {sesiBerjalan.topik || sesiBerjalan.deskripsi}
             </Text>
 
             <View style={styles.activeInfoRow}>
@@ -153,7 +148,7 @@ export function BerandaPraktikan() {
               <Text style={styles.kicker}>RINGKASANMU</Text>
               <Text style={styles.summaryTitle}>Kehadiran semester ini</Text>
             </View>
-            <ScoreRing value={ringkasan.persen} label="hadir" />
+            <ScoreRingSvg value={ringkasan.persen} label="hadir" />
           </View>
 
           <View style={styles.summaryStatsRow}>
@@ -183,7 +178,9 @@ export function BerandaPraktikan() {
           style={styles.sectionHeading}
         />
 
-        {jadwalMendatang.length === 0 ? (
+        {loading ? (
+          <EmptyState judul="Memuat jadwal…" pesan="Mohon tunggu sebentar." />
+        ) : jadwalMendatang.length === 0 ? (
           <EmptyState
             judul="Tidak ada jadwal mendatang"
             pesan="Seluruh jadwal praktikum minggu ini telah selesai atau sedang dibuka."
@@ -212,32 +209,16 @@ export function BerandaPraktikan() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  root: { flex: 1, backgroundColor: colors.background },
   scrollContent: {
     paddingHorizontal: layout.screenPadding,
     paddingTop: spacing.s5,
     paddingBottom: layout.tabContentBottomPadding,
   },
-  welcome: {
-    gap: 2,
-  },
-  welcomeKicker: {
-    ...type.caption,
-    color: colors.textSecondary,
-  },
-  welcomeTitle: {
-    ...type.h1,
-    color: colors.textPrimary,
-    marginTop: 2,
-  },
-  welcomeSub: {
-    ...type.caption,
-    color: colors.textSecondary,
-    marginTop: 5,
-  },
+  welcome: { gap: 2 },
+  welcomeKicker: { ...type.caption, color: colors.textSecondary },
+  welcomeTitle: { ...type.h1, color: colors.textPrimary, marginTop: 2 },
+  welcomeSub: { ...type.caption, color: colors.textSecondary, marginTop: 5 },
   activeCard: {
     marginTop: spacing.s5,
     borderRadius: 22,
@@ -262,32 +243,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  liveLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
+  liveLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   liveDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
     backgroundColor: colors.primary,
   },
-  liveLabelText: {
-    ...type.micro,
-    color: colors.primary,
-    letterSpacing: 1,
-  },
+  liveLabelText: { ...type.micro, color: colors.primary, letterSpacing: 1 },
   activeTitle: {
     ...type.h2,
     color: colors.onGraphite,
     marginTop: spacing.s4 + 2,
   },
-  activeTopic: {
-    ...type.caption,
-    color: colors.textOnDarkMuted,
-    marginTop: 5,
-  },
+  activeTopic: { ...type.caption, color: colors.textOnDarkMuted, marginTop: 5 },
   activeInfoRow: {
     flexDirection: 'row',
     gap: spacing.s4,
@@ -300,14 +269,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
   },
-  activeInfoText: {
-    ...type.caption,
-    color: colors.textOnDarkMuted,
-    flex: 1,
-  },
-  emptyActiveWrap: {
-    marginTop: spacing.s5,
-  },
+  activeInfoText: { ...type.caption, color: colors.textOnDarkMuted, flex: 1 },
+  emptyActiveWrap: { marginTop: spacing.s5 },
   summaryCard: {
     marginTop: spacing.s4,
     padding: spacing.s4 + 2,
@@ -323,49 +286,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.s4,
   },
-  summaryCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  kicker: {
-    ...type.micro,
-    color: colors.textMuted,
-    letterSpacing: 1.1,
-  },
-  summaryTitle: {
-    ...type.h3,
-    color: colors.textPrimary,
-  },
+  summaryCopy: { flex: 1, gap: 4 },
+  kicker: { ...type.micro, color: colors.textMuted, letterSpacing: 1.1 },
+  summaryTitle: { ...type.h3, color: colors.textPrimary },
   summaryStatsRow: {
     flexDirection: 'row',
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: spacing.s3 + 2,
   },
-  statCol: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  statColBorder: {
-    borderLeftWidth: 1,
-    borderLeftColor: colors.border,
-  },
+  statCol: { flex: 1, alignItems: 'center', gap: 2 },
+  statColBorder: { borderLeftWidth: 1, borderLeftColor: colors.border },
   statValue: {
     fontSize: 17,
     lineHeight: 21,
     fontFamily: fontFamily.extrabold,
     color: colors.textPrimary,
   },
-  statLabel: {
-    ...type.micro,
-    color: colors.textMuted,
-  },
+  statLabel: { ...type.micro, color: colors.textMuted },
   sectionHeading: {
     marginTop: spacing.s6 + 4,
     marginBottom: spacing.s3 + 2,
   },
-  sessionList: {
-    gap: spacing.s3,
-  },
+  sessionList: { gap: spacing.s3 },
 });

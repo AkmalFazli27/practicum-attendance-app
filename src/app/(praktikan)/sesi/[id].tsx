@@ -30,6 +30,7 @@ export default function DetailSesiPraktikan() {
     getSesiById,
     sudahPresensi,
     getIzinBySesiPraktikan,
+    loading,
   } = useSession();
 
   const [presensiBuka, setPresensiBuka] = useState(false);
@@ -40,7 +41,8 @@ export default function DetailSesiPraktikan() {
   if (
     !currentUser ||
     !s ||
-    (currentUser.kelas && s.kelas !== currentUser.kelas)
+    (currentUser.kelas &&
+      s.kelas.trim().toUpperCase() !== currentUser.kelas.trim().toUpperCase())
   ) {
     return (
       <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -56,8 +58,12 @@ export default function DetailSesiPraktikan() {
         </View>
         <View style={styles.emptyWrap}>
           <EmptyState
-            judul="Sesi tidak ditemukan"
-            pesan="Sesi ini tidak tersedia untuk kelasmu."
+            judul={loading ? 'Memuat sesi…' : 'Sesi tidak ditemukan'}
+            pesan={
+              loading
+                ? 'Mohon tunggu sebentar.'
+                : 'Sesi ini tidak tersedia untuk kelasmu.'
+            }
           />
         </View>
       </View>
@@ -68,17 +74,23 @@ export default function DetailSesiPraktikan() {
   const waktuHadir = hadir ? titikJam(formatJam(hadir.waktuHadir)) : null;
   const izinSaya = getIzinBySesiPraktikan(s.id, currentUser.id);
 
-  const bisaPresensi =
-    s.status === 'DIBUKA' && !hadir && izinSaya?.status !== 'DITERIMA';
+  // Sama dengan aturan di context: izin apa pun (termasuk DITOLAK) memblokir presensi.
+  const bisaPresensi = s.status === 'DIBUKA' && !hadir && !izinSaya;
   const bisaAjukanIzin = !hadir && !izinSaya && s.status !== 'SELESAI';
 
   const actionLabel = hadir
     ? `Hadir · ${waktuHadir}`
     : izinSaya?.status === 'DITERIMA'
       ? 'Izin telah diterima'
-      : s.status === 'DIBUKA'
-        ? 'Tap untuk presensi'
-        : 'Presensi belum tersedia';
+      : izinSaya?.status === 'MENUNGGU'
+        ? 'Izin menunggu keputusan'
+        : izinSaya?.status === 'DITOLAK'
+          ? 'Izin ditolak'
+          : s.status === 'DIBUKA'
+            ? 'Tap untuk presensi'
+            : s.status === 'SELESAI'
+              ? 'Sesi telah ditutup'
+              : 'Presensi belum tersedia';
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -116,7 +128,7 @@ export default function DetailSesiPraktikan() {
         {/* Status & Topik */}
         <View style={styles.statusRow}>
           <StatusBadge status={s.status} />
-          {s.topik && <Text style={styles.topikText}>{s.topik}</Text>}
+          {s.topik ? <Text style={styles.topikText}>{s.topik}</Text> : null}
         </View>
 
         <Text style={styles.description}>{s.deskripsi}</Text>
@@ -162,7 +174,7 @@ export default function DetailSesiPraktikan() {
           </View>
         </View>
 
-        {/* Status Pengajuan Izin (Jika sudah mengajukan izin - FR-15 & FR-16) */}
+        {/* Status Pengajuan Izin (FR-15 & FR-16) */}
         {izinSaya && (
           <View style={styles.izinStatusCard}>
             <View style={styles.izinHeaderRow}>
@@ -232,10 +244,7 @@ export default function DetailSesiPraktikan() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  root: { flex: 1, backgroundColor: colors.background },
   topHeader: {
     minHeight: 68,
     paddingHorizontal: layout.screenPadding,
@@ -247,16 +256,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  headerCenter: {
-    flex: 1,
-  },
-  headerTitle: {
-    ...type.h2,
-    color: colors.textPrimary,
-  },
-  headerSpacer: {
-    width: 42,
-  },
+  headerCenter: { flex: 1 },
+  headerTitle: { ...type.h2, color: colors.textPrimary },
+  headerSpacer: { width: 42 },
   iconBtn: {
     width: 42,
     height: 42,
@@ -267,12 +269,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconBtnPressed: {
-    opacity: 0.75,
-  },
-  emptyWrap: {
-    padding: layout.screenPadding,
-  },
+  iconBtnPressed: { opacity: 0.75 },
+  emptyWrap: { padding: layout.screenPadding },
   scrollContent: {
     paddingHorizontal: layout.screenPadding,
     paddingTop: spacing.s4,
@@ -320,14 +318,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  gridCopy: {
-    flex: 1,
-    gap: 3,
-  },
-  gridLabel: {
-    ...type.micro,
-    color: colors.textMuted,
-  },
+  gridCopy: { flex: 1, gap: 3 },
+  gridLabel: { ...type.micro, color: colors.textMuted },
   gridValue: {
     ...type.caption,
     fontFamily: fontFamily.bold,
@@ -374,8 +366,5 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     color: colors.sesiDibukaFg,
   },
-  actionsGroup: {
-    marginTop: spacing.s5,
-    gap: spacing.s3,
-  },
+  actionsGroup: { marginTop: spacing.s5, gap: spacing.s3 },
 });

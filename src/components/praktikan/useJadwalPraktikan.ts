@@ -11,27 +11,27 @@ export type RingkasanKehadiran = {
   persen: number;
 };
 
+const normKelas = (k?: string) => (k ?? '').trim().toUpperCase();
+
 export function useJadwalPraktikan() {
-  const { currentUser, sesi, kehadiran, izin } = useSession();
+  const { currentUser, sesi, kehadiran, izin, loading } = useSession();
 
-  return useMemo(() => {
+  const data = useMemo(() => {
     const uid = currentUser?.id;
+    const kelasSaya = normKelas(currentUser?.kelas);
 
-    // Sesi milik kelas praktikan, urut tanggal + jam
     const daftarKelas: Sesi[] = sesi
-      .filter((s) => !currentUser?.kelas || s.kelas === currentUser.kelas)
+      .filter((s) => !kelasSaya || normKelas(s.kelas) === kelasSaya)
       .sort((a, b) =>
         `${a.tanggal} ${a.jamMulai}`.localeCompare(`${b.tanggal} ${b.jamMulai}`),
       );
 
-    // sesiId -> waktuHadir (ISO)
     const hadirMap = new Map<string, string>(
       kehadiran
         .filter((k) => k.praktikanId === uid)
         .map((k) => [k.sesiId, k.waktuHadir]),
     );
 
-    // sesiId -> status izin
     const izinMap = new Map<string, StatusIzin>(
       izin.filter((i) => i.praktikanId === uid).map((i) => [i.sesiId, i.status]),
     );
@@ -40,7 +40,6 @@ export function useJadwalPraktikan() {
 
     const total = daftarKelas.length;
     const hadir = daftarKelas.filter((s) => hadirMap.has(s.id)).length;
-    // Keputusan: hanya izin DITERIMA yang dihitung "izin"
     const izinDiterima = daftarKelas.filter(
       (s) => !hadirMap.has(s.id) && izinMap.get(s.id) === 'DITERIMA',
     ).length;
@@ -55,4 +54,6 @@ export function useJadwalPraktikan() {
 
     return { daftarKelas, hadirMap, izinMap, sesiAktif, ringkasan };
   }, [currentUser?.id, currentUser?.kelas, sesi, kehadiran, izin]);
+
+  return { ...data, loading };
 }

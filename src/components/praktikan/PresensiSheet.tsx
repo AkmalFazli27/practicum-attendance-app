@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ConfirmSheet, SheetModal, Tombol, useToast } from '@/components/ui';
-import { useSession } from '@/context/SessionContext';
+import { useSession, type PresensiResult } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
 import { colors, spacing, type } from '@/theme/tokens';
 import { formatHariTanggalSingkat, formatJam, titikJam } from '@/utils/format';
@@ -42,33 +42,41 @@ export function PresensiSheet({ sesi, onClose, onSuccess }: PresensiSheetProps) 
     [],
   );
 
-  function konfirmasi() {
+  async function konfirmasi() {
     if (!sesi || sedangProses.current) return;
     sedangProses.current = true;
     setMemproses(true);
 
-    timer.current = setTimeout(async () => {
-      const hasil = await markAttendance(sesi.id);
-      sedangProses.current = false;
-      setMemproses(false);
-      onClose();
+    let hasil: PresensiResult;
+    try {
+      hasil = await markAttendance(sesi.id);
+    } catch {
+      hasil = {
+        ok: false,
+        alasan: 'Koneksi bermasalah. Periksa internetmu lalu coba lagi.',
+      };
+    }
 
-      if (hasil.ok) {
-        const jam = titikJam(formatJam(hasil.waktuHadir));
-        showToast(`Presensi berhasil dicatat pukul ${jam}.`);
-        onSuccess?.(hasil.waktuHadir);
-        return;
-      }
+    sedangProses.current = false;
+    setMemproses(false);
+    onClose();
 
-      timer.current = setTimeout(() => {
-        setGalat({
-          judul: hasil.alasan.startsWith('Kamu sudah presensi')
-            ? 'Presensi sudah tercatat'
-            : 'Presensi gagal',
-          pesan: hasil.alasan,
-        });
-      }, 320);
-    }, 350);
+    if (hasil.ok) {
+      const jam = titikJam(formatJam(hasil.waktuHadir));
+      showToast(`Presensi berhasil dicatat pukul ${jam}.`);
+      onSuccess?.(hasil.waktuHadir);
+      return;
+    }
+
+    const pesan = hasil.alasan;
+    timer.current = setTimeout(() => {
+      setGalat({
+        judul: /sudah (presensi|tercatat)/i.test(pesan)
+          ? 'Presensi sudah tercatat'
+          : 'Presensi gagal',
+        pesan,
+      });
+    }, 320);
   }
 
   return (
@@ -119,11 +127,7 @@ export function PresensiSheet({ sesi, onClose, onSuccess }: PresensiSheetProps) 
 }
 
 const styles = StyleSheet.create({
-  errorRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.s3,
-  },
+  errorRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.s3 },
   errorIcon: {
     width: 36,
     height: 36,
@@ -132,13 +136,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  errorIconText: {
-    ...type.bodyStrong,
-    color: colors.errorFg,
-  },
-  errorPesan: {
-    ...type.body,
-    color: colors.textPrimary,
-    flex: 1,
-  },
+  errorIconText: { ...type.bodyStrong, color: colors.errorFg },
+  errorPesan: { ...type.body, color: colors.textPrimary, flex: 1 },
 });
