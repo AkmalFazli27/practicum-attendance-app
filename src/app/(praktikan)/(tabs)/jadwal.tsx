@@ -27,7 +27,7 @@ const EMPTY_COPY: Record<Filter, { judul: string; pesan: string }> = {
 export default function JadwalScreen() {
   const router = useRouter();
   const { currentUser } = useSession();
-  const { daftarKelas, hadirMap, izinMap, loading } = useJadwalPraktikan();
+  const { daftarKelas, hadirMap, izinMap, loading, error, retrySync } = useJadwalPraktikan();
 
   const [filter, setFilter] = useState<Filter>('SEMUA');
 
@@ -71,7 +71,13 @@ export default function JadwalScreen() {
           ))}
         </ScrollView>
 
-        {loading ? (
+        {error ? (
+          <EmptyState
+            judul="Gagal memuat jadwal"
+            pesan={error}
+            aksi={{ label: 'Coba lagi', onPress: retrySync }}
+          />
+        ) : loading ? (
           <EmptyState judul="Memuat jadwal…" pesan="Mohon tunggu sebentar." />
         ) : data.length === 0 ? (
           <EmptyState

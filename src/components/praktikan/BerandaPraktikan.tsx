@@ -34,7 +34,7 @@ import { useJadwalPraktikan } from './useJadwalPraktikan';
 export function BerandaPraktikan() {
   const router = useRouter();
   const { currentUser } = useSession();
-  const { daftarKelas, hadirMap, izinMap, sesiAktif, ringkasan, loading } =
+  const { daftarKelas, hadirMap, izinMap, sesiAktif, ringkasan, loading, error, retrySync } =
     useJadwalPraktikan();
 
   const [sesiPresensi, setSesiPresensi] = useState<Sesi | null>(null);
@@ -74,7 +74,15 @@ export function BerandaPraktikan() {
         </View>
 
         {/* 2. Kartu Sesi Aktif */}
-        {loading ? (
+        {error ? (
+          <View style={styles.emptyActiveWrap}>
+            <EmptyState
+              judul="Gagal memuat data"
+              pesan={error}
+              aksi={{ label: 'Coba lagi', onPress: retrySync }}
+            />
+          </View>
+        ) : loading ? (
           <View style={styles.emptyActiveWrap}>
             <EmptyState judul="Memuat data…" pesan="Mohon tunggu sebentar." />
           </View>

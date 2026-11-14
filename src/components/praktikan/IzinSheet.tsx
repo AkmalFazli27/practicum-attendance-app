@@ -54,7 +54,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
       }
       onClose();
 
-      const aiFallback = /fallback/i.test(hasil.izin.ringkasanAi ?? '');
+      const aiFallback = /fallback/i.test(hasil.izin.ringkasanAi ?? '') || hasil.izin.kategoriAi === 'Belum Terklasifikasi';
       showToast(
         aiFallback
           ? 'Izin diajukan. Layanan AI sedang tidak tersedia, klasifikasi dibuat sementara. Menunggu pemeriksaan asisten.'
