@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -40,10 +41,21 @@ import {
 } from '@/theme/tokens';
 import { formatHariTanggalSingkat, titikJam } from '@/utils/format';
 
+function SplashLayar() {
+  return (
+    <View style={styles.splash}>
+      <StatusBar style="light" />
+      <Brand large onDark />
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={styles.splashCaption}>Memeriksa sesi...</Text>
+    </View>
+  );
+}
+
 export default function LandingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser, sesi } = useSession();
+  const { currentUser, loading, sesi } = useSession();
 
   const [sesiIdDipilih, setSesiIdDipilih] = useState<string | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -73,6 +85,10 @@ export default function LandingScreen() {
 
     return [...sesi].sort(urut).slice(0, 3);
   }, [sesi]);
+
+  if (loading) {
+    return <SplashLayar />;
+  }
 
   const handleMasuk = () => {
     if (currentUser) {
@@ -308,6 +324,17 @@ export default function LandingScreen() {
 }
 
 const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.s4,
+    backgroundColor: colors.graphite,
+  },
+  splashCaption: {
+    ...type.caption,
+    color: colors.textOnDarkMuted,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: colors.graphite,
