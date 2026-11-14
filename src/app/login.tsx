@@ -115,7 +115,7 @@ function validateAuthForm({
     hasil.email = 'Masukkan alamat email yang valid.';
   }
 
-  if (password.trim().length < 6) {
+  if (password.length < 6) {
     hasil.password = 'Kata sandi minimal 6 karakter.';
   }
 
@@ -125,8 +125,7 @@ function validateAuthForm({
 export default function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string }>();
-  const { currentUser, loading, loginWithEmail, registerUser, logout } =
-    useSession();
+  const { currentUser, loading, loginWithEmail, registerUser } = useSession();
   const { showToast } = useToast();
 
   const [authMode, setAuthMode] = useState<AuthMode>(
@@ -215,11 +214,7 @@ export default function LoginScreen() {
         email.trim().length > 0 &&
         password.trim().length > 0;
 
-  const tanganiKegagalanAuth = async (alasan: string) => {
-    // TODO(auth): mitigasi sementara — logout() mencegah fallback user dari
-    // SessionContext ikut terpakai saat autentikasi gagal. PM akan memperbaiki
-    // fallback tersebut langsung di SessionContext.
-    await logout();
+  const tanganiKegagalanAuth = (alasan: string) => {
     setPesanError(pesanUntukAlasan(alasan));
   };
 
@@ -272,10 +267,14 @@ export default function LoginScreen() {
 
     try {
       if (authMode === 'login') {
-        const res = await loginWithEmail(email.trim().toLowerCase(), password);
+        const res = await loginWithEmail(
+          email.trim().toLowerCase(),
+          password,
+          peran,
+        );
 
         if (!res.ok) {
-          await tanganiKegagalanAuth(res.alasan);
+          tanganiKegagalanAuth(res.alasan);
           return;
         }
 
@@ -294,7 +293,7 @@ export default function LoginScreen() {
       });
 
       if (!res.ok) {
-        await tanganiKegagalanAuth(res.alasan);
+        tanganiKegagalanAuth(res.alasan);
         return;
       }
 
