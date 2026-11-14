@@ -11,53 +11,100 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function userExists() {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isAsisten() {
-      return isAuthenticated() && getUserData().peran == 'asisten';
+      return userExists() && getUserData().peran == 'asisten';
     }
 
     function isPraktikan() {
-      return isAuthenticated() && getUserData().peran == 'praktikan';
+      return userExists() && getUserData().peran == 'praktikan';
+    }
+
+    function sesiExists(sesiId) {
+      return exists(/databases/$(database)/documents/sesi/$(sesiId));
+    }
+
+    function getSesiData(sesiId) {
+      return get(/databases/$(database)/documents/sesi/$(sesiId)).data;
     }
 
     // Koleksi users: identitas dan peran pengguna
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isOwner(userId) || isAsisten();
+      // Privasi: pemilik dapat membaca dokumennya sendiri; asisten dapat membaca daftar pengguna untuk rekap
+      allow read: if isOwner(userId) || isAsisten();
+
+      // Registrasi mandiri dari klien hanya boleh membuat profil dengan peran 'praktikan'.
+      // Akun dengan peran 'asisten' diprovisikan melalui Firebase Console / Admin SDK.
+      allow create: if isOwner(userId)
+                    && request.resource.data.peran == 'praktikan'
+                    && request.resource.data.keys().hasAll(['nama', 'email', 'peran'])
+                    && request.resource.data.keys().hasOnly(['nama', 'email', 'peran', 'nim', 'kelas', 'createdAt']);
+
+      // Pemilik akun hanya boleh memperbarui field profil non-peran (tidak boleh mengubah 'peran').
+      allow update: if (isOwner(userId)
+                        && request.resource.data.peran == resource.data.peran
+                        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['peran', 'createdAt']))
+                    || isAsisten();
+
       allow delete: if false;
     }
 
-    // Koleksi sesi praktikum: dikelola oleh Asisten, dibaca oleh semua pengguna terautentikasi
+    // Koleksi sesi praktikum: dikelola oleh Asisten, dapat dibaca publik (read-only) untuk pratinjau jadwal
     match /sesi/{sesiId} {
-      allow read: if true; // Publik/read-only agar Landing page dapat menampilkan jadwal
+      allow read: if true;
       allow create, update, delete: if isAsisten();
     }
 
-    // Koleksi kehadiran: dicatat oleh praktikan bersangkutan, ditinjau oleh asisten
+    // Koleksi kehadiran: dicatat oleh praktikan bersangkutan saat sesi DIBUKA, ditinjau oleh asisten
     match /kehadiran/{kehadiranId} {
-      allow read: if isAuthenticated();
-      // Praktikan hanya boleh mencatat kehadiran untuk dirinya sendiri
-      allow create: if isPraktikan() && request.resource.data.praktikanId == request.auth.uid;
-      // Perubahan status/koreksi kehadiran hanya boleh oleh Asisten
+      allow read: if isAsisten()
+                  || (isAuthenticated() && (resource == null || resource.data.praktikanId == request.auth.uid));
+
+      // Praktikan hanya boleh mencatat kehadiran untuk dirinya sendiri dengan ID deterministik ${sesiId}_${uid},
+      // pada sesi yang ada dan berstatus DIBUKA, serta belum mengajukan izin pada sesi tersebut.
+      allow create: if isPraktikan()
+                    && request.resource.data.praktikanId == request.auth.uid
+                    && request.resource.data.sesiId is string
+                    && kehadiranId == request.resource.data.sesiId + '_' + request.auth.uid
+                    && sesiExists(request.resource.data.sesiId)
+                    && getSesiData(request.resource.data.sesiId).status == 'DIBUKA'
+                    && !exists(/databases/$(database)/documents/izin/$(kehadiranId));
+
+      // Perubahan status/koreksi atau penghapusan kehadiran hanya boleh oleh Asisten
       allow update, delete: if isAsisten();
     }
 
     // Koleksi izin: diajukan oleh praktikan, diperiksa/diputuskan oleh asisten
     match /izin/{izinId} {
-      allow read: if isAuthenticated();
-      // Praktikan membuat pengajuan izin untuk dirinya sendiri dengan status awal MENUNGGU
-      allow create: if isPraktikan() 
+      allow read: if isAsisten()
+                  || (isAuthenticated() && (resource == null || resource.data.praktikanId == request.auth.uid));
+
+      // Praktikan membuat pengajuan izin untuk dirinya sendiri dengan ID deterministik ${sesiId}_${uid},
+      // status awal MENUNGGU, pada sesi yang belum SELESAI, serta belum tercatat hadir.
+      allow create: if isPraktikan()
                     && request.resource.data.praktikanId == request.auth.uid
-                    && request.resource.data.status == 'MENUNGGU';
-      // Hanya Asisten yang berhak mengubah status izin (DITERIMA / DITOLAK)
-      allow update: if isAsisten() 
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedAt', 'reviewedBy']);
+                    && request.resource.data.status == 'MENUNGGU'
+                    && request.resource.data.sesiId is string
+                    && izinId == request.resource.data.sesiId + '_' + request.auth.uid
+                    && sesiExists(request.resource.data.sesiId)
+                    && getSesiData(request.resource.data.sesiId).status != 'SELESAI'
+                    && !exists(/databases/$(database)/documents/kehadiran/$(izinId));
+
+      // Hanya Asisten yang berhak memutuskan status izin dari MENUNGGU menjadi DITERIMA atau DITOLAK
+      allow update: if isAsisten()
+                    && resource.data.status == 'MENUNGGU'
+                    && (request.resource.data.status == 'DITERIMA' || request.resource.data.status == 'DITOLAK')
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'waktuKeputusan', 'reviewedAt', 'reviewedBy']);
+
       allow delete: if isAsisten();
     }
   }
 }
-

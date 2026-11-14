@@ -1,5 +1,6 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -9,6 +10,7 @@ import React, {
 } from 'react';
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
@@ -20,11 +22,14 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
+  writeBatch,
 } from 'firebase/firestore';
 
 import { auth, db, isFirebaseConfigured } from '@/config/firebase';
@@ -37,7 +42,6 @@ import {
   type Kehadiran,
   type Peran,
   type Sesi,
-  type SesiInput,
   type StatusIzin,
   type User,
 } from '@/data/dummy';
@@ -48,8 +52,24 @@ export type PresensiResult =
   | { ok: true; waktuHadir: string }
   | { ok: false; alasan: string };
 
+export type SesiInput = {
+  namaPraktikum: string;
+  topik?: string;
+  kelas: string;
+  lab: string;
+  tanggal: string;
+  jamMulai: string;
+  jamSelesai: string;
+  kapasitas?: number;
+  deskripsi: string;
+};
+
 export type AuthResult =
   | { ok: true; user: User }
+  | { ok: false; alasan: string };
+
+export type LogoutResult =
+  | { ok: true }
   | { ok: false; alasan: string };
 
 export type RegisterPayload = {
@@ -68,6 +88,9 @@ export type IzinResult =
 export type SessionContextValue = {
   isLiveFirebase: boolean;
   loading: boolean;
+  error: string | null;
+  clearError: () => void;
+  retrySync: () => void;
   users: User[];
   currentUser: User | null;
   sesi: Sesi[];
@@ -80,7 +103,7 @@ export type SessionContextValue = {
     peranExpected?: Peran,
   ) => Promise<AuthResult>;
   registerUser: (payload: RegisterPayload) => Promise<AuthResult>;
-  logout: () => Promise<void>;
+  logout: () => Promise<LogoutResult>;
   openSession: (sesiId: string) => Promise<boolean>;
   closeSession: (sesiId: string) => Promise<boolean>;
   reopenSession: (sesiId: string) => Promise<boolean>;
@@ -102,10 +125,46 @@ export type SessionContextValue = {
   getIzinBySesiPraktikan: (sesiId: string, praktikanId: string) => Izin | undefined;
 };
 
+const AUTH_LOAD_TIMEOUT_MS = 9000;
+
+/**
+ * Menerjemahkan kode error Firestore / Firebase ke Bahasa Indonesia yang ramah pengguna
+ * agar pesan error mentah berbahasa Inggris tidak bocor ke antarmuka.
+ */
+function terjemahkanErrorFirestore(err: any, pesanDefault: string): string {
+  const rawCode = String(err?.code || '').toLowerCase();
+  const code = rawCode.replace(/^(firestore|auth)\//, '');
+
+  switch (code) {
+    case 'permission-denied':
+    case 'unauthenticated':
+      return 'Akses ditolak oleh server. Pastikan peran akun Anda sesuai dan sesi masih aktif.';
+    case 'unavailable':
+    case 'network-request-failed':
+      return 'Layanan tidak dapat dijangkau saat ini. Periksa koneksi internet Anda lalu coba lagi.';
+    case 'failed-precondition':
+      return 'Operasi tidak dapat dijalankan karena prasyarat data belum terpenuhi.';
+    case 'resource-exhausted':
+    case 'too-many-requests':
+      return 'Batas kuota permintaan tercapai. Silakan tunggu beberapa saat lalu coba lagi.';
+    case 'deadline-exceeded':
+      return 'Waktu koneksi ke server habis. Periksa jaringan Anda lalu coba lagi.';
+    case 'not-found':
+      return 'Data yang diminta tidak ditemukan di server.';
+    case 'already-exists':
+      return 'Data tersebut sudah tercatat sebelumnya.';
+    default:
+      return pesanDefault;
+  }
+}
+
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [syncVersion, setSyncVersion] = useState<number>(0);
+
   const [users, setUsers] = useState<User[]>(
     isFirebaseConfigured ? [] : USERS,
   );
@@ -124,8 +183,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // race condition antara createUserWithEmailAndPassword dan onAuthStateChanged
   const pendingRegisterUserRef = useRef<User | null>(null);
 
+  // Token generasi autentikasi untuk mencegah ghost user race condition
+  // ketika hasil getDoc lama baru selesai setelah logout atau ganti akun
+  const authGenRef = useRef<number>(0);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const retrySync = useCallback(() => {
+    setError(null);
+    setSyncVersion((v) => v + 1);
+  }, []);
+
   // ===========================================================================
-  // 1. LISTENER AUTH & KOLEKSI PUBLIK (`sesi`)
+  // 1. LISTENER AUTH & KOLEKSI PUBLIK (`sesi`) DENGAN TIMEOUT (9 DETIK)
   // ===========================================================================
   useEffect(() => {
     if (!isFirebaseConfigured) {
@@ -133,12 +205,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    let cancelled = false;
     setLoading(true);
     let authReady = false;
     let sesiReady = false;
 
+    const timeoutId = setTimeout(() => {
+      if (!cancelled && (!authReady || !sesiReady)) {
+        authReady = true;
+        sesiReady = true;
+        setError(
+          'Waktu muat sesi habis. Periksa koneksi internet Anda lalu coba lagi.',
+        );
+        setLoading(false);
+      }
+    }, AUTH_LOAD_TIMEOUT_MS);
+
     const checkReady = () => {
-      if (authReady && sesiReady) {
+      if (!cancelled && authReady && sesiReady) {
+        clearTimeout(timeoutId);
         setLoading(false);
       }
     };
@@ -146,19 +231,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const unsubscribeAuth = onAuthStateChanged(
       auth,
       async (fbUser: FirebaseUser | null) => {
+        const myGen = ++authGenRef.current;
+
         if (!fbUser) {
           pendingRegisterUserRef.current = null;
-          setCurrentUser(null);
+          if (!cancelled && authGenRef.current === myGen) {
+            setCurrentUser(null);
+          }
           authReady = true;
           checkReady();
           return;
         }
 
         // Jika sedang dalam proses registrasi dan profil sudah disiapkan di ref,
-        // gunakan profil tersebut agar tidak tertimpa fallback sebelum setDoc selesai
+        // gunakan profil tersebut selama setDoc sedang berjalan
         const pendingUser = pendingRegisterUserRef.current;
         if (pendingUser && pendingUser.id === fbUser.uid) {
-          setCurrentUser(pendingUser);
+          if (!cancelled && authGenRef.current === myGen) {
+            setCurrentUser(pendingUser);
+          }
           authReady = true;
           checkReady();
           return;
@@ -166,38 +257,63 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         try {
           const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
+
+          // Cegah ghost user: pastikan tidak ada perubahan auth state selama await getDoc
+          if (
+            cancelled ||
+            authGenRef.current !== myGen ||
+            auth.currentUser?.uid !== fbUser.uid
+          ) {
+            return;
+          }
+
           if (userDoc.exists()) {
             const data = userDoc.data();
-            setCurrentUser({
-              id: fbUser.uid,
-              nama: data.nama || fbUser.displayName || 'Pengguna TapIn',
-              email: data.email || fbUser.email || '',
-              nim: data.nim || undefined,
-              kelas: data.kelas || undefined,
-              peran: data.peran === 'asisten' ? 'asisten' : 'praktikan',
-            });
+            if (data.peran !== 'asisten' && data.peran !== 'praktikan') {
+              await signOut(auth);
+              setCurrentUser(null);
+              setError('Profil pengguna tidak ditemukan.');
+            } else {
+              setCurrentUser({
+                id: fbUser.uid,
+                nama: data.nama || fbUser.displayName || 'Pengguna TapIn',
+                email: data.email || fbUser.email || '',
+                nim: data.nim || undefined,
+                kelas: data.kelas || undefined,
+                peran: data.peran,
+              });
+              setError(null);
+            }
           } else if (
             pendingRegisterUserRef.current &&
             pendingRegisterUserRef.current.id === fbUser.uid
           ) {
             setCurrentUser(pendingRegisterUserRef.current);
           } else {
-            setCurrentUser({
-              id: fbUser.uid,
-              nama:
-                fbUser.displayName ||
-                fbUser.email?.split('@')[0] ||
-                'Pengguna TapIn',
-              email: fbUser.email || '',
-              peran: 'praktikan',
-            });
+            // Fail closed: akun Auth tanpa dokumen profil di koleksi `users` ditolak
+            await signOut(auth);
+            setCurrentUser(null);
+            setError('Profil pengguna tidak ditemukan.');
           }
-        } catch {
+        } catch (err: any) {
           if (
-            pendingRegisterUserRef.current &&
-            pendingRegisterUserRef.current.id === fbUser.uid
+            !cancelled &&
+            authGenRef.current === myGen &&
+            auth.currentUser?.uid === fbUser.uid
           ) {
-            setCurrentUser(pendingRegisterUserRef.current);
+            if (
+              pendingRegisterUserRef.current &&
+              pendingRegisterUserRef.current.id === fbUser.uid
+            ) {
+              setCurrentUser(pendingRegisterUserRef.current);
+            } else {
+              setError(
+                terjemahkanErrorFirestore(
+                  err,
+                  'Gagal memuat profil pengguna dari server.',
+                ),
+              );
+            }
           }
         } finally {
           authReady = true;
@@ -211,6 +327,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const unsubscribeSesi = onSnapshot(
       sesiQuery,
       (snapshot) => {
+        if (cancelled) return;
         const liveSesi: Sesi[] = snapshot.docs.map((docSnap) => {
           const d = docSnap.data();
           return {
@@ -232,76 +349,103 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         sesiReady = true;
         checkReady();
       },
-      () => {
+      (err) => {
+        if (cancelled) return;
+        setError(
+          terjemahkanErrorFirestore(err, 'Gagal memuat jadwal sesi praktikum.'),
+        );
         sesiReady = true;
         checkReady();
       },
     );
 
     return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
       unsubscribeAuth();
       unsubscribeSesi();
     };
-  }, []);
+  }, [syncVersion]);
 
   // ===========================================================================
   // 2. LISTENER KOLEKSI TERAUTENTIKASI (`users`, `kehadiran`, `izin`)
-  // Dipasang hanya ketika pengguna sudah login agar tidak terkena permission-denied
+  // Dipasang hanya setelah pengguna login & disesuaikan perannya (privasi rules)
   // ===========================================================================
   useEffect(() => {
     if (!isFirebaseConfigured) return;
 
     if (!currentUser?.id) {
-      setUsers([]);
       setKehadiran([]);
       setIzin([]);
+      setUsers([]);
       return;
     }
 
-    // Pantau profil pengguna aktif secara real-time
-    const unsubscribeMyDoc = onSnapshot(
-      doc(db, 'users', currentUser.id),
+    const uid = currentUser.id;
+    const isAsistenRole = currentUser.peran === 'asisten';
+
+    // Sinkronisasi dokumen profil pengguna aktif secara real-time
+    const unsubscribeSelf = onSnapshot(
+      doc(db, 'users', uid),
       (docSnap) => {
         if (!docSnap.exists()) return;
         const d = docSnap.data();
+        if (d.peran !== 'asisten' && d.peran !== 'praktikan') return;
         setCurrentUser((prev) => {
-          if (!prev || prev.id !== docSnap.id) return prev;
+          if (!prev || prev.id !== uid) return prev;
           return {
-            id: docSnap.id,
+            id: uid,
             nama: d.nama || prev.nama,
             email: d.email || prev.email,
             nim: d.nim || undefined,
             kelas: d.kelas || undefined,
-            peran: d.peran === 'asisten' ? 'asisten' : 'praktikan',
+            peran: d.peran,
           };
         });
       },
       () => {},
     );
 
-    // Pantau daftar seluruh pengguna (untuk resolusi nama & NIM praktikan di sisi asisten)
-    const unsubscribeUsers = onSnapshot(
-      query(collection(db, 'users')),
-      (snapshot) => {
-        const liveUsers: User[] = snapshot.docs.map((docSnap) => {
-          const d = docSnap.data();
-          return {
-            id: docSnap.id,
-            nama: d.nama || 'Pengguna TapIn',
-            email: d.email || '',
-            nim: d.nim || undefined,
-            kelas: d.kelas || undefined,
-            peran: d.peran === 'asisten' ? 'asisten' : 'praktikan',
-          };
-        });
-        setUsers(liveUsers);
-      },
-      () => {},
-    );
+    // Asisten membaca daftar pengguna untuk kebutuhan rekap; praktikan hanya membaca profilnya sendiri
+    let unsubscribeUsers: (() => void) | null = null;
+    if (isAsistenRole) {
+      const usersQuery = query(collection(db, 'users'));
+      unsubscribeUsers = onSnapshot(
+        usersQuery,
+        (snapshot) => {
+          const liveUsers: User[] = snapshot.docs.map((docSnap) => {
+            const d = docSnap.data();
+            return {
+              id: docSnap.id,
+              nama: d.nama || 'Pengguna TapIn',
+              email: d.email || '',
+              nim: d.nim || undefined,
+              kelas: d.kelas || undefined,
+              peran: d.peran === 'asisten' ? 'asisten' : 'praktikan',
+            };
+          });
+          setUsers(liveUsers);
+        },
+        (err) => {
+          setError(
+            terjemahkanErrorFirestore(
+              err,
+              'Gagal menyinkronkan daftar pengguna.',
+            ),
+          );
+        },
+      );
+    } else {
+      setUsers([currentUser]);
+    }
 
-    // Pantau daftar kehadiran real-time
+    // Asisten menyinkronkan seluruh kehadiran; praktikan hanya menyinkronkan kehadirannya sendiri
+    const kehadiranQuery = isAsistenRole
+      ? query(collection(db, 'kehadiran'))
+      : query(collection(db, 'kehadiran'), where('praktikanId', '==', uid));
+
     const unsubscribeKehadiran = onSnapshot(
-      query(collection(db, 'kehadiran')),
+      kehadiranQuery,
       (snapshot) => {
         const liveKehadiran: Kehadiran[] = snapshot.docs.map((docSnap) => {
           const d = docSnap.data();
@@ -317,15 +461,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         });
         setKehadiran(liveKehadiran);
       },
-      () => {},
+      (err) => {
+        setError(
+          terjemahkanErrorFirestore(
+            err,
+            'Gagal menyinkronkan data kehadiran secara real-time.',
+          ),
+        );
+      },
     );
 
-    // Pantau daftar pengajuan izin real-time
+    // Asisten menyinkronkan seluruh izin; praktikan hanya menyinkronkan izinnya sendiri
+    const izinQuery = isAsistenRole
+      ? query(collection(db, 'izin'))
+      : query(collection(db, 'izin'), where('praktikanId', '==', uid));
+
     const unsubscribeIzin = onSnapshot(
-      query(collection(db, 'izin')),
+      izinQuery,
       (snapshot) => {
         const liveIzin: Izin[] = snapshot.docs.map((docSnap) => {
           const d = docSnap.data();
+          const waktuKeputusan = d.waktuKeputusan || d.reviewedAt || undefined;
           return {
             id: docSnap.id,
             sesiId: d.sesiId || '',
@@ -335,34 +491,42 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             kelasPraktikan: d.kelasPraktikan || undefined,
             alasan: d.alasan || '',
             kategoriAi: d.kategoriAi || 'Belum Terklasifikasi',
-            ringkasanAi: d.ringkasanAi || '',
+            ringkasanAi: d.ringkasanAi || undefined,
             status: d.status || 'MENUNGGU',
             waktuPengajuan: d.waktuPengajuan || '',
-            waktuKeputusan: d.waktuKeputusan || undefined,
+            waktuKeputusan,
+            reviewedAt: d.reviewedAt || waktuKeputusan,
             reviewedBy: d.reviewedBy || undefined,
           };
         });
         setIzin(liveIzin);
       },
-      () => {},
+      (err) => {
+        setError(
+          terjemahkanErrorFirestore(
+            err,
+            'Gagal menyinkronkan data perizinan secara real-time.',
+          ),
+        );
+      },
     );
 
     return () => {
-      unsubscribeMyDoc();
-      unsubscribeUsers();
+      unsubscribeSelf();
+      if (unsubscribeUsers) unsubscribeUsers();
       unsubscribeKehadiran();
       unsubscribeIzin();
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, currentUser?.peran, syncVersion]);
 
-  // Gabungkan daftar users dengan data denormalisasi pada kehadiran & izin
-  // agar asisten selalu melihat nama & NIM praktikan meskipun dokumen users belum termuat
+  // Gabungkan daftar users dari koleksi `users` dengan fallback denormalisasi
+  // dari dokumen `kehadiran` & `izin` agar tampilan Asisten tidak pernah kehilangan nama/NIM
   const mergedUsers = useMemo<User[]>(() => {
     const map = new Map<string, User>();
     for (const u of users) {
       map.set(u.id, u);
     }
-    if (currentUser && !map.has(currentUser.id)) {
+    if (currentUser) {
       map.set(currentUser.id, currentUser);
     }
     for (const k of kehadiran) {
@@ -407,33 +571,54 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     peranExpected?: Peran,
   ): Promise<AuthResult> => {
     const cleanEmail = emailInput.trim().toLowerCase();
-    const cleanPassword = passwordInput.trim();
+    // Jangan trim password agar spasi yang disengaja di awal/akhir tidak berubah diam-diam
+    const rawPassword = passwordInput;
 
-    if (!cleanEmail || !cleanPassword) {
+    if (!cleanEmail || rawPassword.length === 0) {
       return { ok: false, alasan: 'Email dan kata sandi tidak boleh kosong.' };
     }
 
     if (isFirebaseConfigured) {
+      const myGen = ++authGenRef.current;
       try {
         const userCredential = await signInWithEmailAndPassword(
           auth,
           cleanEmail,
-          cleanPassword,
+          rawPassword,
         );
         const fbUid = userCredential.user.uid;
 
         const userDoc = await getDoc(doc(db, 'users', fbUid));
+
+        // Cegah ghost user apabila sesi sudah berganti saat menunggu getDoc
+        if (auth.currentUser?.uid !== fbUid || authGenRef.current !== myGen) {
+          return {
+            ok: false,
+            alasan: 'Sesi autentikasi berubah. Silakan coba masuk kembali.',
+          };
+        }
+
+        // Fail closed jika dokumen profil users/{uid} tidak ada atau peran tidak valid
         if (!userDoc.exists()) {
           await signOut(auth);
           setCurrentUser(null);
           return {
             ok: false,
-            alasan: 'Profil akun tidak ditemukan di database. Silakan daftar ulang.',
+            alasan: 'Profil pengguna tidak ditemukan.',
           };
         }
 
         const d = userDoc.data();
-        const peranAkun: Peran = d.peran === 'asisten' ? 'asisten' : 'praktikan';
+        if (d.peran !== 'asisten' && d.peran !== 'praktikan') {
+          await signOut(auth);
+          setCurrentUser(null);
+          return {
+            ok: false,
+            alasan: 'Profil pengguna tidak ditemukan.',
+          };
+        }
+
+        const peranAkun: Peran = d.peran;
 
         if (peranExpected && peranAkun !== peranExpected) {
           await signOut(auth);
@@ -454,6 +639,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         };
 
         setCurrentUser(userProfil);
+        setError(null);
         return { ok: true, user: userProfil };
       } catch (err: any) {
         let pesan = 'Gagal masuk. Periksa kembali email dan kata sandi Anda.';
@@ -475,7 +661,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         } else if (err?.code === 'auth/user-disabled') {
           pesan = 'Akun ini telah dinonaktifkan.';
         } else if (err?.code === 'auth/network-request-failed') {
-          pesan = 'Tidak dapat terhubung ke server Firebase. Periksa koneksi internetmu.';
+          pesan =
+            'Tidak dapat terhubung ke server Firebase. Periksa koneksi internetmu.';
         }
         return { ok: false, alasan: pesan };
       }
@@ -489,7 +676,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!userDitemukan) {
       return {
         ok: false,
-        alasan: 'Akun dengan email ini tidak ditemukan. Silakan daftar akun terlebih dahulu.',
+        alasan: 'Profil pengguna tidak ditemukan.',
       };
     }
 
@@ -504,22 +691,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return { ok: true, user: userDitemukan };
   };
 
-  const registerUser = async (payload: RegisterPayload): Promise<AuthResult> => {
+  const registerUser = async (
+    payload: RegisterPayload,
+  ): Promise<AuthResult> => {
     const cleanNama = payload.nama.trim();
     const cleanEmail = payload.email.trim().toLowerCase();
-    const cleanPassword = payload.password.trim();
+    // Jangan trim password agar karakter spasi pengguna tidak terpotong diam-diam
+    const rawPassword = payload.password;
     const cleanNim = (payload.nim || '').trim();
     const cleanKelas = (payload.kelas || '').trim().toUpperCase();
 
-    if (!cleanNama || !cleanEmail || !cleanPassword) {
+    if (!cleanNama || !cleanEmail || rawPassword.length === 0) {
       return { ok: false, alasan: 'Nama, email, dan kata sandi wajib diisi.' };
     }
 
     if (payload.peran === 'praktikan' && (!cleanNim || !cleanKelas)) {
-      return { ok: false, alasan: 'NIM dan Kelas wajib diisi untuk praktikan.' };
+      return {
+        ok: false,
+        alasan: 'NIM dan Kelas wajib diisi untuk praktikan.',
+      };
     }
 
-    if (cleanPassword.length < 6) {
+    if (rawPassword.length < 6) {
       return { ok: false, alasan: 'Kata sandi minimal 6 karakter.' };
     }
 
@@ -528,7 +721,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           cleanEmail,
-          cleanPassword,
+          rawPassword,
         );
         const fbUid = userCredential.user.uid;
 
@@ -544,7 +737,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // Simpan ke ref terlebih dahulu agar onAuthStateChanged tidak menimpa
         // peran pengguna sebelum dokumen Firestore selesai ditulis
         pendingRegisterUserRef.current = userObj;
-        setCurrentUser(userObj);
 
         const dataDoc = {
           nama: cleanNama,
@@ -555,9 +747,43 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           createdAt: serverTimestamp(),
         };
 
-        await setDoc(doc(db, 'users', fbUid), dataDoc);
-        pendingRegisterUserRef.current = null;
+        try {
+          await setDoc(doc(db, 'users', fbUid), dataDoc);
+        } catch (firestoreErr: any) {
+          // Rollback akun Firebase Auth yatim (orphan) jika penulisan profil ke Firestore gagal
+          pendingRegisterUserRef.current = null;
+          setCurrentUser(null);
+          try {
+            await deleteUser(userCredential.user);
+          } catch {
+            try {
+              await signOut(auth);
+            } catch {}
+          }
 
+          const isPermissionDenied = String(firestoreErr?.code || '')
+            .toLowerCase()
+            .includes('permission-denied');
+          if (isPermissionDenied && payload.peran === 'asisten') {
+            return {
+              ok: false,
+              alasan:
+                'Pendaftaran mandiri hanya untuk Praktikan. Akun Asisten dibuat melalui Admin/Console.',
+            };
+          }
+
+          return {
+            ok: false,
+            alasan: terjemahkanErrorFirestore(
+              firestoreErr,
+              'Gagal menyimpan profil pengguna ke database. Silakan coba lagi.',
+            ),
+          };
+        }
+
+        pendingRegisterUserRef.current = null;
+        setCurrentUser(userObj);
+        setError(null);
         return { ok: true, user: userObj };
       } catch (err: any) {
         pendingRegisterUserRef.current = null;
@@ -569,7 +795,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         } else if (err?.code === 'auth/weak-password') {
           pesan = 'Kata sandi terlalu lemah. Gunakan minimal 6 karakter.';
         } else if (err?.code === 'auth/network-request-failed') {
-          pesan = 'Tidak dapat terhubung ke server. Periksa koneksi internetmu.';
+          pesan =
+            'Tidak dapat terhubung ke server. Periksa koneksi internetmu.';
         }
         return { ok: false, alasan: pesan };
       }
@@ -599,14 +826,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return { ok: true, user: userBaru };
   };
 
-  const logout = async () => {
+  const logout = async (): Promise<LogoutResult> => {
     pendingRegisterUserRef.current = null;
+    authGenRef.current += 1;
     if (isFirebaseConfigured) {
       try {
         await signOut(auth);
-      } catch {}
+      } catch (err: any) {
+        const alasan = terjemahkanErrorFirestore(
+          err,
+          'Gagal keluar dari akun. Periksa koneksi internet Anda.',
+        );
+        setError(alasan);
+        return { ok: false, alasan };
+      }
     }
     setCurrentUser(null);
+    setError(null);
+    return { ok: true };
   };
 
   // ===========================================================================
@@ -618,7 +855,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       try {
         await updateDoc(doc(db, 'sesi', sesiId), { status: 'DIBUKA' });
         return true;
-      } catch {
+      } catch (err: any) {
+        setError(terjemahkanErrorFirestore(err, 'Gagal membuka sesi praktikum.'));
         return false;
       }
     }
@@ -633,7 +871,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       try {
         await updateDoc(doc(db, 'sesi', sesiId), { status: 'SELESAI' });
         return true;
-      } catch {
+      } catch (err: any) {
+        setError(terjemahkanErrorFirestore(err, 'Gagal menutup sesi praktikum.'));
         return false;
       }
     }
@@ -648,7 +887,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       try {
         await updateDoc(doc(db, 'sesi', sesiId), { status: 'DIBUKA' });
         return true;
-      } catch {
+      } catch (err: any) {
+        setError(
+          terjemahkanErrorFirestore(err, 'Gagal membuka kembali sesi praktikum.'),
+        );
         return false;
       }
     }
@@ -681,7 +923,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       try {
         const docRef = await addDoc(collection(db, 'sesi'), sesiBaruData);
         return { id: docRef.id, ...sesiBaruData };
-      } catch {
+      } catch (err: any) {
+        setError(
+          terjemahkanErrorFirestore(
+            err,
+            'Gagal menambahkan sesi praktikum baru.',
+          ),
+        );
         return null;
       }
     }
@@ -731,7 +979,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       try {
         await updateDoc(doc(db, 'sesi', sesiId), cleanPatch);
         return true;
-      } catch {
+      } catch (err: any) {
+        setError(
+          terjemahkanErrorFirestore(
+            err,
+            'Gagal memperbarui data sesi praktikum.',
+          ),
+        );
         return false;
       }
     }
@@ -745,9 +999,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const deleteSession = async (sesiId: string): Promise<boolean> => {
     if (isFirebaseConfigured) {
       try {
-        await deleteDoc(doc(db, 'sesi', sesiId));
+        // Hapus seluruh dokumen anak (kehadiran & izin) beserta dokumen sesi dalam satu batch
+        const [kehadiranSnap, izinSnap] = await Promise.all([
+          getDocs(
+            query(collection(db, 'kehadiran'), where('sesiId', '==', sesiId)),
+          ),
+          getDocs(query(collection(db, 'izin'), where('sesiId', '==', sesiId))),
+        ]);
+
+        const batch = writeBatch(db);
+        kehadiranSnap.docs.forEach((docSnap) => {
+          batch.delete(docSnap.ref);
+        });
+        izinSnap.docs.forEach((docSnap) => {
+          batch.delete(docSnap.ref);
+        });
+        batch.delete(doc(db, 'sesi', sesiId));
+
+        await batch.commit();
         return true;
-      } catch {
+      } catch (err: any) {
+        setError(
+          terjemahkanErrorFirestore(err, 'Gagal menghapus sesi praktikum.'),
+        );
         return false;
       }
     }
@@ -766,7 +1040,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { ok: false, alasan: 'Pengguna belum masuk.' };
     }
     if (currentUser.peran !== 'praktikan') {
-      return { ok: false, alasan: 'Hanya praktikan yang dapat melakukan presensi.' };
+      return {
+        ok: false,
+        alasan: 'Hanya praktikan yang dapat melakukan presensi.',
+      };
     }
 
     const sesiTarget = sesi.find((s) => s.id === sesiId);
@@ -840,7 +1117,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       } catch (err: any) {
         return {
           ok: false,
-          alasan: `Gagal menyimpan presensi ke database: ${err?.message || 'Gangguan koneksi'}`,
+          alasan: terjemahkanErrorFirestore(
+            err,
+            'Gagal menyimpan presensi ke server. Periksa koneksi internet Anda.',
+          ),
         };
       }
     }
@@ -902,7 +1182,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return { ok: false, alasan: 'Alasan izin minimal 10 karakter.' };
     }
 
-    // Panggil service integrasi API AI pengajar (dengan timeout & fallback aman)
+    // Panggil service integrasi API AI pengajar (dengan timeout & fallback "Belum Terklasifikasi")
     const hasilAi = await klasifikasikanAlasanIzin(teksAlasan);
 
     const waktuPengajuan = nowLocalISO();
@@ -928,7 +1208,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       } catch (err: any) {
         return {
           ok: false,
-          alasan: `Gagal menyimpan izin ke Firestore: ${err?.message || 'Gangguan koneksi'}`,
+          alasan: terjemahkanErrorFirestore(
+            err,
+            'Gagal menyimpan pengajuan izin ke server. Periksa koneksi internet Anda.',
+          ),
         };
       }
     }
@@ -948,6 +1231,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     izinId: string,
     status: Exclude<StatusIzin, 'MENUNGGU'>,
   ): Promise<boolean> => {
+    if (!currentUser || currentUser.peran !== 'asisten') {
+      return false;
+    }
+
+    const izinTarget = izin.find((item) => item.id === izinId);
+    if (izinTarget && izinTarget.status !== 'MENUNGGU') {
+      return false;
+    }
+
     const waktuKeputusan = nowLocalISO();
 
     if (isFirebaseConfigured) {
@@ -955,10 +1247,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         await updateDoc(doc(db, 'izin', izinId), {
           status,
           waktuKeputusan,
-          reviewedBy: currentUser?.id || 'asisten',
+          reviewedAt: waktuKeputusan,
+          reviewedBy: currentUser.id,
         });
         return true;
-      } catch {
+      } catch (err: any) {
+        setError(
+          terjemahkanErrorFirestore(
+            err,
+            'Gagal menyimpan keputusan pemeriksaan izin.',
+          ),
+        );
         return false;
       }
     }
@@ -970,6 +1269,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
               ...item,
               status,
               waktuKeputusan,
+              reviewedAt: waktuKeputusan,
+              reviewedBy: currentUser.id,
             }
           : item,
       ),
@@ -1010,35 +1311,51 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  const value: SessionContextValue = {
-    isLiveFirebase: isFirebaseConfigured,
-    loading,
-    users: mergedUsers,
-    currentUser,
-    sesi,
-    kehadiran,
-    izin,
-    login,
-    loginWithEmail,
-    registerUser,
-    logout,
-    openSession,
-    closeSession,
-    reopenSession,
-    createSession,
-    updateSession,
-    deleteSession,
-    markAttendance,
-    submitIzin,
-    reviewIzin,
-    getSesiById,
-    getKehadiranSesi,
-    getKehadiranPraktikan,
-    sudahPresensi,
-    getIzinSesi,
-    getIzinPraktikan,
-    getIzinBySesiPraktikan,
-  };
+  const value = useMemo<SessionContextValue>(
+    () => ({
+      isLiveFirebase: isFirebaseConfigured,
+      loading,
+      error,
+      clearError,
+      retrySync,
+      users: mergedUsers,
+      currentUser,
+      sesi,
+      kehadiran,
+      izin,
+      login,
+      loginWithEmail,
+      registerUser,
+      logout,
+      openSession,
+      closeSession,
+      reopenSession,
+      createSession,
+      updateSession,
+      deleteSession,
+      markAttendance,
+      submitIzin,
+      reviewIzin,
+      getSesiById,
+      getKehadiranSesi,
+      getKehadiranPraktikan,
+      sudahPresensi,
+      getIzinSesi,
+      getIzinPraktikan,
+      getIzinBySesiPraktikan,
+    }),
+    [
+      loading,
+      error,
+      clearError,
+      retrySync,
+      mergedUsers,
+      currentUser,
+      sesi,
+      kehadiran,
+      izin,
+    ],
+  );
 
   return (
     <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
@@ -1046,9 +1363,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 }
 
 export function useSession(): SessionContextValue {
-  const context = useContext(SessionContext);
-  if (!context) {
-    throw new Error('useSession harus dipakai di dalam SessionProvider.');
+  const ctx = useContext(SessionContext);
+  if (!ctx) {
+    throw new Error('useSession harus dipakai di dalam <SessionProvider>');
   }
-  return context;
+  return ctx;
 }

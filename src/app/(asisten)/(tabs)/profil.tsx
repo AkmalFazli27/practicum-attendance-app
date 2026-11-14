@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { CheckCircle2, LogOut, ShieldCheck } from 'lucide-react-native';
 
-import { Tombol } from '@/components/ui';
+import { Tombol, useToast } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import {
   colors,
@@ -17,8 +17,16 @@ import { inisialNama } from '@/utils/format';
 
 export default function ProfilAsistenScreen() {
   const { currentUser, sesi, logout } = useSession();
+  const { showToast } = useToast();
 
   if (!currentUser) return null;
+
+  const handleLogout = async () => {
+    const hasil = await logout();
+    if (!hasil.ok) {
+      showToast(hasil.alasan);
+    }
+  };
 
   const emailTampil =
     currentUser.email ??
@@ -72,7 +80,7 @@ export default function ProfilAsistenScreen() {
         <Tombol
           variant="danger"
           icon={<LogOut size={18} color={colors.errorFg} />}
-          onPress={logout}
+          onPress={handleLogout}
         >
           Keluar dari akun
         </Tombol>

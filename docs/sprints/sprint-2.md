@@ -82,7 +82,7 @@ Setiap area memiliki **hasil**, **kriteria terima**, dan **batas**.
    - Komponen UI Kit baru & restyle: `Brand`, `AppHeader`, `SessionCard`, `ToastProvider`/`useToast`, `ConfirmSheet`, `SectionHeading`, `MetricCard`, `ScoreRing`, serta restyle `Tombol` (+ varian `danger`), `StatusBadge`, `SheetModal`, `EmptyState`, dan `FilterChip`.
    - Struktur navigasi 4 tab per peran (`Beranda | Sesi | Rekap | Profil` untuk Asisten; `Beranda | Jadwal | Riwayat | Profil` untuk Praktikan) dengan rute `/beranda-asisten` dan `/beranda-praktikan` yang bebas bentrok.
    - Penyelarasan visual seluruh layar eksisting dengan prototipe Figma Make serta penyediaan antarmuka siap pakai untuk Sprint 2:
-     - **Landing (`src/app/index.tsx`):** Hero bersih (`"Tap once. You're in."`, 3 pilar fitur, CTA Masuk/Daftar) tanpa kartu demo atau daftar jadwal pra-login.
+     - **Landing (`src/app/index.tsx`):** Hero bersih (`"Tap once. You're in."`, CTA Masuk/Mulai) disertai pratinjau *read-only* jadwal terdekat (tanpa kartu demo pintasan akun).
      - **Auth (`src/app/login.tsx`):** Tab switch **Masuk** (Email & Password) dan **Daftar Akun** (Pilih Peran Praktikan/Asisten, Nama Lengkap, NIM, Kelas, Email, Password) tanpa daftar akun dummy.
      - **CRUD Sesi Asisten (`src/components/asisten/SesiFormSheet.tsx`):** Sheet modal tambah & ubah sesi praktikum beserta aksi hapus dengan `ConfirmSheet`.
      - **Pengajuan & Pemeriksaan Izin AI (`src/components/praktikan/IzinSheet.tsx` & `src/app/(asisten)/sesi/[id].tsx`):** Sheet form izin praktikan dan panel pemeriksaan izin asisten dengan badge hasil klasifikasi AI serta tombol Terima/Tolak.

@@ -90,11 +90,15 @@ export default function DetailSesiAsisten() {
   const getPraktikan = (praktikanId: string) =>
     users.find((u) => u.id === praktikanId);
 
-  const handleKeputusanIzin = (
+  const handleKeputusanIzin = async (
     izinId: string,
     keputusan: 'DITERIMA' | 'DITOLAK',
   ) => {
-    reviewIzin(izinId, keputusan);
+    const berhasil = await reviewIzin(izinId, keputusan);
+    if (!berhasil) {
+      showToast('Gagal menyimpan keputusan izin. Silakan coba lagi.');
+      return;
+    }
     showToast(
       keputusan === 'DITERIMA'
         ? 'Pengajuan izin praktikan diterima.'
@@ -102,9 +106,13 @@ export default function DetailSesiAsisten() {
     );
   };
 
-  const handleKonfirmasiHapus = () => {
+  const handleKonfirmasiHapus = async () => {
+    const berhasil = await deleteSession(s.id);
     setHapusVisible(false);
-    deleteSession(s.id);
+    if (!berhasil) {
+      showToast('Gagal menghapus sesi praktikum. Silakan coba lagi.');
+      return;
+    }
     showToast('Sesi praktikum berhasil dihapus.');
     router.back();
   };

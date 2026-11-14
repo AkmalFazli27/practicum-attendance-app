@@ -68,6 +68,7 @@ export type Izin = {
   status: StatusIzin;
   waktuPengajuan: string;
   waktuKeputusan?: string;
+  reviewedAt?: string;
   reviewedBy?: string;
 };
 
