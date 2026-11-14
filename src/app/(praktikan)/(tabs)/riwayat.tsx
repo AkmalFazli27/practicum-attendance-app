@@ -4,42 +4,52 @@ import { Check, FileText } from 'lucide-react-native';
 
 import { EmptyState, StatusBadge } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
+import { type StatusIzin } from '@/data/dummy';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
 import { formatHariTanggalSingkat, formatJam, titikJam } from '@/utils/format';
 
+type Catatan = {
+  id: string;
+  jenis: 'HADIR' | 'IZIN';
+  sesiId: string;
+  waktu: string;
+  statusIzin?: StatusIzin;
+  kategoriAi?: string;
+};
+
 export default function RiwayatScreen() {
-  const {
-    currentUser,
-    getKehadiranPraktikan,
-    getIzinPraktikan,
-    getSesiById,
-  } = useSession();
+  const { currentUser, sesi, kehadiran, izin, loading } = useSession();
 
-  const daftarCatatan = useMemo(() => {
+  const daftarCatatan = useMemo<Catatan[]>(() => {
     if (!currentUser) return [];
+    const sesiAda = new Set(sesi.map((s) => s.id));
 
-    const hadirItems = getKehadiranPraktikan(currentUser.id).map((k) => ({
-      id: k.id,
-      jenis: 'HADIR' as const,
-      sesiId: k.sesiId,
-      waktu: k.waktuHadir,
-      statusIzin: undefined,
-      kategoriAi: undefined,
-    }));
+    const hadirItems: Catatan[] = kehadiran
+      .filter((k) => k.praktikanId === currentUser.id && sesiAda.has(k.sesiId))
+      .map((k) => ({
+        id: `hadir-${k.id}`,
+        jenis: 'HADIR',
+        sesiId: k.sesiId,
+        waktu: k.waktuHadir,
+      }));
 
-    const izinItems = getIzinPraktikan(currentUser.id).map((iz) => ({
-      id: iz.id,
-      jenis: 'IZIN' as const,
-      sesiId: iz.sesiId,
-      waktu: iz.waktuPengajuan,
-      statusIzin: iz.status,
-      kategoriAi: iz.kategoriAi,
-    }));
+    const izinItems: Catatan[] = izin
+      .filter((i) => i.praktikanId === currentUser.id && sesiAda.has(i.sesiId))
+      .map((i) => ({
+        id: `izin-${i.id}`,
+        jenis: 'IZIN',
+        sesiId: i.sesiId,
+        waktu: i.waktuPengajuan,
+        statusIzin: i.status,
+        kategoriAi: i.kategoriAi,
+      }));
 
     return [...hadirItems, ...izinItems].sort((a, b) =>
-      b.waktu.localeCompare(a.waktu),
+      (b.waktu || '').localeCompare(a.waktu || ''),
     );
-  }, [currentUser, getKehadiranPraktikan, getIzinPraktikan]);
+  }, [currentUser, sesi, kehadiran, izin]);
+
+  const sesiMap = useMemo(() => new Map(sesi.map((s) => [s.id, s])), [sesi]);
 
   if (!currentUser) return null;
 
@@ -57,7 +67,9 @@ export default function RiwayatScreen() {
           </Text>
         </View>
 
-        {daftarCatatan.length === 0 ? (
+        {loading ? (
+          <EmptyState judul="Memuat riwayat…" pesan="Mohon tunggu sebentar." />
+        ) : daftarCatatan.length === 0 ? (
           <EmptyState
             judul="Belum ada riwayat"
             pesan="Presensi berhasil dan pengajuan izin akan muncul di halaman ini."
@@ -65,7 +77,7 @@ export default function RiwayatScreen() {
         ) : (
           <View style={styles.historyList}>
             {daftarCatatan.map((item) => {
-              const s = getSesiById(item.sesiId);
+              const s = sesiMap.get(item.sesiId);
               if (!s) return null;
 
               const isHadir = item.jenis === 'HADIR';
@@ -100,9 +112,9 @@ export default function RiwayatScreen() {
                     <View style={styles.presentBadge}>
                       <Text style={styles.presentBadgeText}>Hadir</Text>
                     </View>
-                  ) : (
-                    item.statusIzin && <StatusBadge status={item.statusIzin} />
-                  )}
+                  ) : item.statusIzin ? (
+                    <StatusBadge status={item.statusIzin} />
+                  ) : null}
                 </View>
               );
             })}
@@ -114,37 +126,23 @@ export default function RiwayatScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  root: { flex: 1, backgroundColor: colors.background },
   content: {
     paddingHorizontal: layout.screenPadding,
     paddingTop: spacing.s5,
     paddingBottom: layout.tabContentBottomPadding,
     gap: spacing.s5,
   },
-  pageTitle: {
-    gap: 2,
-  },
+  pageTitle: { gap: 2 },
   kicker: {
     ...type.micro,
     color: colors.textMuted,
     letterSpacing: 1.15,
     marginBottom: 4,
   },
-  h1: {
-    ...type.h1,
-    color: colors.textPrimary,
-  },
-  sub: {
-    ...type.caption,
-    color: colors.textSecondary,
-    marginTop: 5,
-  },
-  historyList: {
-    gap: 10,
-  },
+  h1: { ...type.h1, color: colors.textPrimary },
+  sub: { ...type.caption, color: colors.textSecondary, marginTop: 5 },
+  historyList: { gap: 10 },
   historyRow: {
     minHeight: 72,
     flexDirection: 'row',
@@ -163,33 +161,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconTileHadir: {
-    backgroundColor: colors.sesiDibukaBg,
-  },
-  iconTileIzin: {
-    backgroundColor: colors.izinBg,
-  },
-  historyMain: {
-    flex: 1,
-    gap: 4,
-  },
+  iconTileHadir: { backgroundColor: colors.sesiDibukaBg },
+  iconTileIzin: { backgroundColor: colors.izinBg },
+  historyMain: { flex: 1, gap: 4 },
   historyName: {
     ...type.bodyStrong,
     fontFamily: fontFamily.bold,
     color: colors.textPrimary,
   },
-  historyMeta: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
+  historyMeta: { ...type.caption, color: colors.textMuted },
   presentBadge: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: radius.pill,
     backgroundColor: colors.sesiDibukaBg,
   },
-  presentBadgeText: {
-    ...type.micro,
-    color: colors.sesiDibukaFg,
-  },
+  presentBadgeText: { ...type.micro, color: colors.sesiDibukaFg },
 });

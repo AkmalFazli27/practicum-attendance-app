@@ -14,7 +14,7 @@ export interface IzinSheetProps {
 }
 
 export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
-  const { currentUser, submitIzin } = useSession();
+  const { currentUser, submitIzin, getIzinBySesiPraktikan } = useSession();
   const { showToast } = useToast();
 
   const [alasan, setAlasan] = useState('');
@@ -37,6 +37,10 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
       setGalat('Tuliskan alasan ketidakhadiran minimal 10 karakter.');
       return;
     }
+    if (currentUser && getIzinBySesiPraktikan(sesi.id, currentUser.id)) {
+      setGalat('Kamu sudah mengajukan izin untuk sesi ini.');
+      return;
+    }
 
     setGalat(null);
     setMengirim(true);
@@ -49,12 +53,18 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
         return;
       }
       onClose();
+
+      const aiFallback = /fallback/i.test(hasil.izin.ringkasanAi ?? '');
       showToast(
-        `Izin diajukan (AI: ${hasil.izin.kategoriAi}). Menunggu pemeriksaan asisten.`,
+        aiFallback
+          ? 'Izin diajukan. Layanan AI sedang tidak tersedia, klasifikasi dibuat sementara. Menunggu pemeriksaan asisten.'
+          : `Izin diajukan (AI: ${hasil.izin.kategoriAi}). Menunggu pemeriksaan asisten.`,
       );
     } catch (e: any) {
       setMengirim(false);
-      setGalat(e?.message || 'Gagal mengirimkan pengajuan izin.');
+      setGalat(
+        e?.message || 'Gagal mengirimkan pengajuan izin. Periksa koneksimu.',
+      );
     }
   };
 
@@ -120,6 +130,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
               multiline
               numberOfLines={4}
               textAlignVertical="top"
+              editable={!mengirim}
               style={styles.textArea}
             />
           </View>
@@ -159,23 +170,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.s3,
   },
-  summaryRowBorder: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  summaryLabel: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
+  summaryRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
+  summaryLabel: { ...type.caption, color: colors.textMuted },
   summaryVal: {
     ...type.caption,
     fontFamily: fontFamily.bold,
     color: colors.textPrimary,
   },
-  fieldGroup: {
-    gap: 6,
-    marginTop: spacing.s1,
-  },
+  fieldGroup: { gap: 6, marginTop: spacing.s1 },
   label: {
     ...type.caption,
     fontFamily: fontFamily.bold,
@@ -223,11 +225,6 @@ const styles = StyleSheet.create({
     gap: spacing.s2 + 2,
     paddingBottom: spacing.s2,
   },
-  cancelBtn: {
-    flex: 0.85,
-  },
-  submitBtn: {
-    flex: 1.15,
-  },
+  cancelBtn: { flex: 0.85 },
+  submitBtn: { flex: 1.15 },
 });
-
