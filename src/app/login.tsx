@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -8,6 +9,7 @@ import {
   Text,
   TextInput,
   View,
+  type TextInputInstance,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -27,11 +29,104 @@ import { type Peran } from '@/data/dummy';
 import { colors, fontFamily, radius, shadows, spacing, type } from '@/theme/tokens';
 
 type AuthMode = 'login' | 'register';
+type AuthField = 'nama' | 'nim' | 'kelas' | 'email' | 'password';
+type FieldErrors = Partial<Record<AuthField, string>>;
+
+const POLA_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const POLA_NIM = /^\d{6,20}$/;
+const POLA_KELAS = /^[A-Z]{2,4}-?\d[A-Z]?$/;
+
+const PESAN_ERROR_UMUM =
+  'Terjadi kesalahan saat memproses akun. Periksa koneksi internetmu dan coba lagi.';
+
+const berandaUntuk = (peran: Peran) =>
+  peran === 'asisten' ? '/beranda-asisten' : '/beranda-praktikan';
+
+function mapAuthError(kode: string): string {
+  switch (kode) {
+    case 'auth/invalid-email':
+    case 'auth/missing-email':
+      return 'Format alamat email tidak valid.';
+    case 'auth/user-not-found':
+      return 'Akun dengan email ini tidak ditemukan.';
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':
+      return 'Email atau kata sandi salah.';
+    case 'auth/email-already-in-use':
+      return 'Email ini sudah terdaftar. Silakan masuk.';
+    case 'auth/weak-password':
+      return 'Kata sandi terlalu lemah. Gunakan minimal 6 karakter.';
+    case 'auth/network-request-failed':
+      return 'Tidak dapat terhubung ke server. Periksa koneksi internetmu.';
+    case 'auth/too-many-requests':
+      return 'Terlalu banyak percobaan. Coba lagi beberapa saat lagi.';
+    case 'auth/user-disabled':
+      return 'Akun ini dinonaktifkan. Hubungi asisten atau admin.';
+    case 'auth/operation-not-allowed':
+      return 'Metode login ini belum diaktifkan. Hubungi pengelola aplikasi.';
+    case 'auth/internal-error':
+      return 'Terjadi gangguan pada layanan autentikasi. Coba lagi.';
+    default:
+      return PESAN_ERROR_UMUM;
+  }
+}
+
+function pesanUntukAlasan(alasan: string): string {
+  return alasan.startsWith('auth/') ? mapAuthError(alasan) : alasan;
+}
+
+type ValidasiAuthInput = {
+  authMode: AuthMode;
+  peran: Peran;
+  nama: string;
+  nim: string;
+  kelas: string;
+  email: string;
+  password: string;
+};
+
+function validateAuthForm({
+  authMode,
+  peran,
+  nama,
+  nim,
+  kelas,
+  email,
+  password,
+}: ValidasiAuthInput): FieldErrors {
+  const hasil: FieldErrors = {};
+
+  if (authMode === 'register') {
+    if (nama.trim().length < 3) {
+      hasil.nama = 'Nama lengkap minimal 3 karakter.';
+    }
+
+    if (!POLA_NIM.test(nim.trim())) {
+      hasil.nim = 'NIM/ID hanya boleh berisi angka (6–20 digit).';
+    }
+
+    if (peran === 'praktikan' && !POLA_KELAS.test(kelas.trim().toUpperCase())) {
+      hasil.kelas = 'Format kelas tidak valid. Contoh: IF-2A.';
+    }
+  }
+
+  if (!POLA_EMAIL.test(email.trim().toLowerCase())) {
+    hasil.email = 'Masukkan alamat email yang valid.';
+  }
+
+  if (password.trim().length < 6) {
+    hasil.password = 'Kata sandi minimal 6 karakter.';
+  }
+
+  return hasil;
+}
 
 export default function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string }>();
-  const { currentUser, loginWithEmail, registerUser } = useSession();
+  const { currentUser, loading, loginWithEmail, registerUser, logout } =
+    useSession();
   const { showToast } = useToast();
 
   const [authMode, setAuthMode] = useState<AuthMode>(
@@ -46,6 +141,18 @@ export default function LoginScreen() {
   const [lihatPassword, setLihatPassword] = useState(false);
   const [pesanError, setPesanError] = useState<string | null>(null);
   const [sedangMemproses, setSedangMemproses] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [touched, setTouched] = useState<Partial<Record<AuthField, boolean>>>(
+    {},
+  );
+  const [submitted, setSubmitted] = useState(false);
+
+  const refNama = useRef<TextInputInstance>(null);
+  const refNim = useRef<TextInputInstance>(null);
+  const refKelas = useRef<TextInputInstance>(null);
+  const refEmail = useRef<TextInputInstance>(null);
+  const refPassword = useRef<TextInputInstance>(null);
+  const redirectAwalSelesai = useRef(false);
 
   useEffect(() => {
     if (params.mode === 'register') {
@@ -54,25 +161,52 @@ export default function LoginScreen() {
   }, [params.mode]);
 
   useEffect(() => {
-    if (!currentUser) return;
-    router.replace(
-      (currentUser.peran === 'praktikan'
-        ? '/beranda-praktikan'
-        : '/beranda-asisten') as any,
-    );
-  }, [currentUser, router]);
+    if (loading || redirectAwalSelesai.current) return;
+    redirectAwalSelesai.current = true;
+    if (currentUser) {
+      router.replace(berandaUntuk(currentUser.peran));
+    }
+  }, [loading, currentUser, router]);
+
+  const bersihkanErrorField = (field: AuthField) => {
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const berikutnya = { ...prev };
+      delete berikutnya[field];
+      return berikutnya;
+    });
+    setPesanError(null);
+  };
+
+  const ubahField =
+    (field: AuthField, setter: (nilai: string) => void) =>
+    (nilai: string) => {
+      setter(nilai);
+      bersihkanErrorField(field);
+    };
+
+  const tandaiTouched = (field: AuthField) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  const errorField = (field: AuthField) =>
+    touched[field] || submitted ? errors[field] : undefined;
 
   const handleGantiMode = (modeBaru: AuthMode) => {
     setAuthMode(modeBaru);
+    setErrors({});
     setPesanError(null);
+    setSubmitted(false);
   };
 
   const handleGantiPeran = (peranBaru: Peran) => {
     setPeran(peranBaru);
+    setErrors({});
     setPesanError(null);
+    setSubmitted(false);
   };
 
-  const isFormValid =
+  const formTerisi =
     authMode === 'login'
       ? email.trim().length > 0 && password.trim().length > 0
       : nama.trim().length > 0 &&
@@ -81,39 +215,96 @@ export default function LoginScreen() {
         email.trim().length > 0 &&
         password.trim().length > 0;
 
+  const tanganiKegagalanAuth = async (alasan: string) => {
+    // TODO(auth): mitigasi sementara — logout() mencegah fallback user dari
+    // SessionContext ikut terpakai saat autentikasi gagal. PM akan memperbaiki
+    // fallback tersebut langsung di SessionContext.
+    await logout();
+    setPesanError(pesanUntukAlasan(alasan));
+  };
+
   const handleSubmit = async () => {
-    if (!isFormValid || sedangMemproses) return;
+    if (sedangMemproses) return;
+
+    redirectAwalSelesai.current = true;
     setPesanError(null);
+
+    const hasilValidasi = validateAuthForm({
+      authMode,
+      peran,
+      nama,
+      nim,
+      kelas,
+      email,
+      password,
+    });
+
+    if (Object.keys(hasilValidasi).length > 0) {
+      setErrors(hasilValidasi);
+      setSubmitted(true);
+
+      const urutanField: AuthField[] =
+        authMode === 'register'
+          ? peran === 'praktikan'
+            ? ['nama', 'nim', 'kelas', 'email', 'password']
+            : ['nama', 'nim', 'email', 'password']
+          : ['email', 'password'];
+      const fieldPertamaTidakValid = urutanField.find(
+        (field) => hasilValidasi[field],
+      );
+      const refsField = {
+        nama: refNama,
+        nim: refNim,
+        kelas: refKelas,
+        email: refEmail,
+        password: refPassword,
+      };
+
+      if (fieldPertamaTidakValid) {
+        refsField[fieldPertamaTidakValid].current?.focus();
+      }
+      return;
+    }
+
+    setErrors({});
+    Keyboard.dismiss();
     setSedangMemproses(true);
 
     try {
       if (authMode === 'login') {
-        const res = await loginWithEmail(email, password, peran);
-        setSedangMemproses(false);
+        const res = await loginWithEmail(email.trim().toLowerCase(), password);
+
         if (!res.ok) {
-          setPesanError(res.alasan);
+          await tanganiKegagalanAuth(res.alasan);
           return;
         }
+
         showToast(`Selamat datang kembali, ${res.user.nama.split(' ')[0]}!`);
-      } else {
-        const res = await registerUser({
-          nama,
-          email,
-          password,
-          peran,
-          nim,
-          kelas: peran === 'praktikan' ? kelas : undefined,
-        });
-        setSedangMemproses(false);
-        if (!res.ok) {
-          setPesanError(res.alasan);
-          return;
-        }
-        showToast(`Akun ${res.user.nama.split(' ')[0]} berhasil dibuat.`);
+        router.replace(berandaUntuk(res.user.peran));
+        return;
       }
+
+      const res = await registerUser({
+        nama: nama.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        peran,
+        nim: nim.trim(),
+        kelas: peran === 'praktikan' ? kelas.trim().toUpperCase() : undefined,
+      });
+
+      if (!res.ok) {
+        await tanganiKegagalanAuth(res.alasan);
+        return;
+      }
+
+      showToast(`Akun ${res.user.nama.split(' ')[0]} berhasil dibuat.`);
+      router.replace(berandaUntuk(res.user.peran));
     } catch (err: any) {
+      const kode = typeof err?.code === 'string' ? err.code : null;
+      setPesanError(kode ? mapAuthError(kode) : PESAN_ERROR_UMUM);
+    } finally {
       setSedangMemproses(false);
-      setPesanError(err?.message || 'Terjadi kesalahan saat memproses akun.');
     }
   };
 
@@ -170,7 +361,13 @@ export default function LoginScreen() {
             <View style={styles.modeTabs}>
               <Pressable
                 accessibilityRole="tab"
-                accessibilityState={{ selected: authMode === 'login' }}
+                accessibilityLabel="Tab Masuk"
+                accessibilityHint="Tampilkan formulir untuk masuk ke aplikasi."
+                accessibilityState={{
+                  selected: authMode === 'login',
+                  disabled: sedangMemproses,
+                }}
+                disabled={sedangMemproses}
                 onPress={() => handleGantiMode('login')}
                 style={[
                   styles.modeTab,
@@ -188,7 +385,13 @@ export default function LoginScreen() {
               </Pressable>
               <Pressable
                 accessibilityRole="tab"
-                accessibilityState={{ selected: authMode === 'register' }}
+                accessibilityLabel="Tab Daftar Akun"
+                accessibilityHint="Tampilkan formulir untuk membuat akun baru."
+                accessibilityState={{
+                  selected: authMode === 'register',
+                  disabled: sedangMemproses,
+                }}
+                disabled={sedangMemproses}
                 onPress={() => handleGantiMode('register')}
                 style={[
                   styles.modeTab,
@@ -213,7 +416,13 @@ export default function LoginScreen() {
             <View style={styles.roleSwitch}>
               <Pressable
                 accessibilityRole="radio"
-                accessibilityState={{ selected: peran === 'praktikan' }}
+                accessibilityLabel="Peran praktikan"
+                accessibilityHint="Pilih peran praktikan untuk akun ini."
+                accessibilityState={{
+                  selected: peran === 'praktikan',
+                  disabled: sedangMemproses,
+                }}
+                disabled={sedangMemproses}
                 onPress={() => handleGantiPeran('praktikan')}
                 style={[
                   styles.roleButton,
@@ -240,7 +449,13 @@ export default function LoginScreen() {
 
               <Pressable
                 accessibilityRole="radio"
-                accessibilityState={{ selected: peran === 'asisten' }}
+                accessibilityLabel="Peran asisten"
+                accessibilityHint="Pilih peran asisten untuk akun ini."
+                accessibilityState={{
+                  selected: peran === 'asisten',
+                  disabled: sedangMemproses,
+                }}
+                disabled={sedangMemproses}
                 onPress={() => handleGantiPeran('asisten')}
                 style={[
                   styles.roleButton,
@@ -272,38 +487,72 @@ export default function LoginScreen() {
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>Nama lengkap</Text>
                   <TextInput
+                    ref={refNama}
                     value={nama}
-                    onChangeText={setNama}
+                    onChangeText={ubahField('nama', setNama)}
+                    onBlur={() => tandaiTouched('nama')}
                     placeholder="Contoh: Alya Ramadhani"
                     placeholderTextColor={colors.textMuted}
-                    style={styles.input}
+                    editable={!sedangMemproses}
+                    accessibilityLabel="Nama lengkap"
+                    accessibilityHint="Isi nama lengkap sesuai identitas praktikum."
+                    style={[styles.input, errorField('nama') && styles.inputError]}
                   />
+                  {errorField('nama') && (
+                    <Text style={styles.fieldError}>{errorField('nama')}</Text>
+                  )}
                 </View>
 
                 <View style={styles.rowFields}>
                   <View style={[styles.fieldGroup, { flex: 1.2 }]}>
                     <Text style={styles.fieldLabel}>NIM / ID</Text>
                     <TextInput
+                      ref={refNim}
                       value={nim}
-                      onChangeText={setNim}
+                      onChangeText={(nilai) => {
+                        setNim(nilai.replace(/\D/g, ''));
+                        bersihkanErrorField('nim');
+                      }}
+                      onBlur={() => tandaiTouched('nim')}
                       placeholder="2310512001"
                       placeholderTextColor={colors.textMuted}
                       keyboardType="number-pad"
-                      style={styles.input}
+                      maxLength={20}
+                      importantForAutofill="yes"
+                      editable={!sedangMemproses}
+                      accessibilityLabel="NIM atau ID"
+                      accessibilityHint="Hanya angka, 6 sampai 20 digit."
+                      style={[styles.input, errorField('nim') && styles.inputError]}
                     />
+                    {errorField('nim') && (
+                      <Text style={styles.fieldError}>{errorField('nim')}</Text>
+                    )}
                   </View>
 
                   {peran === 'praktikan' && (
                     <View style={[styles.fieldGroup, { flex: 0.8 }]}>
                       <Text style={styles.fieldLabel}>Kelas</Text>
                       <TextInput
+                        ref={refKelas}
                         value={kelas}
-                        onChangeText={setKelas}
+                        onChangeText={ubahField('kelas', setKelas)}
+                        onBlur={() => tandaiTouched('kelas')}
                         placeholder="IF-2A"
                         placeholderTextColor={colors.textMuted}
                         autoCapitalize="characters"
-                        style={styles.input}
+                        editable={!sedangMemproses}
+                        accessibilityLabel="Kelas"
+                        accessibilityHint="Gunakan format seperti IF-2A."
+                        style={[
+                          styles.input,
+                          errorField('kelas') && styles.inputError,
+                        ]}
                       />
+                      {errorField('kelas') && (
+                        <Text style={styles.fieldError}>
+                          {errorField('kelas')}
+                        </Text>
+                      )}
                     </View>
                   )}
                 </View>
@@ -314,8 +563,10 @@ export default function LoginScreen() {
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Alamat email</Text>
               <TextInput
+                ref={refEmail}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={ubahField('email', setEmail)}
+                onBlur={() => tandaiTouched('email')}
                 placeholder={
                   peran === 'asisten'
                     ? 'nama.asisten@tapin.ac.id'
@@ -325,20 +576,47 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
-                style={styles.input}
+                autoComplete="email"
+                textContentType="emailAddress"
+                editable={!sedangMemproses}
+                accessibilityLabel="Alamat email"
+                accessibilityHint="Gunakan alamat email aktif yang valid."
+                style={[styles.input, errorField('email') && styles.inputError]}
               />
+              {errorField('email') && (
+                <Text style={styles.fieldError}>{errorField('email')}</Text>
+              )}
             </View>
 
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Kata sandi</Text>
-              <View style={styles.passwordWrap}>
+              <View
+                style={[
+                  styles.passwordWrap,
+                  errorField('password') && styles.inputError,
+                ]}
+              >
                 <TextInput
+                  ref={refPassword}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={ubahField('password', setPassword)}
+                  onBlur={() => tandaiTouched('password')}
                   placeholder="Minimal 6 karakter"
                   placeholderTextColor={colors.textMuted}
                   secureTextEntry={!lihatPassword}
                   autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete={
+                    authMode === 'login' ? 'current-password' : 'new-password'
+                  }
+                  textContentType={
+                    authMode === 'login' ? 'password' : 'newPassword'
+                  }
+                  returnKeyType="done"
+                  onSubmitEditing={handleSubmit}
+                  editable={!sedangMemproses}
+                  accessibilityLabel="Kata sandi"
+                  accessibilityHint="Minimal 6 karakter."
                   style={styles.passwordInput}
                 />
                 <Pressable
@@ -358,6 +636,11 @@ export default function LoginScreen() {
                   )}
                 </Pressable>
               </View>
+              {errorField('password') && (
+                <Text style={styles.fieldError}>
+                  {errorField('password')}
+                </Text>
+              )}
             </View>
 
             {pesanError && (
@@ -368,7 +651,7 @@ export default function LoginScreen() {
 
             <Tombol
               variant="primer"
-              disabled={!isFormValid}
+              disabled={!formTerisi}
               loading={sedangMemproses}
               onPress={handleSubmit}
               rightIcon={<ArrowRight size={19} color={colors.onPrimary} />}
@@ -379,6 +662,8 @@ export default function LoginScreen() {
 
             <Pressable
               accessibilityRole="button"
+              accessibilityState={{ disabled: sedangMemproses }}
+              disabled={sedangMemproses}
               onPress={() =>
                 handleGantiMode(authMode === 'login' ? 'register' : 'login')
               }
@@ -596,6 +881,15 @@ const styles = StyleSheet.create({
     ...type.caption,
     fontFamily: fontFamily.semibold,
     color: colors.errorFg,
+  },
+  fieldError: {
+    ...type.micro,
+    color: colors.errorFg,
+    marginTop: 6,
+    marginLeft: 2,
+  },
+  inputError: {
+    borderColor: colors.dangerBorder,
   },
   submitButton: {
     marginTop: spacing.s2,
