@@ -6,18 +6,20 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarDays,
-  Check,
   Clock3,
   Edit3,
   MapPin,
   RotateCcw,
-  Sparkles,
   Trash2,
   Users,
-  X,
 } from 'lucide-react-native';
 
+import { IzinPanel } from '@/components/asisten/IzinPanel';
 import { SesiFormSheet } from '@/components/asisten/SesiFormSheet';
+import {
+  ErrorBlock,
+  LoadingBlock,
+} from '@/components/asisten/SyncState';
 import { useAksiSesi } from '@/components/asisten/useAksiSesi';
 import {
   ConfirmSheet,
@@ -42,10 +44,11 @@ export default function DetailSesiAsisten() {
   const {
     currentUser,
     users,
+    loading,
+    error,
+    retrySync,
     getSesiById,
     getKehadiranSesi,
-    getIzinSesi,
-    reviewIzin,
     deleteSession,
   } = useSession();
   const { showToast } = useToast();
@@ -53,6 +56,7 @@ export default function DetailSesiAsisten() {
 
   const [editVisible, setEditVisible] = useState(false);
   const [hapusVisible, setHapusVisible] = useState(false);
+  const [menghapus, setMenghapus] = useState(false);
 
   const s = getSesiById(id);
 
@@ -70,10 +74,16 @@ export default function DetailSesiAsisten() {
           </Pressable>
         </View>
         <View style={styles.emptyWrap}>
-          <EmptyState
-            judul="Sesi tidak ditemukan"
-            pesan="Sesi ini sudah dihapus atau bukan milik akun asistenmu."
-          />
+          {!s && loading ? (
+            <LoadingBlock pesan="Memuat sesi..." />
+          ) : !s && error ? (
+            <ErrorBlock pesan={error} onRetry={retrySync} />
+          ) : (
+            <EmptyState
+              judul="Sesi tidak ditemukan"
+              pesan="Sesi ini sudah dihapus atau bukan milik akun asistenmu."
+            />
+          )}
         </View>
       </View>
     );
@@ -83,31 +93,19 @@ export default function DetailSesiAsisten() {
   const daftarHadir = getKehadiranSesi(s.id)
     .slice()
     .sort((a, b) => a.waktuHadir.localeCompare(b.waktuHadir));
-  const daftarIzin = getIzinSesi(s.id)
-    .slice()
-    .sort((a, b) => b.waktuPengajuan.localeCompare(a.waktuPengajuan));
-
-  const getPraktikan = (praktikanId: string) =>
-    users.find((u) => u.id === praktikanId);
-
-  const handleKeputusanIzin = async (
-    izinId: string,
-    keputusan: 'DITERIMA' | 'DITOLAK',
-  ) => {
-    const berhasil = await reviewIzin(izinId, keputusan);
-    if (!berhasil) {
-      showToast('Gagal menyimpan keputusan izin. Silakan coba lagi.');
-      return;
-    }
-    showToast(
-      keputusan === 'DITERIMA'
-        ? 'Pengajuan izin praktikan diterima.'
-        : 'Pengajuan izin praktikan ditolak.',
-    );
+  const getPraktikan = (praktikanId: string, nama?: string, nim?: string) => {
+    const user = users.find((u) => u.id === praktikanId);
+    return {
+      nama: nama || user?.nama || 'Praktikan',
+      nim: nim || user?.nim || '-',
+    };
   };
 
   const handleKonfirmasiHapus = async () => {
+    if (menghapus) return;
+    setMenghapus(true);
     const berhasil = await deleteSession(s.id);
+    setMenghapus(false);
     setHapusVisible(false);
     if (!berhasil) {
       showToast('Gagal menghapus sesi praktikum. Silakan coba lagi.');
@@ -260,90 +258,7 @@ export default function DetailSesiAsisten() {
         </View>
 
         {/* Panel Pemeriksaan Izin & Klasifikasi AI (FR-16 & FR-17) */}
-        <View style={styles.panel}>
-          <View style={styles.panelHeader}>
-            <View>
-              <Text style={styles.kicker}>PEMERIKSAAN IZIN & AI</Text>
-              <Text style={styles.panelTitle}>
-                Pengajuan izin ({daftarIzin.length})
-              </Text>
-            </View>
-          </View>
-
-          {daftarIzin.length === 0 ? (
-            <Text style={styles.smallEmpty}>
-              Belum ada pengajuan izin dari praktikan pada sesi ini.
-            </Text>
-          ) : (
-            <View style={styles.izinList}>
-              {daftarIzin.map((item) => {
-                const mhs = getPraktikan(item.praktikanId);
-                return (
-                  <View key={item.id} style={styles.izinCard}>
-                    <View style={styles.izinTopRow}>
-                      <View style={styles.izinUserInfo}>
-                        <Text style={styles.attendeeName}>
-                          {mhs?.nama ?? 'Praktikan'}
-                        </Text>
-                        <Text style={styles.attendeeNim}>
-                          {mhs?.nim ?? '-'} · Diajukan{' '}
-                          {titikJam(formatJam(item.waktuPengajuan))}
-                        </Text>
-                      </View>
-                      <StatusBadge status={item.status} />
-                    </View>
-
-                    <Text style={styles.izinAlasan}>"{item.alasan}"</Text>
-
-                    {/* Badge & Informasi Pendukung Klasifikasi AI */}
-                    <View style={styles.aiInsightBox}>
-                      <View style={styles.aiBadgeRow}>
-                        <Sparkles size={14} color={colors.sesiDibukaFg} />
-                        <Text style={styles.aiBadgeTitle}>
-                          Prediksi AI: {item.kategoriAi}
-                        </Text>
-                      </View>
-                      {item.ringkasanAi && (
-                        <Text style={styles.aiSummaryText}>
-                          {item.ringkasanAi}
-                        </Text>
-                      )}
-                      <Text style={styles.aiFootnote}>
-                        Informasi pendukung — keputusan penerimaan ditetapkan oleh asisten.
-                      </Text>
-                    </View>
-
-                    {/* Tombol Keputusan Asisten */}
-                    {item.status === 'MENUNGGU' && (
-                      <View style={styles.izinActions}>
-                        <Tombol
-                          variant="danger"
-                          icon={<X size={16} color={colors.errorFg} />}
-                          style={styles.izinBtn}
-                          onPress={() =>
-                            handleKeputusanIzin(item.id, 'DITOLAK')
-                          }
-                        >
-                          Tolak
-                        </Tombol>
-                        <Tombol
-                          variant="primer"
-                          icon={<Check size={16} color={colors.onPrimary} />}
-                          style={styles.izinBtn}
-                          onPress={() =>
-                            handleKeputusanIzin(item.id, 'DITERIMA')
-                          }
-                        >
-                          Terima Izin
-                        </Tombol>
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </View>
+        <IzinPanel sesiId={s.id} />
 
         {/* Panel Kehadiran (FR-04) */}
         <View style={styles.panel}>
@@ -357,7 +272,7 @@ export default function DetailSesiAsisten() {
 
             <View style={styles.miniAvatars}>
               {daftarHadir.slice(0, 3).map((item, idx) => {
-                const mhs = getPraktikan(item.praktikanId);
+                const mhs = getPraktikan(item.praktikanId, item.namaPraktikan, item.nimPraktikan);
                 return (
                   <View
                     key={item.id}
@@ -367,7 +282,7 @@ export default function DetailSesiAsisten() {
                     ]}
                   >
                     <Text style={styles.miniAvatarText}>
-                      {inisialNama(mhs?.nama ?? 'P')[0]}
+                      {inisialNama(mhs.nama)[0]}
                     </Text>
                   </View>
                 );
@@ -382,14 +297,14 @@ export default function DetailSesiAsisten() {
           ) : (
             <View>
               {daftarHadir.map((item) => {
-                const mhs = getPraktikan(item.praktikanId);
+                const mhs = getPraktikan(item.praktikanId, item.namaPraktikan, item.nimPraktikan);
                 return (
                   <View key={item.id} style={styles.attendeeRow}>
                     <View>
                       <Text style={styles.attendeeName}>
-                        {mhs?.nama ?? 'Praktikan'}
+                        {mhs.nama}
                       </Text>
-                      <Text style={styles.attendeeNim}>{mhs?.nim ?? '-'}</Text>
+                      <Text style={styles.attendeeNim}>{mhs.nim}</Text>
                     </View>
                     <Text style={styles.attendeeTime}>
                       {titikJam(formatJam(item.waktuHadir))}
@@ -423,6 +338,7 @@ export default function DetailSesiAsisten() {
         title="Hapus sesi praktikum?"
         body="Seluruh data presensi dan pengajuan izin pada sesi ini akan ikut terhapus."
         danger
+        loading={menghapus}
         confirmLabel="Ya, hapus sesi"
         summary={[
           { label: 'Praktikum', value: s.namaPraktikum },
@@ -633,65 +549,5 @@ const styles = StyleSheet.create({
     ...type.caption,
     fontFamily: fontFamily.bold,
     color: colors.textPrimary,
-  },
-  izinList: {
-    gap: spacing.s3,
-  },
-  izinCard: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.s3,
-    gap: spacing.s2 + 2,
-  },
-  izinTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.s2,
-  },
-  izinUserInfo: {
-    flex: 1,
-  },
-  izinAlasan: {
-    ...type.caption,
-    color: colors.textPrimary,
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-  aiInsightBox: {
-    padding: spacing.s3,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-    gap: 4,
-  },
-  aiBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  aiBadgeTitle: {
-    ...type.caption,
-    fontFamily: fontFamily.bold,
-    color: colors.sesiDibukaFg,
-  },
-  aiSummaryText: {
-    fontSize: 11,
-    fontFamily: fontFamily.medium,
-    color: colors.textPrimary,
-    lineHeight: 16,
-  },
-  aiFootnote: {
-    fontSize: 10,
-    fontFamily: fontFamily.regular,
-    color: colors.textSecondary,
-  },
-  izinActions: {
-    flexDirection: 'row',
-    gap: spacing.s2,
-    marginTop: 2,
-  },
-  izinBtn: {
-    flex: 1,
-    minHeight: 42,
   },
 });

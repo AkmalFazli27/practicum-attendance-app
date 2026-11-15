@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 
 import { SesiFormSheet } from '@/components/asisten/SesiFormSheet';
+import { SinkronGuard } from '@/components/asisten/SyncState';
 import { useAksiSesi } from '@/components/asisten/useAksiSesi';
 import { EmptyState, SessionCard, Tombol } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
@@ -68,6 +69,7 @@ export default function SesiAsistenScreen() {
           </Tombol>
         </View>
 
+        <SinkronGuard adaData={sesiSaya.length > 0}>
         {sesiSaya.length === 0 ? (
           <EmptyState
             judul="Belum ada sesi"
@@ -131,6 +133,7 @@ export default function SesiAsistenScreen() {
             })}
           </View>
         )}
+        </SinkronGuard>
       </ScrollView>
 
       {sheet}
