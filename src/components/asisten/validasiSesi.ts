@@ -51,7 +51,20 @@ export function normalisasiJam(jam: string): string | null {
   return `${String(jamAngka).padStart(2, '0')}:${String(menit).padStart(2, '0')}`;
 }
 
-export function validasiFormSesi(f: FormSesiMentah): HasilValidasi {
+function hariIniLokal(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/**
+ * @param tanggalAwal tanggal sesi yang sedang diubah (mode edit). Tanggal lampau
+ *   hanya diizinkan bila sama dengan tanggal awal ini.
+ */
+export function validasiFormSesi(
+  f: FormSesiMentah,
+  tanggalAwal?: string,
+): HasilValidasi {
   const namaPraktikum = f.namaPraktikum.trim();
   const kelas = f.kelas.trim().toUpperCase();
   const lab = f.lab.trim();
@@ -68,6 +81,13 @@ export function validasiFormSesi(f: FormSesiMentah): HasilValidasi {
     return {
       ok: false,
       pesan: 'Tanggal tidak valid. Gunakan format YYYY-MM-DD, contoh 2026-11-20.',
+    };
+  }
+
+  if (tanggal < hariIniLokal() && tanggal !== tanggalAwal) {
+    return {
+      ok: false,
+      pesan: 'Tanggal sesi tidak boleh sebelum hari ini.',
     };
   }
 
