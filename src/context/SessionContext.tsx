@@ -579,7 +579,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
 
     if (isFirebaseConfigured) {
-      const myGen = ++authGenRef.current;
       try {
         const userCredential = await signInWithEmailAndPassword(
           auth,
@@ -590,8 +589,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         const userDoc = await getDoc(doc(db, 'users', fbUid));
 
-        // Cegah ghost user apabila sesi sudah berganti saat menunggu getDoc
-        if (auth.currentUser?.uid !== fbUid || authGenRef.current !== myGen) {
+        // Cegah ghost user apabila sesi sudah berganti saat menunggu getDoc.
+        // Jangan bandingkan authGenRef di sini: onAuthStateChanged juga
+        // menaikkan generasi untuk sign-in ini, sehingga login akan menolak
+        // keberhasilannya sendiri ("Sesi autentikasi berubah"). Pengecekan uid
+        // sudah menutup kasus logout dan ganti akun saat getDoc berjalan.
+        if (auth.currentUser?.uid !== fbUid) {
           return {
             ok: false,
             alasan: 'Sesi autentikasi berubah. Silakan coba masuk kembali.',
