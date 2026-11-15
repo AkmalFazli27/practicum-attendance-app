@@ -5,12 +5,16 @@ import { SheetModal, Tombol, useToast } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
+import { nowLocalISO } from '@/utils/format';
+import { validasiFormSesi } from './validasiSesi';
 
 export interface SesiFormSheetProps {
   visible: boolean;
   initialSesi?: Sesi | null;
   onClose: () => void;
 }
+
+const hariIni = () => nowLocalISO().slice(0, 10);
 
 export function SesiFormSheet({
   visible,
@@ -25,8 +29,8 @@ export function SesiFormSheet({
   const [namaPraktikum, setNamaPraktikum] = useState('');
   const [topik, setTopik] = useState('');
   const [kelas, setKelas] = useState('IF-2A');
-  const [lab, setLab] = useState('Lab Multimedia');
-  const [tanggal, setTanggal] = useState('2026-10-25');
+  const [lab, setLab] = useState('');
+  const [tanggal, setTanggal] = useState(hariIni());
   const [jamMulai, setJamMulai] = useState('08:00');
   const [jamSelesai, setJamSelesai] = useState('10:00');
   const [kapasitas, setKapasitas] = useState('32');
@@ -52,8 +56,8 @@ export function SesiFormSheet({
       setNamaPraktikum('');
       setTopik('');
       setKelas('IF-2A');
-      setLab('Lab Komputer 1');
-      setTanggal('2026-10-25');
+      setLab('');
+      setTanggal(hariIni());
       setJamMulai('08:00');
       setJamSelesai('10:00');
       setKapasitas('32');
@@ -63,35 +67,26 @@ export function SesiFormSheet({
 
   const handleSimpan = async () => {
     if (menyimpan) return;
-    if (!namaPraktikum.trim() || !kelas.trim() || !lab.trim() || !tanggal.trim()) {
-      setGalat('Nama praktikum, kelas, laboratorium, dan tanggal wajib diisi.');
-      return;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal.trim())) {
-      setGalat('Format tanggal harus YYYY-MM-DD (contoh: 2026-10-25).');
-      return;
-    }
-    if (!jamMulai.trim() || !jamSelesai.trim()) {
-      setGalat('Jam mulai dan jam selesai wajib diisi (contoh: 08:00).');
+
+    const hasil = validasiFormSesi({
+      namaPraktikum,
+      topik,
+      kelas,
+      lab,
+      tanggal,
+      jamMulai,
+      jamSelesai,
+      kapasitas,
+      deskripsi,
+    });
+    if (!hasil.ok) {
+      setGalat(hasil.pesan);
       return;
     }
 
     setGalat(null);
     setMenyimpan(true);
-
-    const payload = {
-      namaPraktikum: namaPraktikum.trim(),
-      topik: topik.trim() || 'Materi Praktikum',
-      kelas: kelas.trim().toUpperCase(),
-      lab: lab.trim(),
-      tanggal: tanggal.trim(),
-      jamMulai: jamMulai.trim().replace('.', ':'),
-      jamSelesai: jamSelesai.trim().replace('.', ':'),
-      kapasitas: Math.max(1, parseInt(kapasitas, 10) || 32),
-      deskripsi:
-        deskripsi.trim() ||
-        `Pertemuan praktikum ${namaPraktikum.trim()} untuk kelas ${kelas.trim().toUpperCase()}.`,
-    };
+    const payload = hasil.data;
 
     try {
       if (isEdit && initialSesi) {
@@ -199,7 +194,7 @@ export function SesiFormSheet({
           <TextInput
             value={tanggal}
             onChangeText={setTanggal}
-            placeholder="2026-10-25"
+            placeholder="2026-11-20"
             placeholderTextColor={colors.textMuted}
             style={styles.input}
           />

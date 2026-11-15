@@ -14,6 +14,7 @@ import { useSession } from '@/context/SessionContext';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
 import { titikJam } from '@/utils/format';
 import { SesiFormSheet } from './SesiFormSheet';
+import { SinkronGuard } from './SyncState';
 
 export function BerandaAsisten() {
   const router = useRouter();
@@ -66,6 +67,7 @@ export function BerandaAsisten() {
           </Text>
         </View>
 
+        <SinkronGuard adaData={sesiSaya.length > 0}>
         {/* 2. Metric Grid 2 Kolom */}
         <View style={styles.metricGrid}>
           <MetricCard
@@ -175,6 +177,7 @@ export function BerandaAsisten() {
             })}
           </View>
         )}
+        </SinkronGuard>
       </ScrollView>
 
       <SesiFormSheet
