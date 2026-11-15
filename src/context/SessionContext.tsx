@@ -1249,7 +1249,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       try {
         await updateDoc(doc(db, 'izin', izinId), {
           status,
-          waktuKeputusan,
           reviewedAt: waktuKeputusan,
           reviewedBy: currentUser.id,
         });
