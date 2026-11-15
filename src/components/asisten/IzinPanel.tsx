@@ -54,11 +54,15 @@ function AiInfo({ item }: { item: Izin }) {
 }
 
 export function IzinPanel({ sesiId }: { sesiId: string }) {
-  const { users, getIzinSesi, reviewIzin } = useSession();
+  const { users, error, clearError, getIzinSesi, reviewIzin } = useSession();
   const { showToast } = useToast();
 
   const [target, setTarget] = useState<Target | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Pesan error terbaru dari context (mis. 'Akses ditolak oleh server').
+  const errorRef = useRef<string | null>(null);
+  errorRef.current = error;
 
   // Simpan target terakhir agar isi sheet tidak berkedip saat animasi tutup.
   const terakhir = useRef<Target | null>(null);
@@ -100,15 +104,22 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
       return;
     }
 
+    // Hapus error lama agar pesan yang tampil benar-benar dari aksi ini.
+    clearError();
     setLoading(true);
     const berhasil = await reviewIzin(izinId, keputusan);
     setLoading(false);
     setTarget(null);
 
+    if (berhasil) {
+      showToast(COPY[keputusan].toast);
+      return;
+    }
+    // Beri waktu agar pesan error dari context ter-render, lalu tampilkan alasannya.
+    await new Promise((r) => setTimeout(r, 60));
     showToast(
-      berhasil
-        ? COPY[keputusan].toast
-        : 'Gagal menyimpan keputusan izin. Silakan coba lagi.',
+      errorRef.current ??
+        'Keputusan belum tersimpan. Muat ulang halaman lalu coba lagi.',
     );
   };
 

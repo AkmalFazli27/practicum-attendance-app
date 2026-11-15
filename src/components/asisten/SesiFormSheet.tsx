@@ -68,17 +68,20 @@ export function SesiFormSheet({
   const handleSimpan = async () => {
     if (menyimpan) return;
 
-    const hasil = validasiFormSesi({
-      namaPraktikum,
-      topik,
-      kelas,
-      lab,
-      tanggal,
-      jamMulai,
-      jamSelesai,
-      kapasitas,
-      deskripsi,
-    });
+    const hasil = validasiFormSesi(
+      {
+        namaPraktikum,
+        topik,
+        kelas,
+        lab,
+        tanggal,
+        jamMulai,
+        jamSelesai,
+        kapasitas,
+        deskripsi,
+      },
+      initialSesi?.tanggal,
+    );
     if (!hasil.ok) {
       setGalat(hasil.pesan);
       return;
