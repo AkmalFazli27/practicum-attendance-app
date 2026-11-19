@@ -1,7 +1,5 @@
 export type Peran = 'asisten' | 'praktikan';
-
 export type StatusSesi = 'TERJADWAL' | 'DIBUKA' | 'SELESAI';
-
 export type StatusIzin = 'MENUNGGU' | 'DITERIMA' | 'DITOLAK';
 
 export type User = {
@@ -11,6 +9,7 @@ export type User = {
   nim?: string;
   peran: Peran;
   kelas?: string;
+  pushToken?: string;
 };
 
 export type Sesi = {
@@ -19,6 +18,7 @@ export type Sesi = {
   topik?: string;
   kelas: string;
   lab: string;
+  labId?: string;
   /** Format YYYY-MM-DD */
   tanggal: string;
   /** Format HH:mm */
@@ -36,6 +36,7 @@ export type SesiInput = {
   topik?: string;
   kelas: string;
   lab: string;
+  labId?: string;
   tanggal: string;
   jamMulai: string;
   jamSelesai: string;
@@ -52,6 +53,10 @@ export type Kehadiran = {
   kelasPraktikan?: string;
   /** ISO string, diisi otomatis saat presensi */
   waktuHadir: string;
+  lat?: number;
+  lng?: number;
+  jarak?: number;
+  akurasi?: number;
 };
 
 export type Izin = {
@@ -71,6 +76,65 @@ export type Izin = {
   reviewedAt?: string;
   reviewedBy?: string;
 };
+
+export type Lab = {
+  id: string;
+  nama: string;
+  alamat: string;
+  lat: number;
+  lng: number;
+  /** Radius presensi dalam meter */
+  radius: number;
+};
+
+export type Koordinat = {
+  lat: number;
+  lng: number;
+  /** Akurasi GPS dalam meter */
+  akurasi?: number;
+};
+
+export type AlasanTolak =
+  | 'LUAR_RADIUS'
+  | 'SUDAH_PRESENSI'
+  | 'SESI_TIDAK_DIBUKA'
+  | 'SESI_SUDAH_DITUTUP'
+  | 'BELUM_WAKTUNYA'
+  | 'WAKTU_HABIS'
+  | 'KOORDINAT_TIDAK_ADA'
+  | 'JARINGAN'
+  | 'LAB_BELUM_DIATUR'
+  | 'SUDAH_IZIN'
+  | 'TIDAK_BERHAK';
+  
+export type HasilAksi =
+  | { ok: true; jarak?: number; notifGagal?: boolean }
+  | { ok: false; alasan: AlasanTolak };
+
+const WIB_MS = 7 * 60 * 60 * 1000;
+const HARI_MS = 24 * 60 * 60 * 1000;
+const pad = (n: number) => String(n).padStart(2, '0');
+
+const tanggalOffset = (hari: number): string => {
+  const d = new Date(Date.now() + WIB_MS + hari * HARI_MS);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+};
+
+const jamOffset = (menit: number): string => {
+  const d = new Date(Date.now() + WIB_MS);
+  const total = d.getUTCHours() * 60 + d.getUTCMinutes() + menit;
+  const c = Math.min(Math.max(total, 0), 23 * 60 + 59);
+  return `${pad(Math.floor(c / 60))}:${pad(c % 60)}`;
+};
+
+const waktuWib = (tanggal: string, jam: string, detik = '00'): string =>
+  `${tanggal}T${jam}:${detik}+07:00`;
+
+const HARI_INI = tanggalOffset(0);
+const KEMARIN = tanggalOffset(-1);
+const DUA_HARI_LALU = tanggalOffset(-2);
+const BESOK = tanggalOffset(1);
+const LUSA = tanggalOffset(2);
 
 export const USERS: User[] = [
   {
@@ -159,10 +223,11 @@ export const SESI_SEED: Sesi[] = [
     namaPraktikum: 'Pemrograman Web',
     topik: 'React State & Event Handling',
     kelas: 'IF-2A',
-    lab: 'Lab Multimedia',
-    tanggal: '2026-10-21',
-    jamMulai: '08:00',
-    jamSelesai: '10:00',
+    lab: 'Lab AP',
+    labId: 'lab-ap',
+    tanggal: HARI_INI,
+    jamMulai: jamOffset(-30),
+    jamSelesai: jamOffset(90),
     asistenId: 'a1',
     status: 'DIBUKA',
     deskripsi: 'Pertemuan 4: Layout responsif dengan flexbox dan komponen React.',
@@ -173,8 +238,9 @@ export const SESI_SEED: Sesi[] = [
     namaPraktikum: 'Basis Data',
     topik: 'Query Lanjutan & Join',
     kelas: 'IF-2A',
-    lab: 'Lab Basis Data',
-    tanggal: '2026-10-21',
+    lab: 'Lab B',
+    labId: 'lab-b',
+    tanggal: BESOK,
     jamMulai: '10:15',
     jamSelesai: '12:15',
     asistenId: 'a1',
@@ -187,8 +253,9 @@ export const SESI_SEED: Sesi[] = [
     namaPraktikum: 'Jaringan Komputer',
     topik: 'Konfigurasi Routing Dasar',
     kelas: 'IF-2B',
-    lab: 'Lab Jaringan',
-    tanggal: '2026-10-22',
+    lab: 'Lab C',
+    labId: 'lab-c',
+    tanggal: BESOK,
     jamMulai: '13:00',
     jamSelesai: '15:00',
     asistenId: 'a1',
@@ -201,8 +268,9 @@ export const SESI_SEED: Sesi[] = [
     namaPraktikum: 'Sistem Operasi',
     topik: 'Manajemen Proses Linux',
     kelas: 'IF-2B',
-    lab: 'Lab Sistem Operasi',
-    tanggal: '2026-10-20',
+    lab: 'Lab D',
+    labId: 'lab-d',
+    tanggal: KEMARIN,
     jamMulai: '08:00',
     jamSelesai: '10:00',
     asistenId: 'a2',
@@ -215,8 +283,9 @@ export const SESI_SEED: Sesi[] = [
     namaPraktikum: 'Pemrograman Web',
     topik: 'Layout Responsif & Flexbox',
     kelas: 'IF-2B',
-    lab: 'Lab Multimedia',
-    tanggal: '2026-10-23',
+    lab: 'Lab AP',
+    labId: 'lab-ap',
+    tanggal: LUSA,
     jamMulai: '10:15',
     jamSelesai: '12:15',
     asistenId: 'a1',
@@ -229,13 +298,29 @@ export const SESI_SEED: Sesi[] = [
     namaPraktikum: 'Basis Data',
     topik: 'Normalisasi & Relasi Entitas',
     kelas: 'IF-2A',
-    lab: 'Lab Basis Data',
-    tanggal: '2026-10-19',
+    lab: 'Lab B',
+    labId: 'lab-b',
+    tanggal: DUA_HARI_LALU,
     jamMulai: '13:00',
     jamSelesai: '15:00',
     asistenId: 'a1',
     status: 'SELESAI',
     deskripsi: 'Pertemuan 3: Pemodelan ERD dan transformasi skema relasional.',
+    kapasitas: 32,
+  },
+  {
+    id: 'ses-7',
+    namaPraktikum: 'Sistem Operasi',
+    topik: 'Penjadwalan Proses',
+    kelas: 'IF-2A',
+    lab: 'Lab C',
+    labId: 'lab-c',
+    tanggal: KEMARIN,
+    jamMulai: '13:00',
+    jamSelesai: '15:00',
+    asistenId: 'a2',
+    status: 'DIBUKA',
+    deskripsi: 'Pertemuan 4: Algoritma penjadwalan FCFS, SJF, dan Round Robin.',
     kapasitas: 32,
   },
 ];
@@ -245,31 +330,51 @@ export const KEHADIRAN_SEED: Kehadiran[] = [
     id: 'kehadiran-ses-4-p5',
     sesiId: 'ses-4',
     praktikanId: 'p5',
-    waktuHadir: '2026-10-20T08:03:00',
+    waktuHadir: waktuWib(KEMARIN, '08:03'),
+    lat: -7.05103,
+    lng: 110.44104,
+    jarak: 6,
+    akurasi: 10,
   },
   {
     id: 'kehadiran-ses-4-p6',
     sesiId: 'ses-4',
     praktikanId: 'p6',
-    waktuHadir: '2026-10-20T08:07:00',
+    waktuHadir: waktuWib(KEMARIN, '08:07'),
+    lat: -7.05095,
+    lng: 110.44112,
+    jarak: 14,
+    akurasi: 15,
   },
   {
     id: 'kehadiran-ses-4-p7',
     sesiId: 'ses-4',
     praktikanId: 'p7',
-    waktuHadir: '2026-10-20T08:15:00',
+    waktuHadir: waktuWib(KEMARIN, '08:15'),
+    lat: -7.05108,
+    lng: 110.44092,
+    jarak: 13,
+    akurasi: 12,
   },
   {
     id: 'kehadiran-ses-6-p1',
     sesiId: 'ses-6',
     praktikanId: 'p1',
-    waktuHadir: '2026-10-19T13:04:00',
+    waktuHadir: waktuWib(DUA_HARI_LALU, '13:04'),
+    lat: -7.05004,
+    lng: 110.44106,
+    jarak: 8,
+    akurasi: 9,
   },
   {
     id: 'kehadiran-ses-1-p2',
     sesiId: 'ses-1',
     praktikanId: 'p2',
-    waktuHadir: '2026-10-21T08:05:00',
+    waktuHadir: waktuWib(HARI_INI, jamOffset(-25)),
+    lat: -7.05002,
+    lng: 110.44003,
+    jarak: 4,
+    akurasi: 8,
   },
 ];
 
@@ -282,7 +387,7 @@ export const IZIN_SEED: Izin[] = [
     kategoriAi: 'Sakit / Medis',
     ringkasanAi: 'Alasan berkaitan dengan kondisi kesehatan medis (demam tinggi & pemeriksaan klinik).',
     status: 'MENUNGGU',
-    waktuPengajuan: '2026-10-21T07:45:00',
+    waktuPengajuan: waktuWib(HARI_INI, jamOffset(-60)),
   },
   {
     id: 'izin-ses-2-p4',
@@ -292,7 +397,16 @@ export const IZIN_SEED: Izin[] = [
     kategoriAi: 'Kegiatan Akademik / Delegasi',
     ringkasanAi: 'Alasan berkaitan dengan penugasan resmi kampus atau kompetisi akademik.',
     status: 'DITERIMA',
-    waktuPengajuan: '2026-10-20T19:15:00',
-    waktuKeputusan: '2026-10-20T20:10:00',
+    waktuPengajuan: waktuWib(KEMARIN, '19:15'),
+    waktuKeputusan: waktuWib(KEMARIN, '20:10'),
+    reviewedAt: waktuWib(KEMARIN, '20:10'),
+    reviewedBy: 'a1',
   },
+];
+
+export const LABS_SEED: Lab[] = [
+  { id: 'lab-ap', nama: 'Lab AP', alamat: 'Gedung Informatika', lat: -7.05, lng: 110.44, radius: 50 },
+  { id: 'lab-b', nama: 'Lab B', alamat: 'Gedung Informatika', lat: -7.05, lng: 110.441, radius: 50 },
+  { id: 'lab-c', nama: 'Lab C', alamat: 'Gedung Informatika', lat: -7.051, lng: 110.44, radius: 50 },
+  { id: 'lab-d', nama: 'Lab D', alamat: 'Gedung Informatika', lat: -7.051, lng: 110.441, radius: 50 },
 ];
