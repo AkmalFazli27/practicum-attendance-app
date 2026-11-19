@@ -107,6 +107,12 @@ markAttendance(sesiId, koordinat)  // koordinat: { lat, lng, akurasi }
 reopenSession(sesiId)              // menolak bila sesi pernah ditutup: "SESI_SUDAH_DITUTUP"
 Skema: koleksi labs baru; sesi memiliki field labId; dokumen kehadiran menyimpan lat, lng, dan jarak; users/{uid} menyimpan pushToken.
 Perubahan kontrak (Kamis, 19 November): PB-06 menambah fungsi getStatusEfektif dan alasan BELUM_WAKTUNYA serta WAKTU_HABIS pada openSession dan markAttendance. Perubahan diumumkan di grup sebelum merge.
+Tambahan alasan (Kamis, 19 November), sesuai implementasi SessionContext:
+- markAttendance: + "TIDAK_BERHAK" (pengguna belum masuk).
+- openSession dan reopenSession: + "SESI_TIDAK_DIBUKA" (sesi tidak ditemukan)
+  dan "JARINGAN" (gagal menjangkau server).
+- Tipe hasil openSession, reopenSession, dan markAttendance adalah HasilAksi:
+  { ok: true, jarak?, notifGagal? } atau { ok: false, alasan }.
 Lab dan utilitas waktu: hanya ada empat lab (lab-ap, lab-b, lab-c, lab-d); field Lab pada form sesi berupa dropdown dari labs, bukan ketik bebas. src/utils/statusSesi.ts (milik PM) berisi getStatusEfektif, sudahMulai, dan validasiJadwal. Form sesi memanggil validasiJadwal sebelum menyimpan, dan createSession serta updateSession memanggilnya lagi sebagai pengaman kedua.
 5. Jobdesk per Area
 Setiap area memiliki hasil, kriteria terima, dan batas. Cara mencapai hasil diserahkan kepada pemilik area.
