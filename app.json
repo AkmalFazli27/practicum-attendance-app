@@ -31,6 +31,17 @@
     "plugins": [
       "expo-router",
       "expo-status-bar"
-    ]
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "3682b5c2-861a-4d43-8cd5-eb72ba76e1ee"
+      }
+    },
+    "owner": "nouvella"
   }
 }
