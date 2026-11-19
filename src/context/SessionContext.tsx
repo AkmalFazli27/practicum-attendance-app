@@ -19,12 +19,12 @@ import {
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -36,33 +36,39 @@ import { auth, db, isFirebaseConfigured } from '@/config/firebase';
 import {
   IZIN_SEED,
   KEHADIRAN_SEED,
+  LABS_SEED,
   SESI_SEED,
   USERS,
+  type HasilAksi,
   type Izin,
   type Kehadiran,
+  type Koordinat,
+  type Lab,
   type Peran,
   type Sesi,
+  type SesiInput,
   type StatusIzin,
+  type StatusSesi,
   type User,
 } from '@/data/dummy';
 import { klasifikasikanAlasanIzin } from '@/services/ai';
-import { formatJam, nowLocalISO } from '@/utils/format';
+import {
+  notifyJadwalBerubah,
+  notifyKeputusanIzin,
+  notifySesiDibuka,
+} from '@/services/notifications';
+import { nowLocalISO } from '@/utils/format';
+import { koordinatValid } from '@/utils/geo';
+import { evaluasiPresensi } from '@/utils/presensi';
+import {
+  alasanTidakBisaDibuka,
+  getStatusEfektif as hitungStatusEfektif,
+  validasiJadwal,
+} from '@/utils/statusSesi';
 
-export type PresensiResult =
-  | { ok: true; waktuHadir: string }
-  | { ok: false; alasan: string };
+export type { SesiInput };
 
-export type SesiInput = {
-  namaPraktikum: string;
-  topik?: string;
-  kelas: string;
-  lab: string;
-  tanggal: string;
-  jamMulai: string;
-  jamSelesai: string;
-  kapasitas?: number;
-  deskripsi: string;
-};
+export type HasilSimpan = { ok: boolean; notifGagal?: boolean };
 
 export type AuthResult =
   | { ok: true; user: User }
@@ -93,6 +99,13 @@ export type SessionContextValue = {
   retrySync: () => void;
   users: User[];
   currentUser: User | null;
+  labs: Lab[];
+  updateLab: (
+    labId: string,
+    data: { lat: number; lng: number; radius: number },
+  ) => Promise<boolean>;
+  savePushToken: (token: string) => Promise<void>;
+  getStatusEfektif: (sesi: Sesi) => StatusSesi;
   sesi: Sesi[];
   kehadiran: Kehadiran[];
   izin: Izin[];
@@ -104,25 +117,34 @@ export type SessionContextValue = {
   ) => Promise<AuthResult>;
   registerUser: (payload: RegisterPayload) => Promise<AuthResult>;
   logout: () => Promise<LogoutResult>;
-  openSession: (sesiId: string) => Promise<boolean>;
+  openSession: (sesiId: string) => Promise<HasilAksi>;
   closeSession: (sesiId: string) => Promise<boolean>;
-  reopenSession: (sesiId: string) => Promise<boolean>;
+  reopenSession: (sesiId: string) => Promise<HasilAksi>;
   createSession: (input: SesiInput) => Promise<Sesi | null>;
-  updateSession: (sesiId: string, input: Partial<SesiInput>) => Promise<boolean>;
+  updateSession: (
+    sesiId: string,
+    input: Partial<SesiInput>,
+  ) => Promise<HasilSimpan>;
   deleteSession: (sesiId: string) => Promise<boolean>;
-  markAttendance: (sesiId: string) => Promise<PresensiResult>;
+  markAttendance: (
+    sesiId: string,
+    koordinat: Koordinat | null,
+  ) => Promise<HasilAksi>;
   submitIzin: (sesiId: string, alasan: string) => Promise<IzinResult>;
   reviewIzin: (
     izinId: string,
     status: Exclude<StatusIzin, 'MENUNGGU'>,
-  ) => Promise<boolean>;
+  ) => Promise<HasilSimpan>;
   getSesiById: (sesiId: string) => Sesi | undefined;
   getKehadiranSesi: (sesiId: string) => Kehadiran[];
   getKehadiranPraktikan: (praktikanId: string) => Kehadiran[];
   sudahPresensi: (sesiId: string, praktikanId: string) => Kehadiran | undefined;
   getIzinSesi: (sesiId: string) => Izin[];
   getIzinPraktikan: (praktikanId: string) => Izin[];
-  getIzinBySesiPraktikan: (sesiId: string, praktikanId: string) => Izin | undefined;
+  getIzinBySesiPraktikan: (
+    sesiId: string,
+    praktikanId: string,
+  ) => Izin | undefined;
 };
 
 const AUTH_LOAD_TIMEOUT_MS = 9000;
@@ -158,6 +180,35 @@ function terjemahkanErrorFirestore(err: any, pesanDefault: string): string {
   }
 }
 
+function mapSesi(id: string, d: Record<string, any>): Sesi {
+  return {
+    id,
+    namaPraktikum: d.namaPraktikum || '',
+    topik: d.topik || '',
+    kelas: d.kelas || '',
+    lab: d.lab || '',
+    labId: d.labId || undefined,
+    tanggal: d.tanggal || '',
+    jamMulai: d.jamMulai || '',
+    jamSelesai: d.jamSelesai || '',
+    kapasitas: typeof d.kapasitas === 'number' ? d.kapasitas : 30,
+    asistenId: d.asistenId || '',
+    status: d.status || 'TERJADWAL',
+    deskripsi: d.deskripsi || '',
+  };
+}
+
+function mapLab(id: string, d: Record<string, any>): Lab {
+  return {
+    id,
+    nama: d.nama || '',
+    alamat: d.alamat || '',
+    lat: Number(d.lat),
+    lng: Number(d.lng),
+    radius: Number(d.radius),
+  };
+}
+
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
@@ -178,6 +229,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [izin, setIzin] = useState<Izin[]>(
     isFirebaseConfigured ? [] : IZIN_SEED,
   );
+  const [labs, setLabs] = useState<Lab[]>(
+    isFirebaseConfigured ? [] : LABS_SEED,
+  );
+  const [tick, setTick] = useState<number>(0);
+  const serverOffsetRef = useRef<number>(0);
+  const sekarang = () => Date.now() + serverOffsetRef.current;
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
 
   // Menyimpan profil sementara saat proses registrasi berlangsung untuk mencegah
   // race condition antara createUserWithEmailAndPassword dan onAuthStateChanged
@@ -328,23 +390,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       sesiQuery,
       (snapshot) => {
         if (cancelled) return;
-        const liveSesi: Sesi[] = snapshot.docs.map((docSnap) => {
-          const d = docSnap.data();
-          return {
-            id: docSnap.id,
-            namaPraktikum: d.namaPraktikum || '',
-            topik: d.topik || '',
-            kelas: d.kelas || '',
-            lab: d.lab || '',
-            tanggal: d.tanggal || '',
-            jamMulai: d.jamMulai || '',
-            jamSelesai: d.jamSelesai || '',
-            kapasitas: typeof d.kapasitas === 'number' ? d.kapasitas : 30,
-            asistenId: d.asistenId || '',
-            status: d.status || 'TERJADWAL',
-            deskripsi: d.deskripsi || '',
-          };
-        });
+        const liveSesi: Sesi[] = snapshot.docs.map((docSnap) =>
+          mapSesi(docSnap.id, docSnap.data()),
+        );
         setSesi(liveSesi);
         sesiReady = true;
         checkReady();
@@ -368,7 +416,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [syncVersion]);
 
   // ===========================================================================
-  // 2. LISTENER KOLEKSI TERAUTENTIKASI (`users`, `kehadiran`, `izin`)
+  // 2. LISTENER KOLEKSI TERAUTENTIKASI (`users`, `labs`, `kehadiran`, `izin`)
   // Dipasang hanya setelah pengguna login & disesuaikan perannya (privasi rules)
   // ===========================================================================
   useEffect(() => {
@@ -378,6 +426,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setKehadiran([]);
       setIzin([]);
       setUsers([]);
+      setLabs([]);
       return;
     }
 
@@ -422,6 +471,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
               nim: d.nim || undefined,
               kelas: d.kelas || undefined,
               peran: d.peran === 'asisten' ? 'asisten' : 'praktikan',
+              pushToken: d.pushToken || undefined,
             };
           });
           setUsers(liveUsers);
@@ -438,6 +488,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } else {
       setUsers([currentUser]);
     }
+
+    const unsubscribeLabs = onSnapshot(
+      collection(db, 'labs'),
+      (snapshot) => {
+        setLabs(
+          snapshot.docs
+            .map((d) => mapLab(d.id, d.data()))
+            .sort((a, b) => a.nama.localeCompare(b.nama)),
+        );
+      },
+      (err) => {
+        setError(
+          terjemahkanErrorFirestore(err, 'Gagal memuat data laboratorium.'),
+        );
+      },
+    );
 
     // Asisten menyinkronkan seluruh kehadiran; praktikan hanya menyinkronkan kehadirannya sendiri
     const kehadiranQuery = isAsistenRole
@@ -457,6 +523,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             nimPraktikan: d.nimPraktikan || undefined,
             kelasPraktikan: d.kelasPraktikan || undefined,
             waktuHadir: d.waktuHadir || '',
+            lat: typeof d.lat === 'number' ? d.lat : undefined,
+            lng: typeof d.lng === 'number' ? d.lng : undefined,
+            jarak: typeof d.jarak === 'number' ? d.jarak : undefined,
+            akurasi: typeof d.akurasi === 'number' ? d.akurasi : undefined,
           };
         });
         setKehadiran(liveKehadiran);
@@ -514,6 +584,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => {
       unsubscribeSelf();
       if (unsubscribeUsers) unsubscribeUsers();
+      unsubscribeLabs();
       unsubscribeKehadiran();
       unsubscribeIzin();
     };
@@ -853,20 +924,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // FUNGSI KELOLA SESI PRAKTIKUM (CRUD ASISTEN)
   // ===========================================================================
 
-  const openSession = async (sesiId: string): Promise<boolean> => {
-    if (isFirebaseConfigured) {
-      try {
+  const getStatusEfektif = (s: Sesi): StatusSesi =>
+    hitungStatusEfektif(s, sekarang());
+
+  const bacaSesi = async (sesiId: string): Promise<Sesi | undefined> => {
+    if (!isFirebaseConfigured) return sesi.find((s) => s.id === sesiId);
+    const snap = await getDoc(doc(db, 'sesi', sesiId));
+    return snap.exists() ? mapSesi(snap.id, snap.data()) : undefined;
+  };
+
+  const openSession = async (sesiId: string): Promise<HasilAksi> => {
+    try {
+      const target = await bacaSesi(sesiId);
+      if (!target) return { ok: false, alasan: 'SESI_TIDAK_DIBUKA' };
+      const alasan = alasanTidakBisaDibuka(target, sekarang());
+      if (alasan) return { ok: false, alasan };
+      if (isFirebaseConfigured) {
         await updateDoc(doc(db, 'sesi', sesiId), { status: 'DIBUKA' });
-        return true;
-      } catch (err: any) {
-        setError(terjemahkanErrorFirestore(err, 'Gagal membuka sesi praktikum.'));
-        return false;
+      } else {
+        setSesi((prev) =>
+          prev.map((s) => (s.id === sesiId ? { ...s, status: 'DIBUKA' } : s)),
+        );
       }
+      const notifOk = await notifySesiDibuka({ ...target, status: 'DIBUKA' });
+      return { ok: true, notifGagal: !notifOk };
+    } catch (err: any) {
+      setError(terjemahkanErrorFirestore(err, 'Gagal membuka sesi praktikum.'));
+      return { ok: false, alasan: 'JARINGAN' };
     }
-    setSesi((prev) =>
-      prev.map((s) => (s.id === sesiId ? { ...s, status: 'DIBUKA' } : s)),
-    );
-    return true;
   };
 
   const closeSession = async (sesiId: string): Promise<boolean> => {
@@ -885,22 +970,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
-  const reopenSession = async (sesiId: string): Promise<boolean> => {
-    if (isFirebaseConfigured) {
-      try {
-        await updateDoc(doc(db, 'sesi', sesiId), { status: 'DIBUKA' });
-        return true;
-      } catch (err: any) {
-        setError(
-          terjemahkanErrorFirestore(err, 'Gagal membuka kembali sesi praktikum.'),
-        );
-        return false;
+  const reopenSession = async (sesiId: string): Promise<HasilAksi> => {
+    try {
+      const target = await bacaSesi(sesiId);
+      if (!target) return { ok: false, alasan: 'SESI_TIDAK_DIBUKA' };
+      if (hitungStatusEfektif(target, sekarang()) === 'SELESAI') {
+        return { ok: false, alasan: 'SESI_SUDAH_DITUTUP' };
       }
+      return openSession(sesiId);
+    } catch (err: any) {
+      setError(
+        terjemahkanErrorFirestore(err, 'Gagal membuka kembali sesi praktikum.'),
+      );
+      return { ok: false, alasan: 'JARINGAN' };
     }
-    setSesi((prev) =>
-      prev.map((s) => (s.id === sesiId ? { ...s, status: 'DIBUKA' } : s)),
-    );
-    return true;
   };
 
   const createSession = async (input: SesiInput): Promise<Sesi | null> => {
@@ -908,11 +991,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
+    const cek = validasiJadwal(input, sekarang());
+    if (!cek.ok) {
+      setError(cek.alasan);
+      return null;
+    }
+
+    const labDipilih = labs.find((l) => l.id === input.labId);
+
     const sesiBaruData = {
       namaPraktikum: input.namaPraktikum.trim(),
       topik: (input.topik || '').trim(),
       kelas: input.kelas.trim().toUpperCase(),
-      lab: input.lab.trim(),
+      lab: labDipilih?.nama ?? input.lab.trim(),
+      labId: input.labId || '',
       tanggal: input.tanggal.trim(),
       jamMulai: input.jamMulai.trim(),
       jamSelesai: input.jamSelesai.trim(),
@@ -948,55 +1040,65 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const updateSession = async (
     sesiId: string,
     input: Partial<SesiInput>,
-  ): Promise<boolean> => {
-    const cleanPatch: Record<string, any> = {};
+  ): Promise<HasilSimpan> => {
+    const target = sesi.find((s) => s.id === sesiId);
+    const patch: Record<string, any> = {};
     if (typeof input.namaPraktikum === 'string') {
-      cleanPatch.namaPraktikum = input.namaPraktikum.trim();
+      patch.namaPraktikum = input.namaPraktikum.trim();
     }
-    if (typeof input.topik === 'string') {
-      cleanPatch.topik = input.topik.trim();
-    }
+    if (typeof input.topik === 'string') patch.topik = input.topik.trim();
     if (typeof input.kelas === 'string') {
-      cleanPatch.kelas = input.kelas.trim().toUpperCase();
+      patch.kelas = input.kelas.trim().toUpperCase();
     }
-    if (typeof input.lab === 'string') {
-      cleanPatch.lab = input.lab.trim();
-    }
-    if (typeof input.tanggal === 'string') {
-      cleanPatch.tanggal = input.tanggal.trim();
-    }
+    if (typeof input.tanggal === 'string') patch.tanggal = input.tanggal.trim();
     if (typeof input.jamMulai === 'string') {
-      cleanPatch.jamMulai = input.jamMulai.trim();
+      patch.jamMulai = input.jamMulai.trim();
     }
     if (typeof input.jamSelesai === 'string') {
-      cleanPatch.jamSelesai = input.jamSelesai.trim();
+      patch.jamSelesai = input.jamSelesai.trim();
     }
     if (typeof input.deskripsi === 'string') {
-      cleanPatch.deskripsi = input.deskripsi.trim();
+      patch.deskripsi = input.deskripsi.trim();
     }
-    if (typeof input.kapasitas === 'number') {
-      cleanPatch.kapasitas = input.kapasitas;
+    if (typeof input.kapasitas === 'number') patch.kapasitas = input.kapasitas;
+    if (typeof input.lab === 'string') patch.lab = input.lab.trim();
+    if (typeof input.labId === 'string') {
+      patch.labId = input.labId;
+      const l = labs.find((x) => x.id === input.labId);
+      if (l) patch.lab = l.nama;
     }
 
-    if (isFirebaseConfigured) {
-      try {
-        await updateDoc(doc(db, 'sesi', sesiId), cleanPatch);
-        return true;
-      } catch (err: any) {
-        setError(
-          terjemahkanErrorFirestore(
-            err,
-            'Gagal memperbarui data sesi praktikum.',
-          ),
-        );
-        return false;
+    const kunciJadwal = ['tanggal', 'jamMulai', 'jamSelesai'] as const;
+    if (target && kunciJadwal.some((k) => k in patch)) {
+      const cek = validasiJadwal({ ...target, ...patch }, sekarang());
+      if (!cek.ok) {
+        setError(cek.alasan);
+        return { ok: false };
       }
     }
+    const jadwalBerubah =
+      !!target && kunciJadwal.some((k) => k in patch && patch[k] !== target[k]);
 
-    setSesi((prev) =>
-      prev.map((s) => (s.id === sesiId ? { ...s, ...cleanPatch } : s)),
-    );
-    return true;
+    try {
+      if (isFirebaseConfigured) {
+        await updateDoc(doc(db, 'sesi', sesiId), patch);
+      } else {
+        setSesi((prev) =>
+          prev.map((s) => (s.id === sesiId ? { ...s, ...patch } : s)),
+        );
+      }
+    } catch (err: any) {
+      setError(
+        terjemahkanErrorFirestore(err, 'Gagal memperbarui data sesi praktikum.'),
+      );
+      return { ok: false };
+    }
+
+    const notifOk =
+      jadwalBerubah && target
+        ? await notifyJadwalBerubah({ ...target, ...patch })
+        : true;
+    return { ok: true, notifGagal: !notifOk };
   };
 
   const deleteSession = async (sesiId: string): Promise<boolean> => {
@@ -1038,100 +1140,92 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // FUNGSI PRESENSI PRAKTIKAN
   // ===========================================================================
 
-  const markAttendance = async (sesiId: string): Promise<PresensiResult> => {
-    if (!currentUser) {
-      return { ok: false, alasan: 'Pengguna belum masuk.' };
-    }
-    if (currentUser.peran !== 'praktikan') {
-      return {
-        ok: false,
-        alasan: 'Hanya praktikan yang dapat melakukan presensi.',
-      };
-    }
+  const markAttendance = async (
+    sesiId: string,
+    koordinat: Koordinat | null,
+  ): Promise<HasilAksi> => {
+    if (!currentUser) return { ok: false, alasan: 'TIDAK_BERHAK' };
+    const user = currentUser;
+    const docId = `${sesiId}_${user.id}`;
+    const now = sekarang();
 
-    const sesiTarget = sesi.find((s) => s.id === sesiId);
-    if (!sesiTarget) {
-      return { ok: false, alasan: 'Sesi praktikum tidak ditemukan.' };
-    }
-    if (sesiTarget.status !== 'DIBUKA') {
-      return {
-        ok: false,
-        alasan: 'Presensi hanya dapat dilakukan saat sesi berstatus DIBUKA.',
-      };
-    }
-
-    // Guard kelas praktikan
-    if (
-      currentUser.kelas &&
-      sesiTarget.kelas.trim().toUpperCase() !==
-        currentUser.kelas.trim().toUpperCase()
-    ) {
-      return {
-        ok: false,
-        alasan: 'Sesi ini bukan untuk kelas praktikum kamu.',
-      };
-    }
-
-    // Guard izin pada sesi yang sama
-    const izinAda = izin.find(
-      (i) => i.sesiId === sesiId && i.praktikanId === currentUser.id,
-    );
-    if (izinAda) {
-      return {
-        ok: false,
-        alasan: `Kamu sudah mengajukan izin untuk sesi ini (status: ${izinAda.status}).`,
-      };
-    }
-
-    // Guard presensi ganda
-    const presensiLama = kehadiran.find(
-      (k) => k.sesiId === sesiId && k.praktikanId === currentUser.id,
-    );
-    if (presensiLama) {
-      return {
-        ok: false,
-        alasan: `Kamu sudah presensi pada pukul ${formatJam(presensiLama.waktuHadir)}.`,
-      };
-    }
-
-    const waktuHadir = nowLocalISO();
-    const docId = `${sesiId}_${currentUser.id}`;
-    const catatanBaru: Kehadiran = {
-      id: docId,
-      sesiId,
-      praktikanId: currentUser.id,
-      namaPraktikan: currentUser.nama,
-      nimPraktikan: currentUser.nim || '',
-      kelasPraktikan: currentUser.kelas || '',
-      waktuHadir,
-    };
-
-    if (isFirebaseConfigured) {
-      try {
-        await setDoc(doc(db, 'kehadiran', docId), {
+    if (!isFirebaseConfigured) {
+      const target = sesi.find((s) => s.id === sesiId) ?? null;
+      const hasil = evaluasiPresensi({
+        sesi: target,
+        lab: labs.find((l) => l.id === target?.labId) ?? null,
+        user,
+        koordinat,
+        sudahHadir: kehadiran.some((k) => k.id === docId),
+        sudahIzin: izin.some((i) => i.id === docId),
+        now,
+      });
+      if (!hasil.ok) return hasil;
+      const k = koordinat as Koordinat;
+      setKehadiran((prev) => [
+        ...prev,
+        {
+          id: docId,
           sesiId,
-          praktikanId: currentUser.id,
-          namaPraktikan: currentUser.nama,
-          nimPraktikan: currentUser.nim || '',
-          kelasPraktikan: currentUser.kelas || '',
-          waktuHadir,
-        });
-        return { ok: true, waktuHadir };
-      } catch (err: any) {
-        return {
-          ok: false,
-          alasan: terjemahkanErrorFirestore(
-            err,
-            'Gagal menyimpan presensi ke server. Periksa koneksi internet Anda.',
-          ),
-        };
-      }
+          praktikanId: user.id,
+          namaPraktikan: user.nama,
+          nimPraktikan: user.nim || '',
+          kelasPraktikan: user.kelas || '',
+          waktuHadir: nowLocalISO(),
+          lat: k.lat,
+          lng: k.lng,
+          jarak: hasil.jarak,
+          akurasi: k.akurasi,
+        },
+      ]);
+      return hasil;
     }
 
-    setKehadiran((prev) =>
-      prev.some((k) => k.id === docId) ? prev : [...prev, catatanBaru],
-    );
-    return { ok: true, waktuHadir };
+    try {
+      return await runTransaction<HasilAksi>(db, async (tx) => {
+        const sesiSnap = await tx.get(doc(db, 'sesi', sesiId));
+        const sesiData = sesiSnap.exists()
+          ? mapSesi(sesiSnap.id, sesiSnap.data())
+          : null;
+        const labSnap = sesiData?.labId
+          ? await tx.get(doc(db, 'labs', sesiData.labId))
+          : null;
+        const hadirSnap = await tx.get(doc(db, 'kehadiran', docId));
+        const izinSnap = await tx.get(doc(db, 'izin', docId));
+
+        const hasil = evaluasiPresensi({
+          sesi: sesiData,
+          lab: labSnap?.exists() ? mapLab(labSnap.id, labSnap.data()) : null,
+          user,
+          koordinat,
+          sudahHadir: hadirSnap.exists(),
+          sudahIzin: izinSnap.exists(),
+          now,
+        });
+        if (!hasil.ok) return hasil;
+
+        const k = koordinat as Koordinat;
+        tx.set(doc(db, 'kehadiran', docId), {
+          sesiId,
+          praktikanId: user.id,
+          namaPraktikan: user.nama,
+          nimPraktikan: user.nim || '',
+          kelasPraktikan: user.kelas || '',
+          waktuHadir: nowLocalISO(),
+          lat: k.lat,
+          lng: k.lng,
+          jarak: hasil.jarak,
+          akurasi: k.akurasi ?? null,
+        });
+        return hasil;
+      });
+    } catch (err: any) {
+      const code = String(err?.code || '').replace(/^firestore\//, '');
+      if (code === 'permission-denied') {
+        return { ok: false, alasan: 'SESI_TIDAK_DIBUKA' };
+      }
+      return { ok: false, alasan: 'JARINGAN' };
+    }
   };
 
   // ===========================================================================
@@ -1153,7 +1247,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!sesiTarget) {
       return { ok: false, alasan: 'Sesi praktikum tidak ditemukan.' };
     }
-    if (sesiTarget.status === 'SELESAI') {
+    if (getStatusEfektif(sesiTarget) === 'SELESAI') {
       return {
         ok: false,
         alasan: 'Tidak dapat mengajukan izin pada sesi yang sudah selesai.',
@@ -1233,51 +1327,89 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const reviewIzin = async (
     izinId: string,
     status: Exclude<StatusIzin, 'MENUNGGU'>,
-  ): Promise<boolean> => {
-    if (!currentUser || currentUser.peran !== 'asisten') {
-      return false;
-    }
+  ): Promise<HasilSimpan> => {
+    if (!currentUser || currentUser.peran !== 'asisten') return { ok: false };
 
     const izinTarget = izin.find((item) => item.id === izinId);
-    if (izinTarget && izinTarget.status !== 'MENUNGGU') {
-      return false;
-    }
+    if (izinTarget && izinTarget.status !== 'MENUNGGU') return { ok: false };
 
     const waktuKeputusan = nowLocalISO();
+    const patch = {
+      status,
+      reviewedAt: waktuKeputusan,
+      reviewedBy: currentUser.id,
+    };
 
+    try {
+      if (isFirebaseConfigured) {
+        await updateDoc(doc(db, 'izin', izinId), patch);
+      } else {
+        setIzin((prev) =>
+          prev.map((item) =>
+            item.id === izinId ? { ...item, ...patch, waktuKeputusan } : item,
+          ),
+        );
+      }
+    } catch (err: any) {
+      setError(
+        terjemahkanErrorFirestore(
+          err,
+          'Gagal menyimpan keputusan pemeriksaan izin.',
+        ),
+      );
+      return { ok: false };
+    }
+
+    const notifOk = izinTarget
+      ? await notifyKeputusanIzin({ ...izinTarget, ...patch }, status)
+      : true;
+    return { ok: true, notifGagal: !notifOk };
+  };
+
+  // ===========================================================================
+  // LAB & PUSH TOKEN
+  // ===========================================================================
+
+  const updateLab = async (
+    labId: string,
+    data: { lat: number; lng: number; radius: number },
+  ): Promise<boolean> => {
+    if (!currentUser || currentUser.peran !== 'asisten') return false;
+    if (!(data.radius > 0) || !koordinatValid(data)) {
+      setError('Koordinat atau radius lab tidak valid.');
+      return false;
+    }
+    const patch = { lat: data.lat, lng: data.lng, radius: data.radius };
     if (isFirebaseConfigured) {
       try {
-        await updateDoc(doc(db, 'izin', izinId), {
-          status,
-          reviewedAt: waktuKeputusan,
-          reviewedBy: currentUser.id,
-        });
+        await updateDoc(doc(db, 'labs', labId), patch);
         return true;
       } catch (err: any) {
         setError(
-          terjemahkanErrorFirestore(
-            err,
-            'Gagal menyimpan keputusan pemeriksaan izin.',
-          ),
+          terjemahkanErrorFirestore(err, 'Gagal menyimpan data laboratorium.'),
         );
         return false;
       }
     }
-
-    setIzin((prev) =>
-      prev.map((item) =>
-        item.id === izinId
-          ? {
-              ...item,
-              status,
-              waktuKeputusan,
-              reviewedAt: waktuKeputusan,
-              reviewedBy: currentUser.id,
-            }
-          : item,
-      ),
+    setLabs((prev) =>
+      prev.map((l) => (l.id === labId ? { ...l, ...patch } : l)),
     );
     return true;
+  };
+
+  const savePushToken = async (token: string): Promise<void> => {
+    if (!currentUser || !token) return;
+    if (!isFirebaseConfigured) {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === currentUser.id ? { ...u, pushToken: token } : u,
+        ),
+      );
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'users', currentUser.id), { pushToken: token });
+    } catch {}
   };
 
   // Helper getters
@@ -1322,9 +1454,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       retrySync,
       users: mergedUsers,
       currentUser,
+      labs,
       sesi,
       kehadiran,
       izin,
+      updateLab,
+      savePushToken,
+      getStatusEfektif,
       login,
       loginWithEmail,
       registerUser,
@@ -1356,6 +1492,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       sesi,
       kehadiran,
       izin,
+      labs,
+      tick,
     ],
   );
 
