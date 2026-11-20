@@ -10,8 +10,8 @@ import {
 import MapView, { Circle, Marker, type MapPressEvent } from 'react-native-maps';
 import { LocateFixed, MapPin } from 'lucide-react-native';
 
-import { REGION_KAMPUS_FSM } from './region';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
+import { REGION_KAMPUS_FSM } from './region';
 import type { LokasiPickerProps } from './types';
 /** Region awal hanya dipakai sekali; peta tidak boleh melompat saat data berubah. */
 const DELTA_AWAL = 0.004;
@@ -284,4 +284,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
 });
+
 
