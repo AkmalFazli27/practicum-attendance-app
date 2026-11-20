@@ -38,17 +38,16 @@ service cloud.firestore {
 
     // Koleksi users: identitas dan peran pengguna
     match /users/{userId} {
-      // Privasi: pemilik dapat membaca dokumennya sendiri; asisten dapat membaca daftar pengguna untuk rekap
       allow read: if isOwner(userId) || isAsisten();
 
       // Registrasi mandiri dari klien hanya boleh membuat profil dengan peran 'praktikan'.
-      // Akun dengan peran 'asisten' diprovisikan melalui Firebase Console / Admin SDK.
+      // Akun 'asisten' diprovisikan melalui Firebase Console / Admin SDK.
       allow create: if isOwner(userId)
                     && request.resource.data.peran == 'praktikan'
                     && request.resource.data.keys().hasAll(['nama', 'email', 'peran'])
                     && request.resource.data.keys().hasOnly(['nama', 'email', 'peran', 'nim', 'kelas', 'createdAt']);
 
-      // Pemilik akun hanya boleh memperbarui field profil non-peran (tidak boleh mengubah 'peran').
+      // Pemilik tidak boleh mengubah 'peran'. pushToken boleh ditulis pemilik.
       allow update: if (isOwner(userId)
                         && request.resource.data.peran == resource.data.peran
                         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['peran', 'createdAt']))
@@ -57,38 +56,65 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Koleksi sesi praktikum: dikelola oleh Asisten, dapat dibaca publik (read-only) untuk pratinjau jadwal
-    match /sesi/{sesiId} {
-      allow read: if true;
-      allow create, update, delete: if isAsisten();
+    // Koleksi labs: lokasi dan radius laboratorium
+    // Dokumen dibuat lewat Firebase Console (seed). Klien hanya boleh membaca dan memperbarui koordinat/radius.
+    match /labs/{labId} {
+      allow read: if isAuthenticated();
+
+      allow update: if isAsisten()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lat', 'lng', 'radius'])
+                    && request.resource.data.lat is number
+                    && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
+                    && request.resource.data.lng is number
+                    && request.resource.data.lng >= -180 && request.resource.data.lng <= 180
+                    && request.resource.data.radius is number
+                    && request.resource.data.radius > 0;
+
+      allow create, delete: if false;
     }
 
-    // Koleksi kehadiran: dicatat oleh praktikan bersangkutan saat sesi DIBUKA, ditinjau oleh asisten
+    // Koleksi sesi praktikum
+    match /sesi/{sesiId} {
+      allow read: if true;
+      allow create, delete: if isAsisten();
+
+      // PB-05: sesi yang sudah SELESAI tidak boleh dikembalikan ke status lain.
+      allow update: if isAsisten()
+                    && !(resource.data.status == 'SELESAI' && request.resource.data.status != 'SELESAI');
+    }
+
+    // Koleksi kehadiran
     match /kehadiran/{kehadiranId} {
       allow read: if isAsisten()
                   || (isAuthenticated() && (resource == null || resource.data.praktikanId == request.auth.uid));
 
-      // Praktikan hanya boleh mencatat kehadiran untuk dirinya sendiri dengan ID deterministik ${sesiId}_${uid},
-      // pada sesi yang ada dan berstatus DIBUKA, serta belum mengajukan izin pada sesi tersebut.
+      // Praktikan hanya mencatat kehadiran untuk dirinya sendiri, ID ${sesiId}_${uid},
+      // pada sesi yang berstatus DIBUKA, dengan koordinat dan jarak berupa angka.
+      // Catatan: pengecekan jam dan radius dilakukan di aplikasi (markAttendance),
+      // karena field status di Firestore tidak berubah sendiri saat jam selesai.
       allow create: if isPraktikan()
                     && request.resource.data.praktikanId == request.auth.uid
                     && request.resource.data.sesiId is string
                     && kehadiranId == request.resource.data.sesiId + '_' + request.auth.uid
                     && sesiExists(request.resource.data.sesiId)
                     && getSesiData(request.resource.data.sesiId).status == 'DIBUKA'
-                    && !exists(/databases/$(database)/documents/izin/$(kehadiranId));
+                    && !exists(/databases/$(database)/documents/izin/$(kehadiranId))
+                    && request.resource.data.lat is number
+                    && request.resource.data.lng is number
+                    && request.resource.data.jarak is number
+                    && request.resource.data.keys().hasOnly([
+                         'sesiId', 'praktikanId', 'namaPraktikan', 'nimPraktikan',
+                         'kelasPraktikan', 'waktuHadir', 'lat', 'lng', 'jarak', 'akurasi'
+                       ]);
 
-      // Perubahan status/koreksi atau penghapusan kehadiran hanya boleh oleh Asisten
       allow update, delete: if isAsisten();
     }
 
-    // Koleksi izin: diajukan oleh praktikan, diperiksa/diputuskan oleh asisten
+    // Koleksi izin
     match /izin/{izinId} {
       allow read: if isAsisten()
                   || (isAuthenticated() && (resource == null || resource.data.praktikanId == request.auth.uid));
 
-      // Praktikan membuat pengajuan izin untuk dirinya sendiri dengan ID deterministik ${sesiId}_${uid},
-      // status awal MENUNGGU, pada sesi yang belum SELESAI, serta belum tercatat hadir.
       allow create: if isPraktikan()
                     && request.resource.data.praktikanId == request.auth.uid
                     && request.resource.data.status == 'MENUNGGU'
@@ -98,7 +124,6 @@ service cloud.firestore {
                     && getSesiData(request.resource.data.sesiId).status != 'SELESAI'
                     && !exists(/databases/$(database)/documents/kehadiran/$(izinId));
 
-      // Hanya Asisten yang berhak memutuskan status izin dari MENUNGGU menjadi DITERIMA atau DITOLAK
       allow update: if isAsisten()
                     && resource.data.status == 'MENUNGGU'
                     && (request.resource.data.status == 'DITERIMA' || request.resource.data.status == 'DITOLAK')
