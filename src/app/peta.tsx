@@ -19,23 +19,37 @@ import { LabInfoSheet } from '@/components/peta/LabInfoSheet';
 import { LocationBanner } from '@/components/peta/LocationBanner';
 import { PetaHeader } from '@/components/peta/PetaHeader';
 import { PetaMap } from '@/components/peta/PetaMap';
-import { hitungRegion } from '@/components/peta/region';
+import {
+  bannerLokasiDari,
+  bannerPrioritas,
+} from '@/components/peta/bannerLokasi';
+import { hitungRegion, lokasiPunyaKoordinat } from '@/components/peta/region';
 import { EmptyState, FilterChip } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import type { Lab } from '@/data/dummy';
+import { useLocation } from '@/hooks/useLocation';
 import { colors, layout, radius, spacing, type } from '@/theme/tokens';
 
 const JEDA_TUNGGU_LABS_MS = 4000;
 
 export default function PetaScreen() {
   const { currentUser, loading, labs, error, retrySync } = useSession();
+  const { status: statusLokasi, koordinat, pesanError, mintaIzin, coba } =
+    useLocation();
   const insets = useSafeAreaInsets();
   const [labDipilih, setLabDipilih] = useState<Lab | null>(null);
   const [sheetTerbuka, setSheetTerbuka] = useState(false);
   const [menungguLabs, setMenungguLabs] = useState(true);
   const timerTutup = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const region = useMemo(() => hitungRegion(labs), [labs]);
+  // Lokasi pengguna hanya dipakai bila benar-benar valid, sehingga marker lab
+  // tetap tampil normal saat izin ditolak atau GPS mati.
+  const pengguna = lokasiPunyaKoordinat(koordinat) ? koordinat : null;
+
+  const region = useMemo(() => hitungRegion(labs, pengguna), [labs, pengguna]);
+
+  const bannerLokasi = bannerLokasiDari(statusLokasi, pesanError);
+  const banner = bannerPrioritas(error, bannerLokasi);
 
   // `loading` hanya mencakup auth + koleksi sesi. Koleksi labs punya listener
   // sendiri, jadi beri jeda singkat sebelum menyimpulkan bahwa datanya kosong.
@@ -119,12 +133,20 @@ export default function PetaScreen() {
         </ScrollView>
       ) : null}
 
-      {error ? (
+      {banner ? (
         <View style={styles.bannerWrap}>
           <LocationBanner
-            jenis="jaringan"
-            pesan={error}
-            onRetry={retrySync}
+            jenis={banner.jenis}
+            pesan={banner.pesan}
+            onRetry={
+              banner.aksi === 'minta-izin'
+                ? mintaIzin
+                : banner.aksi === 'coba-lagi'
+                  ? banner.sumber === 'jaringan'
+                    ? retrySync
+                    : coba
+                  : undefined
+            }
           />
         </View>
       ) : null}
@@ -135,6 +157,7 @@ export default function PetaScreen() {
           labDipilih={labDipilih}
           onPilihLab={bukaLab}
           region={region}
+          pengguna={pengguna}
         />
 
         {labs.length === 0 ? (

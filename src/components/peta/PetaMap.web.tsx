@@ -1,8 +1,9 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Map as MapIcon, MapPin } from 'lucide-react-native';
+import { Map as MapIcon, MapPin, Navigation } from 'lucide-react-native';
 
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
+import { hitungJarak } from '@/utils/geo';
 import type { PetaMapProps } from './types';
 
 /**
@@ -13,6 +14,7 @@ export function PetaMap({
   labs,
   labDipilih,
   onPilihLab,
+  pengguna,
 }: PetaMapProps) {
   return (
     <View style={styles.root}>
@@ -24,12 +26,28 @@ export function PetaMap({
         </Text>
       </View>
 
+      {pengguna ? (
+        <View style={styles.lokasiRow}>
+          <Navigation size={16} color={colors.textPrimary} />
+          <Text style={styles.lokasiText}>
+            Posisi kamu: {pengguna.lat.toFixed(5)}, {pengguna.lng.toFixed(5)}
+            {typeof pengguna.akurasi === 'number' && pengguna.akurasi > 0
+              ? ` (±${Math.round(pengguna.akurasi)} m)`
+              : ''}
+          </Text>
+        </View>
+      ) : null}
+
       <ScrollView
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
       >
         {labs.map((lab) => {
           const aktif = labDipilih?.id === lab.id;
+          const jarak =
+            pengguna && Number.isFinite(lab.lat)
+              ? hitungJarak(pengguna, { lat: lab.lat, lng: lab.lng })
+              : null;
           return (
             <Pressable
               key={lab.id}
@@ -48,6 +66,13 @@ export function PetaMap({
               <View style={styles.copy}>
                 <Text style={styles.nama}>{lab.nama}</Text>
                 <Text style={styles.alamat}>{lab.alamat}</Text>
+                {jarak !== null ? (
+                  <Text style={styles.jarak}>
+                    {jarak < 1000
+                      ? `${Math.round(jarak)} m dari posisimu`
+                      : `${(jarak / 1000).toFixed(1)} km dari posisimu`}
+                  </Text>
+                ) : null}
               </View>
             </Pressable>
           );
@@ -79,6 +104,24 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     flex: 1,
     lineHeight: 18,
+  },
+  lokasiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s2,
+    marginHorizontal: spacing.s4,
+    marginBottom: spacing.s3,
+    padding: spacing.s3,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.primarySoft,
+  },
+  lokasiText: {
+    ...type.caption,
+    fontFamily: fontFamily.medium,
+    color: colors.textPrimary,
+    flex: 1,
   },
   list: {
     paddingHorizontal: spacing.s4,
@@ -121,5 +164,9 @@ const styles = StyleSheet.create({
   alamat: {
     ...type.caption,
     color: colors.textMuted,
+  },
+  jarak: {
+    ...type.caption,
+    color: colors.textSecondary,
   },
 });

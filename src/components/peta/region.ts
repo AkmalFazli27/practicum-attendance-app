@@ -1,5 +1,5 @@
 import type { Lab } from '@/data/dummy';
-import { koordinatValid } from '@/utils/geo';
+import { koordinatValid, type Titik } from '@/utils/geo';
 
 export type RegionPeta = {
   latitude: number;
@@ -28,25 +28,44 @@ export function labPunyaKoordinat(lab: Lab): boolean {
   return koordinatValid(lab) && !(lab.lat === 0 && lab.lng === 0);
 }
 
+/** Lokasi pengguna hanya dipakai bila benar-benar angka yang masuk akal. */
+export function lokasiPunyaKoordinat(
+  lokasi: Titik | null | undefined,
+): boolean {
+  return (
+    !!lokasi && koordinatValid(lokasi) && !(lokasi.lat === 0 && lokasi.lng === 0)
+  );
+}
+
 /**
- * Menghitung region peta dari seluruh lab.
+ * Menghitung region peta dari seluruh lab dan, bila tersedia, posisi pengguna.
  * Delta minimum menjaga Lab B/C/D yang bertitik sama tidak membuat peta
  * memperbesar satu titik secara berlebihan.
  */
-export function hitungRegion(labs: Lab[]): RegionPeta {
-  const valid = labs.filter(labPunyaKoordinat);
-  if (valid.length === 0) return { ...REGION_KAMPUS_FSM };
+export function hitungRegion(
+  labs: Lab[],
+  pengguna?: Titik | null,
+): RegionPeta {
+  const titik: Titik[] = labs
+    .filter(labPunyaKoordinat)
+    .map((lab) => ({ lat: lab.lat, lng: lab.lng }));
 
-  let minLat = valid[0].lat;
-  let maxLat = valid[0].lat;
-  let minLng = valid[0].lng;
-  let maxLng = valid[0].lng;
+  if (lokasiPunyaKoordinat(pengguna)) {
+    titik.push({ lat: pengguna!.lat, lng: pengguna!.lng });
+  }
 
-  for (const lab of valid) {
-    minLat = Math.min(minLat, lab.lat);
-    maxLat = Math.max(maxLat, lab.lat);
-    minLng = Math.min(minLng, lab.lng);
-    maxLng = Math.max(maxLng, lab.lng);
+  if (titik.length === 0) return { ...REGION_KAMPUS_FSM };
+
+  let minLat = titik[0].lat;
+  let maxLat = titik[0].lat;
+  let minLng = titik[0].lng;
+  let maxLng = titik[0].lng;
+
+  for (const t of titik) {
+    minLat = Math.min(minLat, t.lat);
+    maxLat = Math.max(maxLat, t.lat);
+    minLng = Math.min(minLng, t.lng);
+    maxLng = Math.max(maxLng, t.lng);
   }
 
   return {

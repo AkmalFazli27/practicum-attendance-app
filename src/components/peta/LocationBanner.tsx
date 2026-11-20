@@ -14,6 +14,7 @@ export type JenisBannerLokasi =
   | 'izin-ditolak'
   | 'gps-mati'
   | 'tanpa-koordinat'
+  | 'lokasi-gagal'
   | 'jaringan';
 
 export interface LocationBannerProps {
@@ -27,6 +28,7 @@ const JUDUL: Record<JenisBannerLokasi, string> = {
   'izin-ditolak': 'Izin lokasi ditolak',
   'gps-mati': 'Lokasi tidak aktif',
   'tanpa-koordinat': 'Mencari lokasi',
+  'lokasi-gagal': 'Lokasi gagal dibaca',
   jaringan: 'Koneksi bermasalah',
 };
 
@@ -35,6 +37,8 @@ const PESAN: Record<JenisBannerLokasi, string> = {
     'Izin lokasi ditolak. Aktifkan lewat Pengaturan untuk melihat posisimu.',
   'gps-mati': 'Layanan lokasi mati. Nyalakan GPS untuk melihat posisimu.',
   'tanpa-koordinat': 'Mencari lokasi…',
+  'lokasi-gagal':
+    'Lokasi perangkat tidak dapat dibaca. Coba lagi atau periksa pengaturan lokasi.',
   jaringan: 'Tidak dapat memuat data. Periksa koneksi internet.',
 };
 
@@ -52,6 +56,8 @@ function IkonBanner({
       return <NavigationOff size={18} color={warna} />;
     case 'tanpa-koordinat':
       return <LoaderCircle size={18} color={warna} />;
+    case 'lokasi-gagal':
+      return <AlertTriangle size={18} color={warna} />;
     case 'jaringan':
       return <AlertTriangle size={18} color={warna} />;
   }
@@ -64,7 +70,7 @@ export function LocationBanner({
   onTutup,
 }: LocationBannerProps) {
   const tone =
-    jenis === 'jaringan'
+    jenis === 'jaringan' || jenis === 'lokasi-gagal'
       ? {
           bg: colors.errorBg,
           fg: colors.errorFg,

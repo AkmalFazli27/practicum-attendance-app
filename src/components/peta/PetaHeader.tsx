@@ -15,11 +15,16 @@ import { colors, layout, radius, spacing, type } from '@/theme/tokens';
 export interface PetaHeaderProps {
   onRefresh?: () => void;
   sedangMemuat?: boolean;
+  /** Default "Peta Laboratorium"; halaman lain memakai header yang sama. */
+  judul?: string;
+  kicker?: string;
 }
 
 export function PetaHeader({
   onRefresh,
   sedangMemuat = false,
+  judul = 'Peta Laboratorium',
+  kicker = 'PETA',
 }: PetaHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -48,9 +53,9 @@ export function PetaHeader({
         </Pressable>
 
         <View style={styles.center}>
-          <Text style={styles.kicker}>PETA</Text>
+          <Text style={styles.kicker}>{kicker}</Text>
           <Text style={styles.title} numberOfLines={1}>
-            Peta Laboratorium
+            {judul}
           </Text>
         </View>
 
