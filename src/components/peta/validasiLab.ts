@@ -41,6 +41,25 @@ export function teksKoordinat(angka: number | undefined): string {
 }
 
 /**
+ * Menentukan teks yang ditampilkan input setelah prop titik berubah.
+ * Teks setengah jadi seperti "-" bernilai NaN; membandingkan NaN === NaN selalu
+ * salah, jadi input akan terhapus sendiri saat pengguna baru mulai mengetik.
+ * Karena itu NaN dibandingkan sebagai "sama" dengan NaN, kecuali teks kosong
+ * yang memang berarti pengguna mengosongkan field.
+ */
+export function teksTersinkron(
+  teksLama: string,
+  angkaBaru: number | undefined,
+): string {
+  const angkaLama = bacaAngka(teksLama);
+  const kosong = teksLama.trim() === '';
+  if (kosong) return teksKoordinat(angkaBaru);
+  if (Number.isNaN(angkaLama) && Number.isNaN(angkaBaru)) return teksLama;
+  if (angkaLama === angkaBaru) return teksLama;
+  return teksKoordinat(angkaBaru);
+}
+
+/**
  * Validasi dilakukan di layar, bukan hanya di context: context menolak tanpa
  * memberi tahu field mana yang salah, sedangkan form perlu pesan inline.
  */
@@ -49,7 +68,9 @@ export function alasanTidakValid(draf: DrafLab): string[] {
   if (!draf.labId) alasan.push('Pilih laboratorium terlebih dahulu.');
   if (!draf.titik) {
     alasan.push('Tentukan titik laboratorium pada peta.');
-  } else if (!koordinatValid(draf.titik)) {
+  } else if (!koordinatValid(draf.titik) || (draf.titik.lat === 0 && draf.titik.lng === 0)) {
+    // Titik 0,0 lolos `koordinatValid` tetapi bukan lokasi lab yang sah dan
+    // akan hilang dari peta, jadi diperlakukan sama dengan koordinat invalid.
     alasan.push('Koordinat laboratorium tidak valid.');
   }
   if (!Number.isFinite(draf.radius) || draf.radius <= 0) {

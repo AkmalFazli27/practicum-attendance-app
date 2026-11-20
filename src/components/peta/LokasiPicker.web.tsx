@@ -10,7 +10,7 @@ import {
 import { LocateFixed, MapIcon } from 'lucide-react-native';
 
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
-import { bacaAngka, teksKoordinat } from './validasiLab';
+import { bacaAngka, teksKoordinat, teksTersinkron } from './validasiLab';
 import type { LokasiPickerProps } from './types';
 
 /**
@@ -35,16 +35,13 @@ export function LokasiPicker({
   const [lngTeks, setLngTeks] = useState(teksKoordinat(titik?.lng));
 
   // Sinkronkan saat titik berubah dari luar input (pilih lab / lokasi saat ini).
+  // `teksTersinkron` menjaga teks setengah jadi seperti "-" agar tidak dihapus.
   useEffect(() => {
-    setLatTeks((lama) =>
-      bacaAngka(lama) === titik?.lat ? lama : teksKoordinat(titik?.lat),
-    );
+    setLatTeks((lama) => teksTersinkron(lama, titik?.lat));
   }, [titik?.lat]);
 
   useEffect(() => {
-    setLngTeks((lama) =>
-      bacaAngka(lama) === titik?.lng ? lama : teksKoordinat(titik?.lng),
-    );
+    setLngTeks((lama) => teksTersinkron(lama, titik?.lng));
   }, [titik?.lng]);
 
   const ubahKoord = (kunci: 'lat' | 'lng', teks: string) => {

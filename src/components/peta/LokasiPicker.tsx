@@ -10,9 +10,9 @@ import {
 import MapView, { Circle, Marker, type MapPressEvent } from 'react-native-maps';
 import { LocateFixed, MapPin } from 'lucide-react-native';
 
+import { REGION_KAMPUS_FSM } from './region';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 import type { LokasiPickerProps } from './types';
-
 /** Region awal hanya dipakai sekali; peta tidak boleh melompat saat data berubah. */
 const DELTA_AWAL = 0.004;
 const UKURAN_TITIK = 22;
@@ -35,8 +35,8 @@ export function LokasiPicker({
   const sudahDiposisikan = useRef(false);
 
   const regionAwal = {
-    latitude: titik?.lat ?? -7.0486,
-    longitude: titik?.lng ?? 110.4411,
+    latitude: titik?.lat ?? REGION_KAMPUS_FSM.latitude,
+    longitude: titik?.lng ?? REGION_KAMPUS_FSM.longitude,
     latitudeDelta: DELTA_AWAL,
     longitudeDelta: DELTA_AWAL,
   };
@@ -284,3 +284,4 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
 });
+

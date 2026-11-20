@@ -1,5 +1,5 @@
 import type { Lab } from '@/data/dummy';
-import { koordinatValid, type Titik } from '@/utils/geo';
+import { hitungJarak, koordinatValid, type Titik } from '@/utils/geo';
 
 export type RegionPeta = {
   latitude: number;
@@ -20,6 +20,24 @@ const DELTA_MINIMUM = 0.004;
 const PADDING = 1.6;
 
 /**
+ * `loading` dari SessionContext hanya mencakup auth dan sesi; koleksi `labs`
+ * punya listener sendiri. Tanpa jeda, layar sempat menampilkan "belum ada
+ * laboratorium" padahal datanya masih dalam perjalanan.
+ */
+export type StatusTungguLabs = 'menunggu' | 'selesai';
+
+export function statusTungguLabs(
+  loading: boolean,
+  jumlahLabs: number,
+  error: string | null,
+  jedaHabis: boolean,
+): StatusTungguLabs {
+  if (loading) return 'menunggu';
+  if (jumlahLabs > 0 || error) return 'selesai';
+  return jedaHabis ? 'selesai' : 'menunggu';
+}
+
+/**
  * Data lab dari Firestore bisa memiliki koordinat kosong. Titik 0,0 juga
  * ditolak karena bukan lokasi lab yang sah dan biasanya berasal dari field
  * null yang dikonversi menjadi angka 0.
@@ -38,10 +56,20 @@ export function lokasiPunyaKoordinat(
 }
 
 /**
+ * Jarak maksimum posisi pengguna untuk ikut mempengaruhi bounding box peta.
+ * Pengguna yang sedang jauh dari kampus tidak ikut memperluas region:
+ * memasukkan titik di luar kota membuat keempat lab menumpuk jadi satu titik
+ * kecil dan peta jadi tidak berguna. Posisi pengguna tetap tampil sebagai
+ * marker; peta hanya tidak mengorbankan marker lab untuk menjangkaunya.
+ */
+export const BATAS_JARAK_PENGARUH_LOKASI_M = 2000;
+
+/**
  * Menghitung region peta dari seluruh lab dan, bila tersedia, posisi pengguna.
  * Delta minimum menjaga Lab B/C/D yang bertitik sama tidak membuat peta
  * memperbesar satu titik secara berlebihan.
  */
+
 export function hitungRegion(
   labs: Lab[],
   pengguna?: Titik | null,
@@ -50,11 +78,22 @@ export function hitungRegion(
     .filter(labPunyaKoordinat)
     .map((lab) => ({ lat: lab.lat, lng: lab.lng }));
 
-  if (lokasiPunyaKoordinat(pengguna)) {
-    titik.push({ lat: pengguna!.lat, lng: pengguna!.lng });
+  if (titik.length === 0) {
+    // Tanpa lab, posisi pengguna justru satu-satunya petunjuk yang berguna.
+    if (lokasiPunyaKoordinat(pengguna)) {
+      return regionSekitar({ lat: pengguna!.lat, lng: pengguna!.lng });
+    }
+    return { ...REGION_KAMPUS_FSM };
   }
 
-  if (titik.length === 0) return { ...REGION_KAMPUS_FSM };
+  if (lokasiPunyaKoordinat(pengguna)) {
+    const dekat = titik.some(
+      (t) => hitungJarak(t, pengguna!) <= BATAS_JARAK_PENGARUH_LOKASI_M,
+    );
+    if (dekat) {
+      titik.push({ lat: pengguna!.lat, lng: pengguna!.lng });
+    }
+  }
 
   let minLat = titik[0].lat;
   let maxLat = titik[0].lat;
@@ -73,5 +112,14 @@ export function hitungRegion(
     longitude: (minLng + maxLng) / 2,
     latitudeDelta: Math.max((maxLat - minLat) * PADDING, DELTA_MINIMUM),
     longitudeDelta: Math.max((maxLng - minLng) * PADDING, DELTA_MINIMUM),
+  };
+}
+
+function regionSekitar(t: Titik): RegionPeta {
+  return {
+    latitude: t.lat,
+    longitude: t.lng,
+    latitudeDelta: DELTA_MINIMUM,
+    longitudeDelta: DELTA_MINIMUM,
   };
 }
