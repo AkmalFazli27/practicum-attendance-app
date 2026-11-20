@@ -86,8 +86,9 @@ export function useLocation(): HasilLokasi {
       ubah('memuat', null);
 
       try {
-        if (!(await layananLokasiAktif())) {
-          if (basi()) return;
+        const gpsAktif = await layananLokasiAktif();
+        if (basi()) return;
+        if (!gpsAktif) {
           ubah('gps-mati', PESAN.gpsMati, true);
           return;
         }
@@ -150,11 +151,14 @@ export function useLocation(): HasilLokasi {
     // GPS bisa dimatikan dari panel notifikasi tanpa meninggalkan aplikasi.
     const pemeriksa = setInterval(async () => {
       const s = statusRef.current;
-      if (s !== 'siap' && s !== 'koordinat-belum-ada') return;
+      if (s !== 'siap' && s !== 'koordinat-belum-ada' && s !== 'gps-mati') return;
       const aktif = await layananLokasiAktif();
-      if (!aktif && aktifRef.current && statusRef.current === s) {
+      if (!aktifRef.current || statusRef.current !== s) return;
+      if (!aktif && s !== 'gps-mati') {
         hentikan();
         ubah('gps-mati', PESAN.gpsMati, true);
+      } else if (aktif && s === 'gps-mati') {
+        void mulai(false);
       }
     }, CEK_GPS_MS);
 
