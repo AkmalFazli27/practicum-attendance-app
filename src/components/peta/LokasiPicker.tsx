@@ -28,6 +28,7 @@ export function LokasiPicker({
   bisaGunakanLokasi,
   sedangMembacaLokasi = false,
   pesanLokasi,
+  labId = null,
 }: LokasiPickerProps) {
   const mapRef = useRef<MapView>(null);
   const [siap, setSiap] = useState(false);
@@ -40,15 +41,28 @@ export function LokasiPicker({
     longitudeDelta: DELTA_AWAL,
   };
 
-  // Lab B/C/D bertitik sama, jadi peta tidak diarahkan ulang saat titik berubah
-  // hanya karena asisten memilih lab lain yang koordinatnya sama.
+  // Saat asisten memilih lab lain, peta harus mengarah ke titik lab itu.
+  // `sudahDiposisikan` hanya mencegah recenter akibat perubahan kecil pada lab
+  // yang sama (mis. drag marker).
+  const labIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!siap || sudahDiposisikan.current || !titik) return;
+    if (!siap || !titik) return;
+    const bergantiLab = labIdRef.current !== labId;
+    const pertamaKali = !sudahDiposisikan.current;
+    if (!pertamaKali && !bergantiLab) return;
     sudahDiposisikan.current = true;
-    mapRef.current?.animateToRegion({ ...regionAwal, latitude: titik.lat, longitude: titik.lng }, 400);
-    // regionAwal sengaja tidak masuk dependency: dipakai sekali saat peta siap.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [siap, titik]);
+    labIdRef.current = labId;
+    mapRef.current?.animateToRegion(
+      {
+        latitude: titik.lat,
+        longitude: titik.lng,
+        latitudeDelta: DELTA_AWAL,
+        longitudeDelta: DELTA_AWAL,
+      },
+      400,
+    );
+  }, [siap, titik, labId]);
 
   const tanganiTekan = (e: MapPressEvent) => {
     if (disabled) return;

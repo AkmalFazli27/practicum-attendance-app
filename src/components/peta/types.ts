@@ -28,4 +28,6 @@ export interface LokasiPickerProps {
   bisaGunakanLokasi: boolean;
   sedangMembacaLokasi?: boolean;
   pesanLokasi?: string | null;
+  /** Dipakai untuk recenter peta hanya saat lab benar-benar berganti. */
+  labId?: string | null;
 }

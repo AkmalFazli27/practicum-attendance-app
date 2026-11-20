@@ -69,6 +69,11 @@ export function adaPerubahan(lab: Lab, draf: DrafLab): boolean {
   if (draf.labId !== lab.id) return true;
   if (!draf.titik) return true;
   if (draf.radius !== lab.radius) return true;
+  // NaN berarti asisten sedang mengosongkan input; itu perubahan yang harus
+  // bisa disimpan-paksa agar pesan validasinya muncul.
+  if (!Number.isFinite(draf.titik.lat) || !Number.isFinite(draf.titik.lng)) {
+    return true;
+  }
   return (
     Math.abs(draf.titik.lat - lab.lat) > EPSILON_KOORDINAT ||
     Math.abs(draf.titik.lng - lab.lng) > EPSILON_KOORDINAT

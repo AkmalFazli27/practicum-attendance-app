@@ -225,6 +225,7 @@ export default function KelolaLabScreen() {
                 bisaGunakanLokasi={Boolean(koordinat)}
                 sedangMembacaLokasi={statusLokasi === 'memuat'}
                 pesanLokasi={pesanLokasi}
+                labId={labId}
               />
 
               {sudahMencobaSimpan && alasan.length > 0 ? (
