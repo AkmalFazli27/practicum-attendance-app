@@ -29,7 +29,7 @@ import { type Peran } from '@/data/dummy';
 import { colors, fontFamily, radius, shadows, spacing, type } from '@/theme/tokens';
 
 type AuthMode = 'login' | 'register';
-type AuthField = 'nama' | 'nim' | 'kelas' | 'email' | 'password';
+type AuthField = 'nama' | 'nim' | 'kelas' | 'email' | 'password' | 'konfirmasi';
 type FieldErrors = Partial<Record<AuthField, string>>;
 
 const POLA_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,8 +47,6 @@ function mapAuthError(kode: string): string {
     case 'auth/invalid-email':
     case 'auth/missing-email':
       return 'Format alamat email tidak valid.';
-    case 'auth/user-not-found':
-      return 'Akun dengan email ini tidak ditemukan.';
     case 'auth/wrong-password':
     case 'auth/invalid-credential':
     case 'auth/invalid-login-credentials':
@@ -84,6 +82,7 @@ type ValidasiAuthInput = {
   kelas: string;
   email: string;
   password: string;
+  konfirmasi: string;
 };
 
 function validateAuthForm({
@@ -94,6 +93,7 @@ function validateAuthForm({
   kelas,
   email,
   password,
+  konfirmasi,
 }: ValidasiAuthInput): FieldErrors {
   const hasil: FieldErrors = {};
 
@@ -119,6 +119,10 @@ function validateAuthForm({
     hasil.password = 'Kata sandi minimal 6 karakter.';
   }
 
+  if (authMode === 'register' && password !== konfirmasi) {
+    hasil.konfirmasi = 'Konfirmasi kata sandi tidak cocok.';
+  }
+
   return hasil;
 }
 
@@ -137,6 +141,7 @@ export default function LoginScreen() {
   const [kelas, setKelas] = useState('IF-2A');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [konfirmasiPassword, setKonfirmasiPassword] = useState('');
   const [lihatPassword, setLihatPassword] = useState(false);
   const [pesanError, setPesanError] = useState<string | null>(null);
   const [sedangMemproses, setSedangMemproses] = useState(false);
@@ -151,6 +156,7 @@ export default function LoginScreen() {
   const refKelas = useRef<TextInputInstance>(null);
   const refEmail = useRef<TextInputInstance>(null);
   const refPassword = useRef<TextInputInstance>(null);
+  const refKonfirmasi = useRef<TextInputInstance>(null);
   const redirectAwalSelesai = useRef(false);
 
   useEffect(() => {
@@ -197,6 +203,7 @@ export default function LoginScreen() {
     if (modeBaru === 'register') {
       setPeran('praktikan');
     }
+    setKonfirmasiPassword('');
     setErrors({});
     setPesanError(null);
     setSubmitted(false);
@@ -211,12 +218,13 @@ export default function LoginScreen() {
 
   const formTerisi =
     authMode === 'login'
-      ? email.trim().length > 0 && password.trim().length > 0
+      ? email.trim().length > 0 && password.length > 0
       : nama.trim().length > 0 &&
         nim.trim().length > 0 &&
         (peran === 'asisten' || kelas.trim().length > 0) &&
         email.trim().length > 0 &&
-        password.trim().length > 0;
+        password.length > 0 &&
+        konfirmasiPassword.length > 0;
 
   const tanganiKegagalanAuth = (alasan: string) => {
     setPesanError(pesanUntukAlasan(alasan));
@@ -238,6 +246,7 @@ export default function LoginScreen() {
       kelas,
       email,
       password,
+      konfirmasi: konfirmasiPassword,
     });
 
     if (Object.keys(hasilValidasi).length > 0) {
@@ -247,8 +256,8 @@ export default function LoginScreen() {
       const urutanField: AuthField[] =
         authMode === 'register'
           ? peranForm === 'praktikan'
-            ? ['nama', 'nim', 'kelas', 'email', 'password']
-            : ['nama', 'nim', 'email', 'password']
+            ? ['nama', 'nim', 'kelas', 'email', 'password', 'konfirmasi']
+            : ['nama', 'nim', 'email', 'password', 'konfirmasi']
           : ['email', 'password'];
       const fieldPertamaTidakValid = urutanField.find(
         (field) => hasilValidasi[field],
@@ -259,6 +268,7 @@ export default function LoginScreen() {
         kelas: refKelas,
         email: refEmail,
         password: refPassword,
+        konfirmasi: refKonfirmasi,
       };
 
       if (fieldPertamaTidakValid) {
@@ -273,11 +283,7 @@ export default function LoginScreen() {
 
     try {
       if (authMode === 'login') {
-        const res = await loginWithEmail(
-          email.trim().toLowerCase(),
-          password,
-          peran,
-        );
+        const res = await loginWithEmail(email.trim().toLowerCase(), password);
 
         if (!res.ok) {
           tanganiKegagalanAuth(res.alasan);
@@ -418,7 +424,7 @@ export default function LoginScreen() {
             {/* Role Switch / Info Registrasi */}
             {authMode === 'login' ? (
               <>
-                <Text style={styles.fieldLabel}>Masuk sebagai</Text>
+                <Text style={styles.fieldLabel}>Saya masuk sebagai</Text>
                 <View style={styles.roleSwitch}>
                   <Pressable
                     accessibilityRole="radio"
@@ -486,13 +492,16 @@ export default function LoginScreen() {
                     </Text>
                   </Pressable>
                 </View>
+                <Text style={styles.roleHint}>
+                  Peran akun terdeteksi otomatis.
+                </Text>
               </>
             ) : (
               <View style={styles.registerInfo}>
                 <UserRound size={16} color={colors.textSecondary} />
                 <Text style={styles.registerInfoText}>
-                  Pendaftaran mandiri hanya untuk Praktikan. Akun Asisten dibuat
-                  oleh admin melalui Firebase Console.
+                  Pendaftaran mandiri hanya untuk Praktikan. Akun Asisten
+                  didaftarkan oleh admin praktikum.
                 </Text>
               </View>
             )}
@@ -652,12 +661,65 @@ export default function LoginScreen() {
                   )}
                 </Pressable>
               </View>
-              {errorField('password') && (
-                <Text style={styles.fieldError}>
-                  {errorField('password')}
+              {authMode === 'register' ? (
+                <Text
+                  style={[
+                    styles.passwordHint,
+                    (touched.password || submitted) &&
+                      password.length < 6 &&
+                      styles.passwordHintError,
+                  ]}
+                >
+                  Minimal 6 karakter.
                 </Text>
+              ) : (
+                errorField('password') && (
+                  <Text style={styles.fieldError}>
+                    {errorField('password')}
+                  </Text>
+                )
               )}
             </View>
+
+            {authMode === 'register' && (
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Konfirmasi kata sandi</Text>
+                <View
+                  style={[
+                    styles.passwordWrap,
+                    errorField('konfirmasi') && styles.inputError,
+                  ]}
+                >
+                  <TextInput
+                    ref={refKonfirmasi}
+                    value={konfirmasiPassword}
+                    onChangeText={ubahField(
+                      'konfirmasi',
+                      setKonfirmasiPassword,
+                    )}
+                    onBlur={() => tandaiTouched('konfirmasi')}
+                    placeholder="Ulangi kata sandi"
+                    placeholderTextColor={colors.textMuted}
+                    secureTextEntry={!lihatPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="new-password"
+                    textContentType="newPassword"
+                    returnKeyType="done"
+                    onSubmitEditing={handleSubmit}
+                    editable={!sedangMemproses}
+                    accessibilityLabel="Konfirmasi kata sandi"
+                    accessibilityHint="Ulangi kata sandi yang sama."
+                    style={styles.passwordInput}
+                  />
+                </View>
+                {errorField('konfirmasi') && (
+                  <Text style={styles.fieldError}>
+                    {errorField('konfirmasi')}
+                  </Text>
+                )}
+              </View>
+            )}
 
             {pesanError && (
               <View style={styles.errorBanner}>
@@ -821,6 +883,13 @@ const styles = StyleSheet.create({
     padding: 5,
     borderRadius: 15,
     backgroundColor: colors.surfaceMuted,
+    marginBottom: spacing.s2,
+  },
+  roleHint: {
+    ...type.micro,
+    fontFamily: fontFamily.regular,
+    color: colors.textMuted,
+    marginLeft: 2,
     marginBottom: spacing.s4,
   },
   roleButton: {
@@ -918,6 +987,16 @@ const styles = StyleSheet.create({
     color: colors.errorFg,
     marginTop: 6,
     marginLeft: 2,
+  },
+  passwordHint: {
+    ...type.micro,
+    fontFamily: fontFamily.regular,
+    color: colors.textMuted,
+    marginTop: 6,
+    marginLeft: 2,
+  },
+  passwordHintError: {
+    color: colors.errorFg,
   },
   inputError: {
     borderColor: colors.dangerBorder,
