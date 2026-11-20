@@ -22,6 +22,7 @@ import { PetaMap } from '@/components/peta/PetaMap';
 import {
   bannerLokasiDari,
   bannerPrioritas,
+  handlerBanner,
 } from '@/components/peta/bannerLokasi';
 import { hitungRegion, lokasiPunyaKoordinat } from '@/components/peta/region';
 import { EmptyState, FilterChip } from '@/components/ui';
@@ -138,15 +139,7 @@ export default function PetaScreen() {
           <LocationBanner
             jenis={banner.jenis}
             pesan={banner.pesan}
-            onRetry={
-              banner.aksi === 'minta-izin'
-                ? mintaIzin
-                : banner.aksi === 'coba-lagi'
-                  ? banner.sumber === 'jaringan'
-                    ? retrySync
-                    : coba
-                  : undefined
-            }
+            onRetry={handlerBanner(banner, { mintaIzin, coba, retrySync })}
           />
         </View>
       ) : null}

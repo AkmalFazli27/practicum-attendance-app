@@ -90,3 +90,24 @@ export function bannerPrioritas(
   }
   return bannerLokasi;
 }
+
+export type HandlerBanner = {
+  mintaIzin: () => void;
+  coba: () => void;
+  retrySync: () => void;
+};
+
+/**
+ * Layar tidak perlu menebak handler dari nama jenis banner; `sumber` sudah
+ * menyatakan siapa pemilik aksinya.
+ */
+export function handlerBanner(
+  banner: BannerLokasi,
+  handler: HandlerBanner,
+): (() => void) | undefined {
+  if (banner.aksi === 'minta-izin') return handler.mintaIzin;
+  if (banner.aksi === 'coba-lagi') {
+    return banner.sumber === 'jaringan' ? handler.retrySync : handler.coba;
+  }
+  return undefined;
+}
