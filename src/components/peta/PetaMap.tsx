@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
 import { colors } from '@/theme/tokens';
+import { labPunyaKoordinat } from './region';
 import type { PetaMapProps } from './types';
 
 export function PetaMap({
@@ -14,14 +15,15 @@ export function PetaMap({
   const mapRef = useRef<MapView>(null);
   const [siap, setSiap] = useState(false);
   const sudahDiposisikan = useRef(false);
+  const labTampil = labs.filter(labPunyaKoordinat);
 
   useEffect(() => {
-    if (!siap || sudahDiposisikan.current || labs.length === 0) return;
+    if (!siap || sudahDiposisikan.current || labTampil.length === 0) return;
     sudahDiposisikan.current = true;
     mapRef.current?.animateToRegion(region, 450);
   }, [
     siap,
-    labs.length,
+    labTampil.length,
     region.latitude,
     region.longitude,
     region.latitudeDelta,
@@ -40,7 +42,7 @@ export function PetaMap({
       showsCompass
       accessibilityLabel="Peta laboratorium"
     >
-      {labs.map((lab) => (
+      {labTampil.map((lab) => (
         <Marker
           key={lab.id}
           coordinate={{ latitude: lab.lat, longitude: lab.lng }}

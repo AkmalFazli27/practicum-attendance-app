@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Redirect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LabInfoSheet } from '@/components/peta/LabInfoSheet';
 import { LocationBanner } from '@/components/peta/LocationBanner';
@@ -22,15 +23,35 @@ import { hitungRegion } from '@/components/peta/region';
 import { EmptyState, FilterChip } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import type { Lab } from '@/data/dummy';
-import { colors, layout, spacing, type } from '@/theme/tokens';
+import { colors, layout, radius, spacing, type } from '@/theme/tokens';
+
+const JEDA_TUNGGU_LABS_MS = 4000;
 
 export default function PetaScreen() {
   const { currentUser, loading, labs, error, retrySync } = useSession();
+  const insets = useSafeAreaInsets();
   const [labDipilih, setLabDipilih] = useState<Lab | null>(null);
   const [sheetTerbuka, setSheetTerbuka] = useState(false);
+  const [menungguLabs, setMenungguLabs] = useState(true);
   const timerTutup = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const region = useMemo(() => hitungRegion(labs), [labs]);
+
+  // `loading` hanya mencakup auth + koleksi sesi. Koleksi labs punya listener
+  // sendiri, jadi beri jeda singkat sebelum menyimpulkan bahwa datanya kosong.
+  useEffect(() => {
+    if (loading) {
+      setMenungguLabs(true);
+      return;
+    }
+    if (labs.length > 0 || error) {
+      setMenungguLabs(false);
+      return;
+    }
+    setMenungguLabs(true);
+    const id = setTimeout(() => setMenungguLabs(false), JEDA_TUNGGU_LABS_MS);
+    return () => clearTimeout(id);
+  }, [loading, labs.length, error]);
 
   useEffect(
     () => () => {
@@ -49,6 +70,10 @@ export default function PetaScreen() {
   }, []);
 
   const tutupSheet = useCallback(() => {
+    if (timerTutup.current !== null) {
+      clearTimeout(timerTutup.current);
+      timerTutup.current = null;
+    }
     setSheetTerbuka(false);
     timerTutup.current = setTimeout(() => {
       setLabDipilih(null);
@@ -113,13 +138,31 @@ export default function PetaScreen() {
         />
 
         {labs.length === 0 ? (
-          <View style={styles.emptyOverlay}>
-            <EmptyState
-              judul="Belum ada data laboratorium"
-              pesan="Data lab belum tersedia. Periksa koneksi internet lalu coba lagi."
-              aksi={{ label: 'Coba lagi', onPress: retrySync }}
-              style={styles.emptyCard}
-            />
+          <View
+            style={[
+              styles.emptyOverlay,
+              { bottom: Math.max(insets.bottom, spacing.s5) },
+            ]}
+          >
+            {menungguLabs ? (
+              <View style={styles.menungguCard}>
+                <ActivityIndicator size="small" color={colors.graphite} />
+                <Text style={styles.centerText}>
+                  Memuat data laboratorium…
+                </Text>
+              </View>
+            ) : (
+              <EmptyState
+                judul="Belum ada data laboratorium"
+                pesan={
+                  error
+                    ? 'Data lab belum bisa dimuat. Periksa koneksi internet lalu coba lagi.'
+                    : 'Data lab belum tersedia. Hubungi asisten praktikum atau coba lagi nanti.'
+                }
+                aksi={{ label: 'Coba lagi', onPress: retrySync }}
+                style={styles.emptyCard}
+              />
+            )}
           </View>
         ) : null}
       </View>
@@ -173,7 +216,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: layout.screenPadding,
     right: layout.screenPadding,
-    bottom: spacing.s5,
+  },
+  menungguCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.s2,
+    padding: spacing.s4,
+    borderRadius: radius.cardLg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   emptyCard: {
     paddingVertical: spacing.s4,

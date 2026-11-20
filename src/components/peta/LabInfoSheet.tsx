@@ -78,7 +78,9 @@ export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
             <View style={styles.lokasiCopy}>
               <Text style={styles.lokasiAlamat}>{lab.alamat}</Text>
               <Text style={styles.lokasiRadius}>
-                Radius presensi {lab.radius} meter
+                {Number.isFinite(lab.radius)
+                  ? `Radius presensi ${lab.radius} meter`
+                  : 'Radius presensi belum diatur'}
               </Text>
             </View>
           </View>

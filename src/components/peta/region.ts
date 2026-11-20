@@ -1,4 +1,5 @@
 import type { Lab } from '@/data/dummy';
+import { koordinatValid } from '@/utils/geo';
 
 export type RegionPeta = {
   latitude: number;
@@ -19,14 +20,21 @@ const DELTA_MINIMUM = 0.004;
 const PADDING = 1.6;
 
 /**
+ * Data lab dari Firestore bisa memiliki koordinat kosong. Titik 0,0 juga
+ * ditolak karena bukan lokasi lab yang sah dan biasanya berasal dari field
+ * null yang dikonversi menjadi angka 0.
+ */
+export function labPunyaKoordinat(lab: Lab): boolean {
+  return koordinatValid(lab) && !(lab.lat === 0 && lab.lng === 0);
+}
+
+/**
  * Menghitung region peta dari seluruh lab.
  * Delta minimum menjaga Lab B/C/D yang bertitik sama tidak membuat peta
  * memperbesar satu titik secara berlebihan.
  */
 export function hitungRegion(labs: Lab[]): RegionPeta {
-  const valid = labs.filter(
-    (lab) => Number.isFinite(lab.lat) && Number.isFinite(lab.lng),
-  );
+  const valid = labs.filter(labPunyaKoordinat);
   if (valid.length === 0) return { ...REGION_KAMPUS_FSM };
 
   let minLat = valid[0].lat;
