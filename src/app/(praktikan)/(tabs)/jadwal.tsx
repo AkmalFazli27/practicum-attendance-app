@@ -27,7 +27,7 @@ const EMPTY_COPY: Record<Filter, { judul: string; pesan: string }> = {
 
 export default function JadwalScreen() {
   const router = useRouter();
-  const { currentUser } = useSession();
+  const { currentUser, getStatusEfektif } = useSession();
   const { themeColors } = usePreferences();
   const { daftarKelas, hadirMap, izinMap, loading, error, retrySync } = useJadwalPraktikan();
 
@@ -36,12 +36,12 @@ export default function JadwalScreen() {
   const data = useMemo(
     () =>
       daftarKelas.filter((s) => {
-        if (filter === 'DIBUKA') return s.status === 'DIBUKA';
+        if (filter === 'DIBUKA') return getStatusEfektif(s) === 'DIBUKA';
         if (filter === 'HADIR') return hadirMap.has(s.id);
         if (filter === 'IZIN') return izinMap.has(s.id);
         return true;
       }),
-    [daftarKelas, hadirMap, izinMap, filter],
+    [daftarKelas, hadirMap, izinMap, filter, getStatusEfektif],
   );
 
   if (!currentUser) return null;

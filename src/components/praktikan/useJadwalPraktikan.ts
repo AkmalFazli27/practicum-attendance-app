@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { useSession } from '@/context/SessionContext';
 import type { Sesi, StatusIzin } from '@/data/dummy';
@@ -28,10 +29,16 @@ export function useJadwalPraktikan() {
 
   const [tick, setTick] = useState(0);
 
-  // Periksa ulang waktu secara berkala agar status efektif sesi (PB-06) berubah tanpa reload
+  // Periksa ulang waktu secara berkala & saat kembali ke aplikasi agar status efektif sesi (PB-06) berubah tanpa reload
   useEffect(() => {
     const id = setInterval(() => setTick((n) => n + 1), TICK_WAKTU_MS);
-    return () => clearInterval(id);
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') setTick((n) => n + 1);
+    });
+    return () => {
+      clearInterval(id);
+      sub.remove();
+    };
   }, []);
 
   const data = useMemo(() => {
@@ -60,7 +67,9 @@ export function useJadwalPraktikan() {
         .map((i) => [i.sesiId, i.status]),
     );
 
-    const sesiAktif = daftarKelas.filter((s) => s.status === 'DIBUKA');
+    const sesiAktif = daftarKelas.filter(
+      (s) => getStatusEfektif(s) === 'DIBUKA',
+    );
 
     const total = daftarKelas.length;
     const hadir = daftarKelas.filter((s) => hadirMap.has(s.id)).length;
