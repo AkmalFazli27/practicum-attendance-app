@@ -83,7 +83,13 @@ export function SesiFormSheet({
         kapasitas,
         deskripsi,
       },
-      initialSesi?.tanggal,
+      initialSesi
+        ? {
+            tanggal: initialSesi.tanggal,
+            jamMulai: initialSesi.jamMulai,
+            jamSelesai: initialSesi.jamSelesai,
+          }
+        : undefined,
     );
     if (!hasil.ok) {
       setGalat(hasil.pesan);
