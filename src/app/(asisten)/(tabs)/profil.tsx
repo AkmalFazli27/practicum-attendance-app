@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { CheckCircle2, LogOut, ShieldCheck } from 'lucide-react-native';
 
-import { Tombol, useToast } from '@/components/ui';
+import { StatusIzinPerangkat, Tombol, useToast } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import {
   colors,
@@ -85,6 +85,8 @@ export default function ProfilAsistenScreen() {
             <Text style={styles.rowValue}>{jumlahSesiDikelola} sesi</Text>
           </View>
         </View>
+
+        <StatusIzinPerangkat style={styles.statusPerangkat} />
 
         <Tombol
           variant="danger"
@@ -198,6 +200,9 @@ const styles = StyleSheet.create({
     ...type.caption,
     fontFamily: fontFamily.bold,
     color: colors.sesiDibukaFg,
+  },
+    statusPerangkat: {
+    marginBottom: spacing.s4,
   },
   version: {
     ...type.micro,
