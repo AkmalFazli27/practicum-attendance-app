@@ -9,7 +9,6 @@ import {
   Clock3,
   Edit3,
   MapPin,
-  RotateCcw,
   Trash2,
   Users,
 } from 'lucide-react-native';
@@ -21,6 +20,7 @@ import {
   LoadingBlock,
 } from '@/components/asisten/SyncState';
 import { useAksiSesi } from '@/components/asisten/useAksiSesi';
+import { useStatusSesi } from '@/components/asisten/useStatusSesi';
 import {
   ConfirmSheet,
   EmptyState,
@@ -53,6 +53,7 @@ export default function DetailSesiAsisten() {
   } = useSession();
   const { showToast } = useToast();
   const { mulai, sheet } = useAksiSesi(() => router.back());
+  const { statusEfektif, aksiUtama } = useStatusSesi();
 
   const [editVisible, setEditVisible] = useState(false);
   const [hapusVisible, setHapusVisible] = useState(false);
@@ -90,6 +91,7 @@ export default function DetailSesiAsisten() {
   }
 
   const kapasitas = s.kapasitas ?? 32;
+  const aksi = aksiUtama(s);
   const daftarHadir = getKehadiranSesi(s.id)
     .slice()
     .sort((a, b) => a.waktuHadir.localeCompare(b.waktuHadir));
@@ -179,7 +181,7 @@ export default function DetailSesiAsisten() {
       >
         {/* Status & Deskripsi */}
         <View style={styles.statusRow}>
-          <StatusBadge status={s.status} />
+          <StatusBadge status={statusEfektif(s)} />
           {s.topik && <Text style={styles.topikText}>{s.topik}</Text>}
         </View>
 
@@ -228,16 +230,20 @@ export default function DetailSesiAsisten() {
 
         {/* Tombol Aksi Utama Sesi */}
         <View style={styles.mainActionWrap}>
-          {s.status === 'TERJADWAL' && (
-            <Tombol
-              variant="primer"
-              icon={<ArrowRight size={19} color={colors.onPrimary} />}
-              onPress={() => mulai(s.id, 'buka')}
-            >
-              Buka sesi
-            </Tombol>
+          {aksi.jenis === 'buka' && (
+            <>
+              <Tombol
+                variant="primer"
+                icon={<ArrowRight size={19} color={colors.onPrimary} />}
+                disabled={!aksi.aktif}
+                onPress={() => mulai(s.id, 'buka')}
+              >
+                Buka sesi
+              </Tombol>
+              {!aksi.aktif && <Text style={styles.actionHint}>{aksi.keterangan}</Text>}
+            </>
           )}
-          {s.status === 'DIBUKA' && (
+          {aksi.jenis === 'tutup' && (
             <Tombol
               variant="danger"
               icon={<ArrowRight size={19} color={colors.errorFg} />}
@@ -246,14 +252,10 @@ export default function DetailSesiAsisten() {
               Tutup sesi
             </Tombol>
           )}
-          {s.status === 'SELESAI' && (
-            <Tombol
-              variant="primer"
-              icon={<RotateCcw size={19} color={colors.onPrimary} />}
-              onPress={() => mulai(s.id, 'bukaLagi')}
-            >
-              Buka sesi lagi
-            </Tombol>
+          {aksi.jenis === 'selesai' && (
+            <Text style={styles.actionHint}>
+              Sesi sudah selesai dan tidak dapat dibuka lagi.
+            </Text>
           )}
         </View>
 
@@ -467,6 +469,12 @@ const styles = StyleSheet.create({
   },
   mainActionWrap: {
     marginTop: spacing.s4,
+    gap: spacing.s2,
+  },
+  actionHint: {
+    ...type.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
   panel: {
     marginTop: spacing.s4,

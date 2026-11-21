@@ -1,12 +1,13 @@
 import React, { useRef, useState } from 'react';
-import { DoorOpen, LockKeyhole, RotateCcw } from 'lucide-react-native';
+import { DoorOpen, LockKeyhole } from 'lucide-react-native';
 
 import { ConfirmSheet, useToast } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
+import type { AlasanTolak } from '@/data/dummy';
 import { colors } from '@/theme/tokens';
 import { formatHariTanggalSingkat, titikJam } from '@/utils/format';
 
-export type AksiSesi = 'buka' | 'tutup' | 'bukaLagi';
+export type AksiSesi = 'buka' | 'tutup';
 
 type Target = { sesiId: string; aksi: AksiSesi };
 
@@ -26,16 +27,18 @@ const COPY: Record<
     ya: 'Ya, tutup sesi',
     toast: 'Sesi berhasil ditutup.',
   },
-  bukaLagi: {
-    judul: 'Buka kembali sesi?',
-    isi: 'Sesi akan kembali dibuka dan praktikan dapat melakukan presensi.',
-    ya: 'Ya, buka lagi',
-    toast: 'Sesi berhasil dibuka kembali.',
-  },
+};
+
+const PESAN_TOLAK: Partial<Record<AlasanTolak, string>> = {
+  BELUM_WAKTUNYA: 'Sesi belum bisa dibuka. Tunggu sampai jam mulai.',
+  WAKTU_HABIS: 'Waktu sesi sudah berakhir, sesi tidak dapat dibuka.',
+  SESI_SUDAH_DITUTUP: 'Sesi yang sudah ditutup tidak dapat dibuka lagi.',
+  SESI_TIDAK_DIBUKA: 'Sesi tidak ditemukan.',
+  JARINGAN: 'Gagal mengubah status sesi. Periksa koneksi lalu coba lagi.',
 };
 
 export function useAksiSesi(onTidakDitemukan?: () => void) {
-  const { openSession, closeSession, reopenSession, getSesiById } = useSession();
+  const { openSession, closeSession, getSesiById } = useSession();
   const { showToast } = useToast();
   const [target, setTarget] = useState<Target | null>(null);
   const [loading, setLoading] = useState(false);
@@ -67,18 +70,33 @@ export function useAksiSesi(onTidakDitemukan?: () => void) {
     }
 
     setLoading(true);
-    let berhasil = false;
-    if (aksi === 'buka') berhasil = await openSession(sesiId);
-    else if (aksi === 'tutup') berhasil = await closeSession(sesiId);
-    else berhasil = await reopenSession(sesiId);
-
-    setLoading(false);
-    setTarget(null);
-    if (!berhasil) {
-      showToast('Gagal mengubah status sesi praktikum. Silakan coba lagi.');
+    if (aksi === 'buka') {
+      const hasil = await openSession(sesiId);
+      setLoading(false);
+      setTarget(null);
+      if (!hasil.ok) {
+        showToast(
+          PESAN_TOLAK[hasil.alasan] ??
+            'Gagal mengubah status sesi praktikum. Silakan coba lagi.',
+        );
+        return;
+      }
+      showToast(
+        hasil.notifGagal
+          ? 'Sesi dibuka, tetapi notifikasi ke praktikan gagal terkirim.'
+          : COPY.buka.toast,
+      );
       return;
     }
-    showToast(COPY[aksi].toast);
+
+    const berhasil = await closeSession(sesiId);
+    setLoading(false);
+    setTarget(null);
+    showToast(
+      berhasil
+        ? COPY.tutup.toast
+        : 'Gagal mengubah status sesi praktikum. Silakan coba lagi.',
+    );
   }
 
   const isTutup = tampil?.aksi === 'tutup';
@@ -94,8 +112,6 @@ export function useAksiSesi(onTidakDitemukan?: () => void) {
       icon={
         isTutup ? (
           <LockKeyhole size={27} color={colors.errorFg} />
-        ) : tampil?.aksi === 'bukaLagi' ? (
-          <RotateCcw size={27} color={colors.graphite} />
         ) : (
           <DoorOpen size={28} color={colors.graphite} />
         )

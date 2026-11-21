@@ -15,11 +15,13 @@ import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/token
 import { titikJam } from '@/utils/format';
 import { SesiFormSheet } from './SesiFormSheet';
 import { SinkronGuard } from './SyncState';
+import { useStatusSesi } from './useStatusSesi';
 
 export function BerandaAsisten() {
   const router = useRouter();
   const { currentUser, sesi, getKehadiranSesi, getIzinSesi } = useSession();
   const [tambahVisible, setTambahVisible] = useState(false);
+  const { statusEfektif } = useStatusSesi();
 
   const sesiSaya = useMemo(
     () =>
@@ -33,8 +35,8 @@ export function BerandaAsisten() {
 
   if (!currentUser) return null;
 
-  const sesiAktif = sesiSaya.find((s) => s.status === 'DIBUKA');
-  const jumlahAktif = sesiSaya.filter((s) => s.status === 'DIBUKA').length;
+  const sesiAktif = sesiSaya.find((s) => statusEfektif(s) === 'DIBUKA');
+  const jumlahAktif = sesiSaya.filter((s) => statusEfektif(s) === 'DIBUKA').length;
   const totalHadir = sesiSaya.reduce(
     (sum, item) => sum + getKehadiranSesi(item.id).length,
     0,
@@ -166,7 +168,7 @@ export function BerandaAsisten() {
               return (
                 <SessionCard
                   key={item.id}
-                  session={item}
+                  session={{ ...item, status: statusEfektif(item) }}
                   assistant
                   attendance={hadirCount}
                   attendanceTotal={item.kapasitas ?? 32}
