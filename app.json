@@ -46,7 +46,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "TapIn memerlukan akses kamera untuk memindai kode QR presensi praktikum."
+          "cameraPermission": "TapIn memerlukan akses kamera untuk memindai kode QR presensi praktikum.",
+          "recordAudioAndroid" : false
         }
       ],
       "expo-notifications"
