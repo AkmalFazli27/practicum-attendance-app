@@ -86,7 +86,7 @@ export function validasiFormSesi(
     return { ok: false, pesan: 'Nama praktikum maksimal 80 karakter.' };
   }
   if (!kelas) return { ok: false, pesan: 'Kelas wajib diisi.' };
-  if (!lab) return { ok: false, pesan: 'Laboratorium wajib diisi.' };
+  if (!lab) return { ok: false, pesan: 'Laboratorium wajib dipilih.' };
   if (!tanggal) return { ok: false, pesan: 'Tanggal wajib diisi.' };
   if (!tanggalValid(tanggal)) {
     return {
