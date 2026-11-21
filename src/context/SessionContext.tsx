@@ -180,6 +180,14 @@ function terjemahkanErrorFirestore(err: any, pesanDefault: string): string {
   }
 }
 
+async function aman(kirim: () => Promise<boolean>): Promise<boolean> {
+  try {
+    return await kirim();
+  } catch {
+    return false;
+  }
+}
+
 function mapSesi(id: string, d: Record<string, any>): Sesi {
   return {
     id,
@@ -720,11 +728,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (
           err?.code === 'auth/invalid-credential' ||
           err?.code === 'auth/invalid-login-credentials' ||
-          err?.code === 'auth/wrong-password'
+          err?.code === 'auth/wrong-password' ||
+          err?.code === 'auth/user-not-found'
         ) {
           pesan = 'Email atau kata sandi salah.';
-        } else if (err?.code === 'auth/user-not-found') {
-          pesan = 'Akun dengan email ini tidak ditemukan.';
         } else if (
           err?.code === 'auth/invalid-email' ||
           err?.code === 'auth/missing-email'
@@ -946,7 +953,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           prev.map((s) => (s.id === sesiId ? { ...s, status: 'DIBUKA' } : s)),
         );
       }
-      const notifOk = await notifySesiDibuka({ ...target, status: 'DIBUKA' });
+      const notifOk = target.status === 'DIBUKA'? true : await aman(() => notifySesiDibuka({ ...target, status: 'DIBUKA' }));
       return { ok: true, notifGagal: !notifOk };
     } catch (err: any) {
       setError(terjemahkanErrorFirestore(err, 'Gagal membuka sesi praktikum.'));
@@ -1003,7 +1010,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       namaPraktikum: input.namaPraktikum.trim(),
       topik: (input.topik || '').trim(),
       kelas: input.kelas.trim().toUpperCase(),
-      lab: labDipilih?.nama ?? input.lab.trim(),
+      lab: labDipilih?.nama ?? (input.lab ?? '').trim(),
       labId: input.labId || '',
       tanggal: input.tanggal.trim(),
       jamMulai: input.jamMulai.trim(),
@@ -1069,15 +1076,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
 
     const kunciJadwal = ['tanggal', 'jamMulai', 'jamSelesai'] as const;
-    if (target && kunciJadwal.some((k) => k in patch)) {
+    const jadwalBerubah =
+      !!target && kunciJadwal.some((k) => k in patch && patch[k] !== target[k]);
+    if (target && jadwalBerubah) {
       const cek = validasiJadwal({ ...target, ...patch }, sekarang());
       if (!cek.ok) {
         setError(cek.alasan);
         return { ok: false };
       }
     }
-    const jadwalBerubah =
-      !!target && kunciJadwal.some((k) => k in patch && patch[k] !== target[k]);
 
     try {
       if (isFirebaseConfigured) {
@@ -1096,7 +1103,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     const notifOk =
       jadwalBerubah && target
-        ? await notifyJadwalBerubah({ ...target, ...patch })
+        ? await aman(() => notifyJadwalBerubah({ ...target, ...patch }))
         : true;
     return { ok: true, notifGagal: !notifOk };
   };
@@ -1361,7 +1368,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
 
     const notifOk = izinTarget
-      ? await notifyKeputusanIzin({ ...izinTarget, ...patch }, status)
+      ? await aman(() => notifyKeputusanIzin({ ...izinTarget, ...patch }, status))
       : true;
     return { ok: true, notifGagal: !notifOk };
   };
