@@ -1,45 +1,42 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
+  type ImageSourcePropType,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   ArrowRight,
-  CalendarDays,
-  Clock3,
-  Info,
-  LockKeyhole,
-  MapPin,
-  Users,
+  ChevronLeft,
+  ChevronsRight,
 } from 'lucide-react-native';
 
-import {
-  Brand,
-  EmptyState,
-  SectionHeading,
-  SessionCard,
-  SheetModal,
-  StatusBadge,
-  Tombol,
-} from '@/components/ui';
+import { Brand, Tombol } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
-import { type Peran, type Sesi } from '@/data/dummy';
+import { type Peran } from '@/data/dummy';
 import {
   colors,
   fontFamily,
   layout,
   radius,
+  shadows,
   spacing,
   type,
 } from '@/theme/tokens';
-import { formatHariTanggalSingkat, titikJam } from '@/utils/format';
 
 function berandaUntuk(peran: Peran): '/beranda-asisten' | '/beranda-praktikan' {
   return peran === 'asisten' ? '/beranda-asisten' : '/beranda-praktikan';
@@ -56,17 +53,58 @@ function SplashLayar() {
   );
 }
 
-export default function LandingScreen() {
+interface OnboardingSlide {
+  id: string;
+  image: ImageSourcePropType;
+  titleId: string;
+  titleEn: string;
+  descId: string;
+  descEn: string;
+}
+
+const SLIDES: OnboardingSlide[] = [
+  {
+    id: 'checkin',
+    image: require('../../assets/onboarding/slide-checkin.jpg'),
+    titleId: "Tap Once. You're In.",
+    titleEn: "Tap Once. You're In.",
+    descId:
+      'Presensi praktikum dalam hitungan detik melalui verifikasi radius GPS laboratorium dan pemindai kode QR.',
+    descEn:
+      'Check in to your practicum in seconds with lab GPS radius verification and instant QR code scanning.',
+  },
+  {
+    id: 'map',
+    image: require('../../assets/onboarding/slide-map.jpg'),
+    titleId: 'Jadwal & Peta Lab',
+    titleEn: 'Schedule & Lab Maps',
+    descId:
+      'Pantau sesi praktikum yang sedang dibuka dan temukan lokasi laboratorium lewat peta kampus interaktif.',
+    descEn:
+      'Track open practicum sessions in real time and locate laboratory rooms on the interactive campus map.',
+  },
+  {
+    id: 'ai',
+    image: require('../../assets/onboarding/slide-ai.jpg'),
+    titleId: 'Izin AI & Notifikasi',
+    titleEn: 'AI Leave & Alerts',
+    descId:
+      'Ajukan izin kehadiran berbantuan klasifikasi AI otomatis dan terima notifikasi instan di setiap pembaruan sesi.',
+    descEn:
+      'Submit leave requests with automatic AI classification and receive instant push alerts for every update.',
+  },
+];
+
+export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser, loading, error, retrySync, sesi } = useSession();
+  const { width, height } = useWindowDimensions();
+  const { currentUser, loading } = useSession();
+  const { themeColors, isDark, language } = usePreferences();
 
-  const [sesiIdDipilih, setSesiIdDipilih] = useState<string | null>(null);
-  const [sheetVisible, setSheetVisible] = useState(false);
-  const sesiTampil = sesiIdDipilih
-    ? (sesi.find((item) => item.id === sesiIdDipilih) ?? null)
-    : null;
-
+  const isEn = language === 'en';
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const redirectAwalSelesai = useRef(false);
 
   useEffect(() => {
@@ -77,34 +115,11 @@ export default function LandingScreen() {
     }
   }, [loading, currentUser, router]);
 
-  const punyaAksesDetail = (item: Sesi) => {
-    if (!currentUser) return false;
-    if (currentUser.peran === 'asisten') return item.asistenId === currentUser.id;
-    return !currentUser.kelas || item.kelas === currentUser.kelas;
-  };
-
-  const aksesDetail = sesiTampil ? punyaAksesDetail(sesiTampil) : false;
-
-  const jadwalTerdekat = useMemo(() => {
-    const urut = (a: Sesi, b: Sesi) =>
-      `${a.tanggal} ${a.jamMulai}`.localeCompare(`${b.tanggal} ${b.jamMulai}`);
-
-    const belumSelesai = sesi
-      .filter((item) => item.status !== 'SELESAI')
-      .sort(urut);
-
-    if (belumSelesai.length > 0) {
-      return belumSelesai.slice(0, 3);
-    }
-
-    return [...sesi].sort(urut).slice(0, 3);
-  }, [sesi]);
-
   if (loading) {
     return <SplashLayar />;
   }
 
-  const handleMasuk = () => {
+  const handleGetStarted = () => {
     if (currentUser) {
       router.replace(berandaUntuk(currentUser.peran));
       return;
@@ -112,423 +127,358 @@ export default function LandingScreen() {
     router.push('/login');
   };
 
-  const bukaDetail = (id: string) => {
-    setSesiIdDipilih(id);
-    setSheetVisible(true);
+  const goToSlide = (nextIdx: number) => {
+    const clamped = Math.max(0, Math.min(SLIDES.length - 1, nextIdx));
+    setActiveIndex(clamped);
+    scrollRef.current?.scrollTo({ x: clamped * width, animated: true });
   };
 
-  const tutupDetail = () => setSheetVisible(false);
-
-  const handleLanjutDetail = () => {
-    if (!sesiTampil) return;
-
-    setSheetVisible(false);
-
-    if (!currentUser) {
-      router.push('/login');
-      return;
+  const handleNext = () => {
+    if (activeIndex < SLIDES.length - 1) {
+      goToSlide(activeIndex + 1);
+    } else {
+      handleGetStarted();
     }
-
-    if (!punyaAksesDetail(sesiTampil)) return;
-
-    router.push({
-      pathname:
-        currentUser.peran === 'asisten'
-          ? '/(asisten)/sesi/[id]'
-          : '/(praktikan)/sesi/[id]',
-      params: { id: sesiTampil.id },
-    } as any);
   };
+
+  const handleBack = () => {
+    if (activeIndex > 0) {
+      goToSlide(activeIndex - 1);
+    }
+  };
+
+  const handleMomentumScrollEnd = (
+    e: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    if (!width) return;
+    const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+    if (idx >= 0 && idx < SLIDES.length && idx !== activeIndex) {
+      setActiveIndex(idx);
+    }
+  };
+
+  const isLastSlide = activeIndex === SLIDES.length - 1;
+  const artSize = Math.min(width - 48, height * 0.42, 330);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar style="light" />
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: themeColors.background }]}
+      edges={['top']}
+    >
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+
+      {/* Top Navigation Bar */}
+      <View style={styles.topBar}>
+        {activeIndex > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isEn ? 'Previous slide' : 'Slide sebelumnya'}
+            onPress={handleBack}
+            hitSlop={12}
+            style={({ pressed }) => [
+              styles.backBtn,
+              pressed && styles.pressed,
+            ]}
+          >
+            <ChevronLeft size={26} color={themeColors.textPrimary} />
+          </Pressable>
+        ) : (
+          <Brand compact onDark={isDark} />
+        )}
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            isLastSlide ? "Let's Get Started" : isEn ? 'Skip' : 'Lewati'
+          }
+          onPress={handleGetStarted}
+          hitSlop={12}
+          style={({ pressed }) => [styles.skipBtn, pressed && styles.pressed]}
+        >
+          <Text
+            style={[
+              styles.skipText,
+              {
+                color: isLastSlide
+                  ? themeColors.textPrimary
+                  : themeColors.textMuted,
+                fontFamily: isLastSlide
+                  ? fontFamily.bold
+                  : fontFamily.semibold,
+              },
+            ]}
+          >
+            {isLastSlide
+              ? isEn
+                ? 'Get Started'
+                : 'Mulai'
+              : isEn
+                ? 'Skip'
+                : 'Lewati'}
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Swipeable Onboarding Slides (Vector Art + Copywriting) */}
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        scrollEventThrottle={16}
+        style={styles.pager}
       >
-        <View style={styles.heroShell}>
-          <View style={styles.header}>
-            <Brand compact onDark />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={currentUser ? 'Buka beranda' : 'Masuk ke akun'}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={handleMasuk}
-              style={({ pressed }) => [
-                styles.loginPill,
-                pressed && styles.loginPillPressed,
+        {SLIDES.map((slide) => (
+          <View key={slide.id} style={[styles.slidePage, { width }]}>
+            <View
+              style={[
+                styles.artFrame,
+                {
+                  width: artSize,
+                  height: artSize,
+                  borderRadius: isDark ? 36 : 24,
+                  borderWidth: isDark ? 1 : 0,
+                  borderColor: themeColors.border,
+                },
               ]}
             >
-              <Text style={styles.loginPillText}>
-                {currentUser ? 'Beranda' : 'Masuk'}
+              <Image
+                source={slide.image}
+                style={styles.artImage}
+                resizeMode="cover"
+              />
+            </View>
+
+            {/* Pagination Indicator tepat di bawah ilustrasi */}
+            <View style={styles.dotsRow}>
+              {SLIDES.map((s, idx) => {
+                const active = idx === activeIndex;
+                return (
+                  <Pressable
+                    key={s.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Slide ${idx + 1}`}
+                    onPress={() => goToSlide(idx)}
+                    hitSlop={8}
+                    style={[
+                      styles.dot,
+                      active
+                        ? {
+                            width: 24,
+                            backgroundColor: isDark
+                              ? themeColors.primary
+                              : themeColors.graphite,
+                          }
+                        : {
+                            width: 6,
+                            backgroundColor: themeColors.borderDashed,
+                          },
+                    ]}
+                  />
+                );
+              })}
+            </View>
+
+            {/* Headline & Description */}
+            <View style={styles.copyWrap}>
+              <Text
+                style={[styles.titleText, { color: themeColors.textPrimary }]}
+              >
+                {isEn ? slide.titleEn : slide.titleId}
               </Text>
-              <ArrowRight size={15} color={colors.onGraphite} />
-            </Pressable>
+              <Text
+                style={[styles.descText, { color: themeColors.textSecondary }]}
+              >
+                {isEn ? slide.descEn : slide.descId}
+              </Text>
+            </View>
           </View>
-
-          <View style={styles.hero}>
-            <View style={styles.decorativeRing} />
-
-            <View style={styles.titleBlock}>
-              <Text style={styles.heroTitle}>Tap once.</Text>
-              <Text style={[styles.heroTitle, styles.heroTitleAccent]}>
-                You're in.
-              </Text>
-            </View>
-
-            <Text style={styles.heroSubtitle}>
-              Pantau jadwal, catat kehadiran real-time, dan kelola izin berbantuan AI dalam satu aplikasi.
-            </Text>
-
-            <Tombol
-              variant="primer"
-              onPress={handleMasuk}
-              rightIcon={<ArrowRight size={18} color={colors.onPrimary} />}
-              style={styles.heroCta}
-            >
-              {currentUser ? 'Lanjut ke Beranda' : 'Mulai sekarang'}
-            </Tombol>
-          </View>
-        </View>
-
-        <View
-          style={[
-            styles.publicSchedule,
-            { paddingBottom: Math.max(insets.bottom + spacing.s8, spacing.s8) },
-          ]}
-        >
-          <SectionHeading
-            kicker="JADWAL TERDEKAT"
-            title="Sesi praktikum"
-            right={
-              <View style={styles.readOnlyBadge}>
-                <LockKeyhole size={13} color={colors.textMuted} />
-                <Text style={styles.readOnlyText}>Read-only</Text>
-              </View>
-            }
-            style={styles.sectionHeading}
-          />
-
-          {jadwalTerdekat.length === 0 ? (
-            <EmptyState
-              judul={error ? 'Koneksi bermasalah' : 'Belum ada jadwal'}
-              pesan={error ?? 'Jadwal praktikum akan tampil di sini.'}
-              aksi={
-                error
-                  ? { label: 'Muat ulang', onPress: retrySync }
-                  : undefined
-              }
-            />
-          ) : (
-            <View style={styles.sessionList}>
-              {jadwalTerdekat.map((item) => (
-                <SessionCard
-                  key={item.id}
-                  session={item}
-                  onPress={() => bukaDetail(item.id)}
-                />
-              ))}
-            </View>
-          )}
-
-          {!currentUser && (
-            <View style={styles.guestNote}>
-              <Info size={17} color={colors.textMuted} />
-              <Text style={styles.guestNoteText}>
-                Masuk untuk melakukan presensi atau mengelola sesi.
-              </Text>
-            </View>
-          )}
-        </View>
+        ))}
       </ScrollView>
 
-      <SheetModal
-        visible={sheetVisible}
-        kicker="DETAIL SESI"
-        judul={sesiTampil?.namaPraktikum ?? ''}
-        onClose={tutupDetail}
-        footer={
-          sesiTampil && (!currentUser || aksesDetail) ? (
-            <Tombol
-              variant="primer"
-              onPress={handleLanjutDetail}
-              rightIcon={<ArrowRight size={18} color={colors.onPrimary} />}
-            >
-              {currentUser ? 'Buka detail sesi' : 'Masuk untuk melanjutkan'}
-            </Tombol>
-          ) : undefined
-        }
+      {/* Bottom Action Footer */}
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingBottom: Math.max(insets.bottom + spacing.s5, spacing.s6),
+          },
+        ]}
       >
-        {sesiTampil && (
-          <>
-            <View style={styles.sheetStatusRow}>
-              <StatusBadge status={sesiTampil.status} />
-              {sesiTampil.topik && (
-                <Text style={styles.sheetTopik} numberOfLines={2}>
-                  {sesiTampil.topik}
-                </Text>
-              )}
-            </View>
+        {isLastSlide ? (
+          <Tombol
+            variant="primer"
+            onPress={handleGetStarted}
+            rightIcon={<ArrowRight size={19} color={themeColors.onPrimary} />}
+            style={styles.getStartedBtn}
+          >
+            {"Let's Get Started"}
+          </Tombol>
+        ) : (
+          <View style={styles.navRow}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleGetStarted}
+              hitSlop={10}
+              style={({ pressed }) => [
+                styles.skipFooterBtn,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.skipFooterText,
+                  { color: themeColors.textMuted },
+                ]}
+              >
+                {isEn ? 'Skip' : 'Lewati'}
+              </Text>
+            </Pressable>
 
-            <Text style={styles.sheetDeskripsi}>{sesiTampil.deskripsi}</Text>
-
-            <View style={styles.detailGrid}>
-              <View style={styles.gridCell}>
-                <CalendarDays size={18} color={colors.textMuted} />
-                <View style={styles.gridCopy}>
-                  <Text style={styles.gridLabel}>Tanggal</Text>
-                  <Text style={styles.gridValue}>
-                    {formatHariTanggalSingkat(sesiTampil.tanggal)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.gridCell}>
-                <Clock3 size={18} color={colors.textMuted} />
-                <View style={styles.gridCopy}>
-                  <Text style={styles.gridLabel}>Waktu</Text>
-                  <Text style={styles.gridValue}>
-                    {titikJam(sesiTampil.jamMulai)}–{titikJam(sesiTampil.jamSelesai)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.gridCell}>
-                <MapPin size={18} color={colors.textMuted} />
-                <View style={styles.gridCopy}>
-                  <Text style={styles.gridLabel}>Lokasi</Text>
-                  <Text style={styles.gridValue} numberOfLines={1}>
-                    {sesiTampil.lab}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.gridCell}>
-                <Users size={18} color={colors.textMuted} />
-                <View style={styles.gridCopy}>
-                  <Text style={styles.gridLabel}>Kelas</Text>
-                  <Text style={styles.gridValue}>{sesiTampil.kelas}</Text>
-                </View>
-              </View>
-            </View>
-
-            {!currentUser && (
-              <View style={styles.lockedBox}>
-                <LockKeyhole size={16} color={colors.textMuted} />
-                <Text style={styles.lockedText}>
-                  Mode pengunjung hanya dapat melihat detail sesi.
-                </Text>
-              </View>
-            )}
-
-            {currentUser && !aksesDetail && (
-              <View style={styles.lockedBox}>
-                <LockKeyhole size={16} color={colors.textMuted} />
-                <Text style={styles.lockedText}>
-                  Sesi ini di luar kelas/area kamu. Kamu tetap dapat melihat detailnya di sini.
-                </Text>
-              </View>
-            )}
-          </>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={isEn ? 'Next' : 'Lanjut'}
+              onPress={handleNext}
+              style={({ pressed }) => [
+                styles.nextSquareBtn,
+                {
+                  backgroundColor: isDark
+                    ? themeColors.primary
+                    : themeColors.graphite,
+                },
+                pressed && styles.pressed,
+              ]}
+            >
+              <ChevronsRight
+                size={24}
+                color={
+                  isDark ? themeColors.onPrimary : themeColors.onGraphite
+                }
+              />
+            </Pressable>
+          </View>
         )}
-      </SheetModal>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   splash: {
     flex: 1,
+    backgroundColor: colors.graphite,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.s4,
-    backgroundColor: colors.graphite,
   },
   splashCaption: {
     ...type.caption,
     color: colors.textOnDarkMuted,
   },
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.graphite,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    backgroundColor: colors.background,
-  },
-  heroShell: {
-    backgroundColor: colors.graphite,
-  },
-  header: {
-    height: layout.headerHeight,
+  topBar: {
+    height: 58,
     paddingHorizontal: layout.screenPadding,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  loginPill: {
-    minHeight: 40,
-    paddingHorizontal: spacing.s4,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    flexDirection: 'row',
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
-    gap: spacing.s2,
+    justifyContent: 'center',
+    marginLeft: -8,
   },
-  loginPillPressed: {
-    opacity: 0.8,
-  },
-  loginPillText: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.bold,
-    color: colors.onGraphite,
-  },
-  hero: {
-    paddingHorizontal: spacing.s6,
-    paddingTop: spacing.s6,
-    paddingBottom: spacing.s8,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  decorativeRing: {
-    position: 'absolute',
-    right: -96,
-    top: -8,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    borderWidth: 1,
-    borderColor: 'rgba(196, 241, 91, 0.14)',
-  },
-  titleBlock: {
-    marginTop: spacing.s2,
-  },
-  heroTitle: {
-    ...type.display,
-    color: colors.onGraphite,
-  },
-  heroTitleAccent: {
-    color: colors.primary,
-  },
-  heroSubtitle: {
-    ...type.body,
-    color: colors.textOnDarkMuted,
-    marginTop: spacing.s4,
-    lineHeight: 22,
-    maxWidth: 340,
-  },
-  heroCta: {
-    marginTop: spacing.s6,
-  },
-  publicSchedule: {
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.s6,
-    backgroundColor: colors.background,
-  },
-  sectionHeading: {
-    marginBottom: spacing.s4,
-  },
-  readOnlyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: spacing.s2,
+  skipBtn: {
     paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 6,
   },
-  readOnlyText: {
-    fontSize: 10,
-    lineHeight: 14,
-    fontFamily: fontFamily.semibold,
-    color: colors.textSecondary,
+  skipText: {
+    ...type.body,
   },
-  sessionList: {
-    gap: spacing.s3,
-  },
-  guestNote: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 9,
-    marginTop: spacing.s4,
-    borderRadius: 13,
-    paddingVertical: spacing.s3,
-    paddingHorizontal: spacing.s3 + 1,
-    backgroundColor: colors.surfaceMuted,
-  },
-  guestNoteText: {
-    ...type.caption,
-    color: colors.textSecondary,
+  pager: {
     flex: 1,
-    lineHeight: 18,
   },
-  sheetStatusRow: {
+  slidePage: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: layout.screenPadding + 8,
+  },
+  artFrame: {
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.s6,
+  },
+  artImage: {
+    width: '100%',
+    height: '100%',
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: spacing.s5,
+  },
+  dot: {
+    height: 6,
+    borderRadius: radius.pill,
+  },
+  copyWrap: {
+    alignItems: 'center',
+    gap: spacing.s2 + 2,
+    maxWidth: 320,
+  },
+  titleText: {
+    ...type.display,
+    fontSize: 27,
+    lineHeight: 33,
+    textAlign: 'center',
+    letterSpacing: -0.6,
+  },
+  descText: {
+    ...type.body,
+    fontSize: 14.5,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  footer: {
+    paddingHorizontal: layout.screenPadding + 4,
+    paddingTop: spacing.s2,
+  },
+  navRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.s2,
   },
-  sheetTopik: {
-    ...type.caption,
+  skipFooterBtn: {
+    paddingVertical: spacing.s2,
+    paddingHorizontal: spacing.s1,
+  },
+  skipFooterText: {
+    ...type.body,
     fontFamily: fontFamily.semibold,
-    color: colors.textSecondary,
-    flex: 1,
-    textAlign: 'right',
   },
-  sheetDeskripsi: {
-    ...type.caption,
-    color: colors.textSecondary,
-    lineHeight: 19,
+  nextSquareBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.card,
   },
-  detailGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.s2 + 1,
+  getStartedBtn: {
+    width: '100%',
+    height: 54,
   },
-  gridCell: {
-    width: '48%',
-    flexGrow: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.s2 + 1,
-    padding: spacing.s3,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  gridCopy: {
-    flex: 1,
-    gap: 3,
-  },
-  gridLabel: {
-    ...type.micro,
-    color: colors.textSecondary,
-  },
-  gridValue: {
-    ...type.caption,
-    fontFamily: fontFamily.bold,
-    color: colors.textPrimary,
-  },
-  lockedBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 9,
-    borderRadius: 13,
-    padding: spacing.s3,
-    backgroundColor: colors.surfaceMuted,
-  },
-  lockedText: {
-    ...type.caption,
-    color: colors.textSecondary,
-    flex: 1,
-    lineHeight: 18,
+  pressed: {
+    opacity: 0.76,
   },
 });

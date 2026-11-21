@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import MapView, { Circle, Marker } from 'react-native-maps';
 
-import { colors, radius } from '@/theme/tokens';
+import { colors, radius, shadows } from '@/theme/tokens';
+import { getLabMarkerStyle } from './labMarkerStyle';
 import { labPunyaKoordinat } from './region';
 import type { PetaMapProps } from './types';
 
@@ -43,16 +44,43 @@ export function PetaMap({
       showsCompass
       accessibilityLabel="Peta laboratorium"
     >
-      {labTampil.map((lab) => (
-        <Marker
-          key={lab.id}
-          coordinate={{ latitude: lab.lat, longitude: lab.lng }}
-          title={lab.nama}
-          description={lab.alamat}
-          zIndex={labDipilih?.id === lab.id ? 1 : 0}
-          onPress={() => onPilihLab(lab)}
-        />
-      ))}
+      {labTampil.map((lab, idx) => {
+        const dipilih = labDipilih?.id === lab.id;
+        const { Icon, bg, fg } = getLabMarkerStyle(lab, idx);
+        return (
+          <Marker
+            key={lab.id}
+            coordinate={{ latitude: lab.lat, longitude: lab.lng }}
+            title={lab.nama}
+            description={lab.alamat}
+            anchor={{ x: 0.5, y: 1 }}
+            zIndex={dipilih ? 2 : 1}
+            tracksViewChanges={dipilih}
+            onPress={() => onPilihLab(lab)}
+          >
+            <View style={styles.markerWrap}>
+              <View
+                style={[
+                  styles.markerBubble,
+                  {
+                    backgroundColor: bg,
+                    borderColor: dipilih ? colors.primary : colors.surface,
+                    transform: [{ scale: dipilih ? 1.12 : 1 }],
+                  },
+                ]}
+              >
+                <Icon size={18} strokeWidth={2.3} color={fg} />
+              </View>
+              <View
+                style={[
+                  styles.markerPointer,
+                  { borderTopColor: dipilih ? colors.primary : bg },
+                ]}
+              />
+            </View>
+          </Marker>
+        );
+      })}
 
       {pengguna ? (
         <>
@@ -87,6 +115,28 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
     backgroundColor: colors.surfaceMuted,
+  },
+  markerWrap: {
+    alignItems: 'center',
+  },
+  markerBubble: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    borderWidth: 2.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.card,
+  },
+  markerPointer: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 7,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    marginTop: -1,
   },
   titikPengguna: {
     width: UKURAN_TITIK,
