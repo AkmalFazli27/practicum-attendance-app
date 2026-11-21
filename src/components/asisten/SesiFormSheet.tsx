@@ -8,6 +8,7 @@ import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 import { nowLocalISO } from '@/utils/format';
 import { validasiJadwal } from '@/utils/statusSesi';
 import { PickerJam } from './PickerJam';
+import { PilihLab } from './PilihLab';
 import { PickerTanggal } from './PickerTanggal';
 import { validasiFormSesi } from './validasiSesi';
 
@@ -24,7 +25,7 @@ export function SesiFormSheet({
   initialSesi = null,
   onClose,
 }: SesiFormSheetProps) {
-  const { createSession, updateSession } = useSession();
+  const { createSession, updateSession, labs } = useSession();
   const { showToast } = useToast();
 
   const isEdit = Boolean(initialSesi);
@@ -32,7 +33,7 @@ export function SesiFormSheet({
   const [namaPraktikum, setNamaPraktikum] = useState('');
   const [topik, setTopik] = useState('');
   const [kelas, setKelas] = useState('IF-2A');
-  const [lab, setLab] = useState('');
+  const [labId, setLabId] = useState('');
   const [tanggal, setTanggal] = useState(hariIni());
   const [jamMulai, setJamMulai] = useState('08:00');
   const [jamSelesai, setJamSelesai] = useState('10:00');
@@ -49,7 +50,11 @@ export function SesiFormSheet({
       setNamaPraktikum(initialSesi.namaPraktikum);
       setTopik(initialSesi.topik ?? '');
       setKelas(initialSesi.kelas);
-      setLab(initialSesi.lab);
+      setLabId(
+        initialSesi.labId ??
+          labs.find((l) => l.nama === initialSesi.lab)?.id ??
+          '',
+      );
       setTanggal(initialSesi.tanggal);
       setJamMulai(initialSesi.jamMulai);
       setJamSelesai(initialSesi.jamSelesai);
@@ -59,14 +64,16 @@ export function SesiFormSheet({
       setNamaPraktikum('');
       setTopik('');
       setKelas('IF-2A');
-      setLab('');
+      setLabId('');
       setTanggal(hariIni());
       setJamMulai('08:00');
       setJamSelesai('10:00');
       setKapasitas('32');
       setDeskripsi('');
     }
-  }, [visible, initialSesi]);
+  }, [visible, initialSesi]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const labTerpilih = labs.find((l) => l.id === labId);
 
   const handleSimpan = async () => {
     if (menyimpan) return;
@@ -76,7 +83,7 @@ export function SesiFormSheet({
         namaPraktikum,
         topik,
         kelas,
-        lab,
+        lab: labTerpilih?.nama ?? '',
         tanggal,
         jamMulai,
         jamSelesai,
@@ -108,7 +115,7 @@ export function SesiFormSheet({
 
     setGalat(null);
     setMenyimpan(true);
-    const payload = hasil.data;
+    const payload = { ...hasil.data, lab: labTerpilih!.nama, labId };
 
     try {
       if (isEdit && initialSesi) {
@@ -193,29 +200,27 @@ export function SesiFormSheet({
         />
       </View>
 
-      <View style={styles.row}>
-        <View style={[styles.fieldGroup, { flex: 0.9 }]}>
-          <Text style={styles.label}>Kelas</Text>
-          <TextInput
-            value={kelas}
-            onChangeText={setKelas}
-            placeholder="IF-2A"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="characters"
-            style={styles.input}
-          />
-        </View>
-        <View style={[styles.fieldGroup, { flex: 1.4 }]}>
-          <Text style={styles.label}>Laboratorium</Text>
-          <TextInput
-            value={lab}
-            onChangeText={setLab}
-            placeholder="Lab Multimedia"
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-          />
-        </View>
+      <View style={styles.fieldGroup}>
+        <Text style={styles.label}>Kelas</Text>
+        <TextInput
+          value={kelas}
+          onChangeText={setKelas}
+          placeholder="IF-2A"
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="characters"
+          style={styles.input}
+        />
       </View>
+
+      <PilihLab
+        labs={labs}
+        value={labId}
+        onChange={(l) => {
+          setLabId(l.id);
+          setGalat(null);
+        }}
+        disabled={menyimpan}
+      />
 
       <PickerTanggal
         label="Tanggal"
