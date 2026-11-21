@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useSession } from '@/context/SessionContext';
 import type { Sesi, StatusIzin } from '@/data/dummy';
@@ -12,9 +12,27 @@ export type RingkasanKehadiran = {
 };
 
 const normKelas = (k?: string) => (k ?? '').trim().toUpperCase();
+const TICK_WAKTU_MS = 15_000;
 
 export function useJadwalPraktikan() {
-    const { currentUser, sesi, kehadiran, izin, loading, error, retrySync } = useSession();
+  const {
+    currentUser,
+    sesi,
+    kehadiran,
+    izin,
+    getStatusEfektif,
+    loading,
+    error,
+    retrySync,
+  } = useSession();
+
+  const [tick, setTick] = useState(0);
+
+  // Periksa ulang waktu secara berkala agar status efektif sesi (PB-06) berubah tanpa reload
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), TICK_WAKTU_MS);
+    return () => clearInterval(id);
+  }, []);
 
   const data = useMemo(() => {
     const uid = currentUser?.id;
@@ -22,6 +40,10 @@ export function useJadwalPraktikan() {
 
     const daftarKelas: Sesi[] = sesi
       .filter((s) => !kelasSaya || normKelas(s.kelas) === kelasSaya)
+      .map((s) => ({
+        ...s,
+        status: getStatusEfektif(s),
+      }))
       .sort((a, b) =>
         `${a.tanggal} ${a.jamMulai}`.localeCompare(`${b.tanggal} ${b.jamMulai}`),
       );
@@ -33,7 +55,9 @@ export function useJadwalPraktikan() {
     );
 
     const izinMap = new Map<string, StatusIzin>(
-      izin.filter((i) => i.praktikanId === uid).map((i) => [i.sesiId, i.status]),
+      izin
+        .filter((i) => i.praktikanId === uid)
+        .map((i) => [i.sesiId, i.status]),
     );
 
     const sesiAktif = daftarKelas.filter((s) => s.status === 'DIBUKA');
@@ -53,7 +77,15 @@ export function useJadwalPraktikan() {
     };
 
     return { daftarKelas, hadirMap, izinMap, sesiAktif, ringkasan };
-  }, [currentUser?.id, currentUser?.kelas, sesi, kehadiran, izin]);
+  }, [
+    currentUser?.id,
+    currentUser?.kelas,
+    sesi,
+    kehadiran,
+    izin,
+    getStatusEfektif,
+    tick,
+  ]);
 
   return { ...data, loading, error, retrySync };
 }

@@ -1,11 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { useRouter } from 'expo-router';
 
-import { ConfirmSheet, SheetModal, Tombol, useToast } from '@/components/ui';
-import { useSession, type PresensiResult } from '@/context/SessionContext';
+import { ConfirmSheet } from '@/components/ui';
+import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
-import { colors, spacing, type } from '@/theme/tokens';
-import { formatHariTanggalSingkat, formatJam, titikJam } from '@/utils/format';
+import { formatHariTanggalSingkat, titikJam } from '@/utils/format';
 
 export interface PresensiSheetProps {
   /** Sesi yang dipresensi. null = sheet tertutup. */
@@ -14,128 +13,46 @@ export interface PresensiSheetProps {
   onSuccess?: (waktuHadir: string) => void;
 }
 
-export function PresensiSheet({ sesi, onClose, onSuccess }: PresensiSheetProps) {
-  const { currentUser, markAttendance } = useSession();
-  const { showToast } = useToast();
-  const [memproses, setMemproses] = useState(false);
-  const [galat, setGalat] = useState<{ judul: string; pesan: string } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sedangProses = useRef(false);
-
-  const terakhir = useRef<Sesi | null>(null);
-  if (sesi) terakhir.current = sesi;
-  const tampil = sesi ?? terakhir.current;
+/**
+ * Komponen kompatibilitas presensi: pada Sprint 3 (FR-19), alur presensi
+ * dialihkan ke halaman terpisah `/(praktikan)/presensi/[id]`.
+ */
+export function PresensiSheet({ sesi, onClose }: PresensiSheetProps) {
+  const router = useRouter();
+  const { currentUser } = useSession();
 
   const visible = sesi !== null;
 
-  useEffect(() => {
-    if (visible) {
-      setMemproses(false);
-      sedangProses.current = false;
-    }
-  }, [visible]);
-
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
-
-  async function konfirmasi() {
-    if (!sesi || sedangProses.current) return;
-    sedangProses.current = true;
-    setMemproses(true);
-
-    let hasil: PresensiResult;
-    try {
-      hasil = await markAttendance(sesi.id);
-    } catch {
-      hasil = {
-        ok: false,
-        alasan: 'Koneksi bermasalah. Periksa internetmu lalu coba lagi.',
-      };
-    }
-
-    sedangProses.current = false;
-    setMemproses(false);
+  function bukaHalamanPresensi() {
+    if (!sesi) return;
+    const id = sesi.id;
     onClose();
-
-    if (hasil.ok) {
-      const jam = titikJam(formatJam(hasil.waktuHadir));
-      showToast(`Presensi berhasil dicatat pukul ${jam}.`);
-      onSuccess?.(hasil.waktuHadir);
-      return;
-    }
-
-    const pesan = hasil.alasan;
-    timer.current = setTimeout(() => {
-      setGalat({
-        judul: /sudah (presensi|tercatat)/i.test(pesan)
-          ? 'Presensi sudah tercatat'
-          : 'Presensi gagal',
-        pesan,
-      });
-    }, 320);
+    router.push({
+      pathname: '/(praktikan)/presensi/[id]',
+      params: { id },
+    } as any);
   }
 
   return (
-    <>
-      <ConfirmSheet
-        visible={visible}
-        title="Konfirmasi presensi"
-        body="Pastikan kamu hadir secara langsung di ruang praktikum."
-        requireDeclaration
-        declarationLabel="Saya menyatakan hadir pada sesi ini."
-        loading={memproses}
-        confirmLabel="Ya, lanjutkan"
-        summary={
-          tampil
-            ? [
-                { label: 'Praktikum', value: tampil.namaPraktikum },
-                {
-                  label: 'Jadwal',
-                  value: `${formatHariTanggalSingkat(tampil.tanggal)}, ${titikJam(tampil.jamMulai)}`,
-                },
-                { label: 'Nama', value: currentUser?.nama ?? '-' },
-              ]
-            : []
-        }
-        onConfirm={konfirmasi}
-        onClose={onClose}
-      />
-
-      <SheetModal
-        visible={galat !== null}
-        judul={galat?.judul ?? ''}
-        onClose={() => setGalat(null)}
-        footer={
-          <Tombol variant="sekunder" onPress={() => setGalat(null)}>
-            Tutup
-          </Tombol>
-        }
-      >
-        <View style={styles.errorRow}>
-          <View style={styles.errorIcon}>
-            <Text style={styles.errorIconText}>!</Text>
-          </View>
-          <Text style={styles.errorPesan}>{galat?.pesan}</Text>
-        </View>
-      </SheetModal>
-    </>
+    <ConfirmSheet
+      visible={visible}
+      title="Lanjut ke Halaman Presensi"
+      body="Presensi memerlukan pemeriksaan lokasi dan radius laboratorium."
+      confirmLabel="Buka Halaman Presensi"
+      summary={
+        sesi
+          ? [
+              { label: 'Praktikum', value: sesi.namaPraktikum },
+              {
+                label: 'Jadwal',
+                value: `${formatHariTanggalSingkat(sesi.tanggal)}, ${titikJam(sesi.jamMulai)}`,
+              },
+              { label: 'Nama', value: currentUser?.nama ?? '-' },
+            ]
+          : []
+      }
+      onConfirm={bukaHalamanPresensi}
+      onClose={onClose}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  errorRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.s3 },
-  errorIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.errorBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorIconText: { ...type.bodyStrong, color: colors.errorFg },
-  errorPesan: { ...type.body, color: colors.textPrimary, flex: 1 },
-});
