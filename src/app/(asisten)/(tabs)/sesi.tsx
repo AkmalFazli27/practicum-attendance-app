@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react-native';
 import { SesiFormSheet } from '@/components/asisten/SesiFormSheet';
 import { SinkronGuard } from '@/components/asisten/SyncState';
 import { useAksiSesi } from '@/components/asisten/useAksiSesi';
+import { useStatusSesi } from '@/components/asisten/useStatusSesi';
 import { EmptyState, SessionCard, Tombol } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
@@ -15,6 +16,7 @@ export default function SesiAsistenScreen() {
   const router = useRouter();
   const { currentUser, sesi, getKehadiranSesi, getIzinSesi } = useSession();
   const { mulai, sheet } = useAksiSesi();
+  const { statusEfektif, aksiUtama } = useStatusSesi();
 
   const [formVisible, setFormVisible] = useState(false);
   const [sesiDiedit, setSesiDiedit] = useState<Sesi | null>(null);
@@ -84,10 +86,12 @@ export default function SesiAsistenScreen() {
                 (iz) => iz.status === 'MENUNGGU',
               ).length;
 
+              const aksi = aksiUtama(s);
+
               return (
                 <View key={s.id} style={styles.cardGroup}>
                   <SessionCard
-                    session={s}
+                    session={{ ...s, status: statusEfektif(s) }}
                     assistant
                     attendance={hadir}
                     attendanceTotal={s.kapasitas ?? 32}
@@ -95,16 +99,20 @@ export default function SesiAsistenScreen() {
                     onPress={() => bukaDetail(s.id)}
                   />
                   <View style={styles.quickActions}>
-                    {s.status === 'TERJADWAL' && (
+                    {aksi.jenis === 'buka' && !aksi.aktif && (
+                      <Text style={styles.hint}>{aksi.keterangan}</Text>
+                    )}
+                    {aksi.jenis === 'buka' && (
                       <Tombol
                         variant="sekunder"
                         style={styles.smallBtn}
+                        disabled={!aksi.aktif}
                         onPress={() => mulai(s.id, 'buka')}
                       >
                         Buka
                       </Tombol>
                     )}
-                    {s.status === 'DIBUKA' && (
+                    {aksi.jenis === 'tutup' && (
                       <Tombol
                         variant="danger"
                         style={styles.smallBtn}
@@ -196,6 +204,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: spacing.s2,
+  },
+  hint: {
+    ...type.micro,
+    color: colors.textMuted,
+    flex: 1,
+    alignSelf: 'center',
   },
   smallBtn: {
     minHeight: 40,
