@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 
 import { EmptyState, FilterChip, SessionCard } from '@/components/ui';
 import { useJadwalPraktikan } from '@/components/praktikan/useJadwalPraktikan';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { colors, layout, spacing, type } from '@/theme/tokens';
 import { formatJam, titikJam } from '@/utils/format';
@@ -27,6 +28,7 @@ const EMPTY_COPY: Record<Filter, { judul: string; pesan: string }> = {
 export default function JadwalScreen() {
   const router = useRouter();
   const { currentUser } = useSession();
+  const { themeColors } = usePreferences();
   const { daftarKelas, hadirMap, izinMap, loading, error, retrySync } = useJadwalPraktikan();
 
   const [filter, setFilter] = useState<Filter>('SEMUA');
@@ -48,12 +50,12 @@ export default function JadwalScreen() {
     router.push({ pathname: '/(praktikan)/sesi/[id]', params: { id } } as any);
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.pageTitle}>
-          <Text style={styles.kicker}>JADWAL</Text>
-          <Text style={styles.h1}>Jadwal praktikum</Text>
-          <Text style={styles.sub}>Temukan sesi dan status presensimu.</Text>
+          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>JADWAL</Text>
+          <Text style={[styles.h1, { color: themeColors.textPrimary }]}>Jadwal praktikum</Text>
+          <Text style={[styles.sub, { color: themeColors.textSecondary }]}>Temukan sesi dan status presensimu.</Text>
         </View>
 
         <ScrollView

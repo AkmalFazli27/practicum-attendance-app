@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, type } from '@/theme/tokens';
 
 export interface ScoreRingSvgProps {
@@ -15,6 +16,7 @@ export function ScoreRingSvg({
   label = 'hadir',
   size = 76,
 }: ScoreRingSvgProps) {
+  const { themeColors } = usePreferences();
   const safeVal = Math.max(0, Math.min(100, Math.round(value)));
   const strokeWidth = 7;
   const radius = (size - strokeWidth) / 2;
@@ -30,7 +32,7 @@ export function ScoreRingSvg({
           cx={center}
           cy={center}
           r={radius}
-          stroke={colors.surfaceMuted}
+          stroke={themeColors.surfaceMuted}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -40,7 +42,7 @@ export function ScoreRingSvg({
             cx={center}
             cy={center}
             r={radius}
-            stroke={colors.primary}
+            stroke={themeColors.primary}
             strokeWidth={strokeWidth}
             fill="none"
             strokeLinecap="round"
@@ -51,8 +53,12 @@ export function ScoreRingSvg({
       </Svg>
 
       <View style={styles.center} pointerEvents="none">
-        <Text style={styles.valueText}>{safeVal}%</Text>
-        <Text style={styles.labelText}>{label}</Text>
+        <Text style={[styles.valueText, { color: themeColors.textPrimary }]}>
+          {safeVal}%
+        </Text>
+        <Text style={[styles.labelText, { color: themeColors.textMuted }]}>
+          {label}
+        </Text>
       </View>
     </View>
   );

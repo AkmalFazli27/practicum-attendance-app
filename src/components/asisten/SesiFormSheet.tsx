@@ -52,8 +52,8 @@ export function SesiFormSheet({
       setKelas(initialSesi.kelas);
       setLabId(
         initialSesi.labId ??
-          labs.find((l) => l.nama === initialSesi.lab)?.id ??
-          '',
+        labs.find((l) => l.nama === initialSesi.lab)?.id ??
+        '',
       );
       setTanggal(initialSesi.tanggal);
       setJamMulai(initialSesi.jamMulai);
@@ -92,10 +92,10 @@ export function SesiFormSheet({
       },
       initialSesi
         ? {
-            tanggal: initialSesi.tanggal,
-            jamMulai: initialSesi.jamMulai,
-            jamSelesai: initialSesi.jamSelesai,
-          }
+          tanggal: initialSesi.tanggal,
+          jamMulai: initialSesi.jamMulai,
+          jamSelesai: initialSesi.jamSelesai,
+        }
         : undefined,
     );
     if (!hasil.ok) {
@@ -119,13 +119,17 @@ export function SesiFormSheet({
 
     try {
       if (isEdit && initialSesi) {
-        const berhasil = await updateSession(initialSesi.id, payload);
+        const hasilUbah = await updateSession(initialSesi.id, payload);
         setMenyimpan(false);
-        if (!berhasil) {
+        if (!hasilUbah.ok) {
           setGalat('Gagal memperbarui data sesi praktikum. Periksa koneksi Anda.');
           return;
         }
-        showToast('Data sesi praktikum berhasil diperbarui.');
+        showToast(
+          hasilUbah.notifGagal
+            ? 'Data sesi praktikum berhasil diperbarui. Namun notifikasi ke praktikan gagal terkirim.'
+            : 'Data sesi praktikum berhasil diperbarui.',
+        );
         onClose();
       } else {
         const sesiBaru = await createSession(payload);
@@ -158,22 +162,22 @@ export function SesiFormSheet({
             </View>
           )}
           <View style={styles.footerRow}>
-          <Tombol
-            variant="sekunder"
-            disabled={menyimpan}
-            onPress={onClose}
-            style={styles.cancelBtn}
-          >
-            Batal
-          </Tombol>
-          <Tombol
-            variant="primer"
-            loading={menyimpan}
-            onPress={handleSimpan}
-            style={styles.submitBtn}
-          >
-            {isEdit ? 'Simpan Perubahan' : 'Tambah Sesi'}
-          </Tombol>
+            <Tombol
+              variant="sekunder"
+              disabled={menyimpan}
+              onPress={onClose}
+              style={styles.cancelBtn}
+            >
+              Batal
+            </Tombol>
+            <Tombol
+              variant="primer"
+              loading={menyimpan}
+              onPress={handleSimpan}
+              style={styles.submitBtn}
+            >
+              {isEdit ? 'Simpan Perubahan' : 'Tambah Sesi'}
+            </Tombol>
           </View>
         </View>
       }
