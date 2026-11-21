@@ -1,9 +1,10 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell } from 'lucide-react-native';
+import { Bell, Settings } from 'lucide-react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { colors, fontFamily, layout, spacing } from '@/theme/tokens';
 import { inisialNama } from '@/utils/format';
@@ -13,20 +14,29 @@ import { useToast } from './Toast';
 export interface AppHeaderProps {
   onBellPress?: () => void;
   onAvatarPress?: () => void;
+  onSettingsPress?: () => void;
 }
 
-export function AppHeader({ onBellPress, onAvatarPress }: AppHeaderProps) {
+export function AppHeader({
+  onBellPress,
+  onAvatarPress,
+  onSettingsPress,
+}: AppHeaderProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const pathname = usePathname();
   const { currentUser } = useSession();
   const { showToast } = useToast();
+  const { isDark, themeColors, t } = usePreferences();
+
+  const isProfile = pathname?.includes('profil');
 
   const handleBell = () => {
     if (onBellPress) {
       onBellPress();
       return;
     }
-    showToast('Belum ada notifikasi baru.');
+    showToast(t('header_notif_toast'));
   };
 
   const handleAvatar = () => {
@@ -42,18 +52,28 @@ export function AppHeader({ onBellPress, onAvatarPress }: AppHeaderProps) {
     );
   };
 
+  const handleSettings = () => {
+    if (onSettingsPress) {
+      onSettingsPress();
+      return;
+    }
+    router.push('/pengaturan' as any);
+  };
+
   return (
     <View
       style={[
         styles.wrapper,
         {
+          backgroundColor: themeColors.background,
+          borderBottomColor: themeColors.border,
           paddingTop: insets.top,
           height: layout.headerHeight + insets.top,
         },
       ]}
     >
       <View style={styles.inner}>
-        <Brand compact />
+        <Brand compact onDark={isDark} />
 
         <View style={styles.actions}>
           <Pressable
@@ -62,25 +82,50 @@ export function AppHeader({ onBellPress, onAvatarPress }: AppHeaderProps) {
             onPress={handleBell}
             style={({ pressed }) => [
               styles.iconButton,
-              pressed && styles.iconButtonPressed,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: pressed
+                  ? themeColors.surfaceMuted
+                  : themeColors.surface,
+              },
             ]}
           >
-            <Bell size={20} color={colors.textPrimary} />
+            <Bell size={20} color={themeColors.textPrimary} />
           </Pressable>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Buka profil"
-            onPress={handleAvatar}
-            style={({ pressed }) => [
-              styles.avatar,
-              pressed && styles.avatarPressed,
-            ]}
-          >
-            <Text style={styles.avatarText}>
-              {inisialNama(currentUser?.nama ?? 'User')}
-            </Text>
-          </Pressable>
+          {isProfile ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Buka pengaturan"
+              onPress={handleSettings}
+              style={({ pressed }) => [
+                styles.iconButton,
+                {
+                  borderColor: themeColors.textPrimary,
+                  backgroundColor: pressed
+                    ? themeColors.surfaceMuted
+                    : themeColors.surface,
+                },
+              ]}
+            >
+              <Settings size={20} color={themeColors.textPrimary} />
+            </Pressable>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Buka profil"
+              onPress={handleAvatar}
+              style={({ pressed }) => [
+                styles.avatar,
+                { backgroundColor: themeColors.graphite },
+                pressed && styles.avatarPressed,
+              ]}
+            >
+              <Text style={styles.avatarText}>
+                {inisialNama(currentUser?.nama ?? 'User')}
+              </Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </View>
@@ -116,6 +161,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  settingsButtonActive: {
+    borderColor: colors.textPrimary,
+  },
   iconButtonPressed: {
     backgroundColor: colors.surfaceMuted,
   },
@@ -131,10 +179,8 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   avatarText: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 15,
     fontFamily: fontFamily.extrabold,
     color: colors.primary,
   },
 });
-

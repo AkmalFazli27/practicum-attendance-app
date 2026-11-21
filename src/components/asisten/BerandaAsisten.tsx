@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowRight, DoorOpen, Plus, Users } from 'lucide-react-native';
+import { ArrowRight, DoorOpen, MapPin, Plus, Users } from 'lucide-react-native';
 
 import {
   EmptyState,
@@ -134,18 +134,33 @@ export function BerandaAsisten() {
           title="Sesi kamu"
           style={styles.sectionHeading}
           right={
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Tambah sesi praktikum baru"
-              onPress={() => setTambahVisible(true)}
-              style={({ pressed }) => [
-                styles.addChip,
-                pressed && styles.addChipPressed,
-              ]}
-            >
-              <Plus size={15} color={colors.textPrimary} />
-              <Text style={styles.addChipText}>Sesi Baru</Text>
-            </Pressable>
+            <View style={styles.headingActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Kelola lokasi dan radius laboratorium"
+                onPress={() => router.push('/kelola-lab' as any)}
+                style={({ pressed }) => [
+                  styles.labChip,
+                  pressed && styles.addChipPressed,
+                ]}
+              >
+                <MapPin size={14} color={colors.textPrimary} />
+                <Text style={styles.addChipText}>Kelola Lab</Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Tambah sesi praktikum baru"
+                onPress={() => setTambahVisible(true)}
+                style={({ pressed }) => [
+                  styles.addChip,
+                  pressed && styles.addChipPressed,
+                ]}
+              >
+                <Plus size={15} color={colors.textPrimary} />
+                <Text style={styles.addChipText}>Sesi Baru</Text>
+              </Pressable>
+            </View>
           }
         />
 
@@ -283,6 +298,22 @@ const styles = StyleSheet.create({
   sectionHeading: {
     marginTop: spacing.s6 + 4,
     marginBottom: spacing.s3 + 2,
+  },
+  headingActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s2,
+  },
+  labChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.s3,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   addChip: {
     flexDirection: 'row',

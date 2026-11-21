@@ -11,6 +11,7 @@ import {
   Users,
 } from 'lucide-react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { type Sesi, type StatusIzin } from '@/data/dummy';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 import { formatHariTanggalSingkat, titikJam } from '@/utils/format';
@@ -39,6 +40,7 @@ export function SessionCard({
   onPress,
   style,
 }: SessionCardProps) {
+  const { themeColors } = usePreferences();
   const kapasitas = attendanceTotal ?? session.kapasitas ?? 32;
   const topik = session.topik ?? session.deskripsi;
 
@@ -49,43 +51,64 @@ export function SessionCard({
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        pressed && styles.cardPressed,
+        {
+          backgroundColor: pressed
+            ? themeColors.surfaceMuted
+            : themeColors.surface,
+          borderColor: themeColors.border,
+        },
         style,
       ]}
     >
       <View style={styles.topRow}>
-        <View style={styles.iconTile}>
-          <BookOpen size={20} color={colors.textPrimary} />
+        <View
+          style={[
+            styles.iconTile,
+            { backgroundColor: themeColors.primarySoft },
+          ]}
+        >
+          <BookOpen size={20} color={themeColors.textPrimary} />
         </View>
         <StatusBadge status={session.status} />
       </View>
 
-      <Text style={styles.sessionName} numberOfLines={1}>
+      <Text
+        style={[styles.sessionName, { color: themeColors.textPrimary }]}
+        numberOfLines={1}
+      >
         {session.namaPraktikum}
       </Text>
-      <Text style={styles.sessionTopic} numberOfLines={1}>
+      <Text
+        style={[styles.sessionTopic, { color: themeColors.textSecondary }]}
+        numberOfLines={1}
+      >
         {topik}
       </Text>
 
       <View style={styles.metaRow}>
         <View style={styles.metaItem}>
-          <CalendarDays size={15} color={colors.textSecondary} />
-          <Text style={styles.metaText}>
+          <CalendarDays size={15} color={themeColors.textSecondary} />
+          <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>
             {formatHariTanggalSingkat(session.tanggal)}
           </Text>
         </View>
         <View style={styles.metaItem}>
-          <Clock3 size={15} color={colors.textSecondary} />
-          <Text style={styles.metaText}>
+          <Clock3 size={15} color={themeColors.textSecondary} />
+          <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>
             {titikJam(session.jamMulai)}–{titikJam(session.jamSelesai)}
           </Text>
         </View>
       </View>
 
-      <View style={styles.bottomRow}>
+      <View
+        style={[styles.bottomRow, { borderTopColor: themeColors.border }]}
+      >
         <View style={styles.metaItemFlex}>
-          <MapPin size={15} color={colors.textSecondary} />
-          <Text style={styles.metaText} numberOfLines={1}>
+          <MapPin size={15} color={themeColors.textSecondary} />
+          <Text
+            style={[styles.metaText, { color: themeColors.textSecondary }]}
+            numberOfLines={1}
+          >
             {session.kelas} · {session.lab}
           </Text>
         </View>
@@ -93,14 +116,33 @@ export function SessionCard({
         {assistant && (
           <View style={styles.assistantBadges}>
             {pendingIzinCount > 0 && (
-              <View style={styles.izinAlertBadge}>
-                <FileText size={13} color={colors.izinFg} />
-                <Text style={styles.izinAlertText}>{pendingIzinCount} izin</Text>
+              <View
+                style={[
+                  styles.izinAlertBadge,
+                  { backgroundColor: themeColors.izinBg },
+                ]}
+              >
+                <FileText size={13} color={themeColors.izinFg} />
+                <Text
+                  style={[styles.izinAlertText, { color: themeColors.izinFg }]}
+                >
+                  {pendingIzinCount} izin
+                </Text>
               </View>
             )}
-            <View style={styles.attendanceCountWrap}>
-              <Users size={15} color={colors.sesiDibukaFg} />
-              <Text style={styles.attendanceCountText}>
+            <View
+              style={[
+                styles.attendanceCountWrap,
+                { backgroundColor: themeColors.sesiDibukaBg },
+              ]}
+            >
+              <Users size={15} color={themeColors.sesiDibukaFg} />
+              <Text
+                style={[
+                  styles.attendanceCountText,
+                  { color: themeColors.sesiDibukaFg },
+                ]}
+              >
                 {attendance}/{kapasitas}
               </Text>
             </View>
@@ -108,9 +150,21 @@ export function SessionCard({
         )}
 
         {!assistant && attendedTime && (
-          <View style={styles.studentPresentWrap}>
-            <CheckCircle2 size={14} color={colors.sesiDibukaFg} />
-            <Text style={styles.studentPresentText}>Hadir {attendedTime}</Text>
+          <View
+            style={[
+              styles.studentPresentWrap,
+              { backgroundColor: themeColors.sesiDibukaBg },
+            ]}
+          >
+            <CheckCircle2 size={14} color={themeColors.sesiDibukaFg} />
+            <Text
+              style={[
+                styles.studentPresentText,
+                { color: themeColors.sesiDibukaFg },
+              ]}
+            >
+              Hadir {attendedTime}
+            </Text>
           </View>
         )}
 
@@ -118,31 +172,34 @@ export function SessionCard({
           <View
             style={[
               styles.studentIzinWrap,
-              izinStatus === 'DITERIMA'
-                ? styles.izinDiterima
-                : izinStatus === 'DITOLAK'
-                  ? styles.izinDitolak
-                  : styles.izinMenunggu,
+              {
+                backgroundColor:
+                  izinStatus === 'DITERIMA'
+                    ? themeColors.sesiDibukaBg
+                    : izinStatus === 'DITOLAK'
+                      ? themeColors.errorBg
+                      : themeColors.izinBg,
+              },
             ]}
           >
             <FileText
               size={13}
               color={
                 izinStatus === 'DITERIMA'
-                  ? colors.sesiDibukaFg
+                  ? themeColors.sesiDibukaFg
                   : izinStatus === 'DITOLAK'
-                    ? colors.errorFg
-                    : colors.izinFg
+                    ? themeColors.errorFg
+                    : themeColors.izinFg
               }
             />
             <Text
               style={[
                 styles.studentIzinText,
                 izinStatus === 'DITERIMA'
-                  ? { color: colors.sesiDibukaFg }
+                  ? { color: themeColors.sesiDibukaFg }
                   : izinStatus === 'DITOLAK'
-                    ? { color: colors.errorFg }
-                    : { color: colors.izinFg },
+                    ? { color: themeColors.errorFg }
+                    : { color: themeColors.izinFg },
               ]}
             >
               {izinStatus === 'DITERIMA'
@@ -154,7 +211,7 @@ export function SessionCard({
           </View>
         )}
 
-        <ChevronRight size={18} color={colors.textSecondary} />
+        <ChevronRight size={18} color={themeColors.textSecondary} />
       </View>
     </Pressable>
   );

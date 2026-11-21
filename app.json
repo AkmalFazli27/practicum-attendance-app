@@ -26,7 +26,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA"
       ]
     },
     "web": {
@@ -40,6 +41,12 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "TapIn memakai lokasimu untuk memeriksa apakah kamu berada di dalam radius laboratorium saat presensi."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "TapIn memerlukan akses kamera untuk memindai kode QR presensi praktikum."
         }
       ],
       "expo-notifications"

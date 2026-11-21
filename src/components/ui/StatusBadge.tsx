@@ -1,8 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { type StatusIzin, type StatusSesi } from '@/data/dummy';
-import { colors, fontFamily, radius, spacing } from '@/theme/tokens';
+import { fontFamily, radius, spacing, type ThemeColors } from '@/theme/tokens';
 
 export type BadgeStatusType = StatusSesi | StatusIzin;
 
@@ -11,44 +12,54 @@ export interface StatusBadgeProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const BADGE_CONFIG: Record<
-  BadgeStatusType,
-  { label: string; bg: string; fg: string }
-> = {
-  TERJADWAL: {
-    label: 'Terjadwal',
-    bg: colors.sesiTerjadwalBg,
-    fg: colors.sesiTerjadwalFg,
-  },
-  DIBUKA: {
-    label: 'Sedang dibuka',
-    bg: colors.sesiDibukaBg,
-    fg: colors.sesiDibukaFg,
-  },
-  SELESAI: {
-    label: 'Selesai',
-    bg: colors.sesiSelesaiBg,
-    fg: colors.sesiSelesaiFg,
-  },
-  MENUNGGU: {
-    label: 'Menunggu',
-    bg: colors.izinBg,
-    fg: colors.izinFg,
-  },
-  DITERIMA: {
-    label: 'Izin Diterima',
-    bg: colors.sesiDibukaBg,
-    fg: colors.sesiDibukaFg,
-  },
-  DITOLAK: {
-    label: 'Izin Ditolak',
-    bg: colors.errorBg,
-    fg: colors.errorFg,
-  },
-};
+function getBadgeConfig(
+  status: BadgeStatusType,
+  tc: ThemeColors,
+): { label: string; bg: string; fg: string } {
+  switch (status) {
+    case 'DIBUKA':
+      return {
+        label: 'Sedang dibuka',
+        bg: tc.sesiDibukaBg,
+        fg: tc.sesiDibukaFg,
+      };
+    case 'SELESAI':
+      return {
+        label: 'Selesai',
+        bg: tc.sesiSelesaiBg,
+        fg: tc.sesiSelesaiFg,
+      };
+    case 'MENUNGGU':
+      return {
+        label: 'Menunggu',
+        bg: tc.izinBg,
+        fg: tc.izinFg,
+      };
+    case 'DITERIMA':
+      return {
+        label: 'Izin Diterima',
+        bg: tc.sesiDibukaBg,
+        fg: tc.sesiDibukaFg,
+      };
+    case 'DITOLAK':
+      return {
+        label: 'Izin Ditolak',
+        bg: tc.errorBg,
+        fg: tc.errorFg,
+      };
+    case 'TERJADWAL':
+    default:
+      return {
+        label: 'Terjadwal',
+        bg: tc.sesiTerjadwalBg,
+        fg: tc.sesiTerjadwalFg,
+      };
+  }
+}
 
 export function StatusBadge({ status, style }: StatusBadgeProps) {
-  const config = BADGE_CONFIG[status] ?? BADGE_CONFIG.TERJADWAL;
+  const { themeColors } = usePreferences();
+  const config = getBadgeConfig(status, themeColors);
 
   return (
     <View

@@ -10,6 +10,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
 
 export type TombolVariant = 'primer' | 'sekunder' | 'graphite' | 'ghost' | 'danger';
@@ -37,6 +38,7 @@ export function Tombol({
   style,
   textStyle,
 }: TombolProps) {
+  const { themeColors } = usePreferences();
   const isDisabled = disabled || loading;
 
   const getVariantStyles = (pressed: boolean) => {
@@ -44,47 +46,74 @@ export function Tombol({
       if (variant === 'ghost') {
         return {
           container: styles.ghostDisabled,
-          text: styles.ghostDisabledText,
-          indicator: colors.disabledText,
+          text: { color: themeColors.disabledText },
+          indicator: themeColors.disabledText,
         };
       }
       return {
-        container: styles.disabledContainer,
-        text: styles.disabledText,
-        indicator: colors.disabledText,
+        container: {
+          backgroundColor: themeColors.disabledBg,
+          borderWidth: 1,
+          borderColor: themeColors.border,
+        },
+        text: { color: themeColors.disabledText },
+        indicator: themeColors.disabledText,
       };
     }
 
     switch (variant) {
       case 'primer':
         return {
-          container: pressed ? styles.primerPressed : styles.primer,
-          text: styles.primerText,
-          indicator: colors.onPrimary,
+          container: {
+            backgroundColor: pressed
+              ? themeColors.primaryPressed
+              : themeColors.primary,
+          },
+          text: { color: themeColors.onPrimary },
+          indicator: themeColors.onPrimary,
         };
       case 'graphite':
         return {
-          container: pressed ? styles.graphitePressed : styles.graphite,
-          text: styles.graphiteText,
-          indicator: colors.onGraphite,
+          container: {
+            backgroundColor: pressed
+              ? themeColors.graphiteSurface
+              : themeColors.graphite,
+          },
+          text: { color: themeColors.onGraphite },
+          indicator: themeColors.onGraphite,
         };
       case 'sekunder':
         return {
-          container: pressed ? styles.sekunderPressed : styles.sekunder,
-          text: styles.sekunderText,
-          indicator: colors.textPrimary,
+          container: {
+            backgroundColor: pressed
+              ? themeColors.surfaceMuted
+              : themeColors.surface,
+            borderWidth: 1,
+            borderColor: themeColors.border,
+          },
+          text: { color: themeColors.textPrimary },
+          indicator: themeColors.textPrimary,
         };
       case 'danger':
         return {
-          container: pressed ? styles.dangerPressed : styles.danger,
-          text: styles.dangerText,
-          indicator: colors.errorFg,
+          container: {
+            backgroundColor: themeColors.errorBg,
+            borderWidth: 1,
+            borderColor: themeColors.dangerBorder,
+            opacity: pressed ? 0.82 : 1,
+          },
+          text: { color: themeColors.errorFg },
+          indicator: themeColors.errorFg,
         };
       case 'ghost':
         return {
-          container: pressed ? styles.ghostPressed : styles.ghost,
-          text: styles.ghostText,
-          indicator: colors.textPrimary,
+          container: {
+            backgroundColor: pressed
+              ? themeColors.surfaceMuted
+              : 'transparent',
+          },
+          text: { color: themeColors.textPrimary },
+          indicator: themeColors.textPrimary,
         };
     }
   };

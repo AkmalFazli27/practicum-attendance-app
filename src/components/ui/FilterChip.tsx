@@ -7,6 +7,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 
 export interface FilterChipProps {
@@ -17,6 +18,8 @@ export interface FilterChipProps {
 }
 
 export function FilterChip({ label, aktif, onPress, style }: FilterChipProps) {
+  const { isDark, themeColors } = usePreferences();
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -26,17 +29,35 @@ export function FilterChip({ label, aktif, onPress, style }: FilterChipProps) {
       style={({ pressed }) => [
         styles.chip,
         aktif
-          ? styles.chipAktif
-          : pressed
-            ? styles.chipInaktifPressed
-            : styles.chipInaktif,
+          ? {
+              backgroundColor: isDark
+                ? themeColors.primary
+                : themeColors.graphite,
+              borderWidth: 1,
+              borderColor: isDark ? themeColors.primary : themeColors.graphite,
+            }
+          : {
+              backgroundColor: pressed
+                ? themeColors.surfaceMuted
+                : themeColors.surface,
+              borderWidth: 1,
+              borderColor: themeColors.border,
+            },
         style,
       ]}
     >
       <Text
         style={[
           styles.text,
-          aktif ? styles.textAktif : styles.textInaktif,
+          aktif
+            ? {
+                color: isDark ? themeColors.onPrimary : themeColors.onGraphite,
+                fontFamily: fontFamily.semibold,
+              }
+            : {
+                color: themeColors.textSecondary,
+                fontFamily: fontFamily.semibold,
+              },
         ]}
       >
         {label}
