@@ -107,12 +107,16 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
     // Hapus error lama agar pesan yang tampil benar-benar dari aksi ini.
     clearError();
     setLoading(true);
-    const berhasil = await reviewIzin(izinId, keputusan);
+    const hasil = await reviewIzin(izinId, keputusan);
     setLoading(false);
     setTarget(null);
 
-    if (berhasil) {
-      showToast(COPY[keputusan].toast);
+    if (hasil.ok) {
+      showToast(
+        hasil.notifGagal
+          ? `${COPY[keputusan].toast} Namun notifikasi ke praktikan gagal terkirim.`
+          : COPY[keputusan].toast,
+      );
       return;
     }
     // Beri waktu agar pesan error dari context ter-render, lalu tampilkan alasannya.
