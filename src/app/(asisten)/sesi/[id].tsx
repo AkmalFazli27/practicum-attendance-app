@@ -13,6 +13,7 @@ import {
   Users,
 } from 'lucide-react-native';
 
+import { formatJarak } from '@/components/asisten/formatJarak';
 import { IzinPanel } from '@/components/asisten/IzinPanel';
 import { SesiFormSheet } from '@/components/asisten/SesiFormSheet';
 import {
@@ -308,9 +309,16 @@ export default function DetailSesiAsisten() {
                       </Text>
                       <Text style={styles.attendeeNim}>{mhs.nim}</Text>
                     </View>
-                    <Text style={styles.attendeeTime}>
-                      {titikJam(formatJam(item.waktuHadir))}
-                    </Text>
+                    <View style={styles.attendeeRight}>
+                      <Text style={styles.attendeeTime}>
+                        {titikJam(formatJam(item.waktuHadir))}
+                      </Text>
+                      {item.jarak !== undefined && (
+                        <Text style={styles.attendeeJarak}>
+                          {formatJarak(item.jarak)}
+                        </Text>
+                      )}
+                    </View>
                   </View>
                 );
               })}
@@ -536,6 +544,15 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   attendeeNim: {
+    fontSize: 10,
+    fontFamily: fontFamily.medium,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  attendeeRight: {
+    alignItems: 'flex-end',
+  },
+  attendeeJarak: {
     fontSize: 10,
     fontFamily: fontFamily.medium,
     color: colors.textMuted,

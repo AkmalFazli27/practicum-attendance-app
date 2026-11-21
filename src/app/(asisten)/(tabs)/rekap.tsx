@@ -1,9 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+} from 'lucide-react-native';
 
-import { SinkronGuard } from '@/components/asisten/SyncState';
+import { formatJarak } from '@/components/asisten/formatJarak';
+import { ErrorBlock, LoadingBlock } from '@/components/asisten/SyncState';
 import { EmptyState, StatusBadge, Tombol } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
@@ -17,18 +23,32 @@ type Entri = {
   waktu: string;
   kind: 'hadir' | 'izin';
   status?: 'MENUNGGU' | 'DITERIMA' | 'DITOLAK';
+  jarak?: number;
+};
+
+type RekapSesi = {
+  hadir: number;
+  diterima: number;
+  menunggu: number;
+  entri: Entri[];
+};
+
+type RingkasanPraktikum = {
+  nama: string;
+  sesi: Sesi[];
+  hadir: number;
+  menunggu: number;
 };
 
 export default function RekapScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ sesiId?: string; t?: string }>();
-  const { currentUser, users, sesi, kehadiran, izin } = useSession();
+  const { currentUser, users, sesi, kehadiran, izin, loading, error, retrySync } =
+    useSession();
 
-  // Sesi yang dibuka dari tombol "Lihat di tab Rekap" langsung terbentang.
-  const [terbuka, setTerbuka] = useState<string | null>(params.sesiId ?? null);
-  useEffect(() => {
-    if (params.sesiId) setTerbuka(params.sesiId);
-  }, [params.sesiId, params.t]);
+  // Level 1 = daftar praktikum (null). Level 2 = daftar praktikan per sesi.
+  const [praktikum, setPraktikum] = useState<string | null>(null);
+  const [terbuka, setTerbuka] = useState<string | null>(null);
 
   const sesiSaya = useMemo(
     () =>
@@ -39,6 +59,20 @@ export default function RekapScreen() {
         ),
     [sesi, currentUser?.id],
   );
+
+  // Dibuka dari tombol "Lihat di tab Rekap": langsung ke praktikum dan sesi itu.
+  // Dijalankan sekali per navigasi supaya tombol kembali tidak tertimpa.
+  const terapkanRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!params.sesiId) return;
+    const kunci = `${params.sesiId}|${params.t ?? ''}`;
+    if (terapkanRef.current === kunci) return;
+    const target = sesiSaya.find((s) => s.id === params.sesiId);
+    if (!target) return;
+    terapkanRef.current = kunci;
+    setPraktikum(target.namaPraktikum);
+    setTerbuka(target.id);
+  }, [params.sesiId, params.t, sesiSaya]);
 
   const rekap = useMemo(() => {
     const peta = new Map(users.map((u) => [u.id, u]));
@@ -51,7 +85,7 @@ export default function RekapScreen() {
       nim: nim || peta.get(praktikanId)?.nim || '-',
     });
 
-    return new Map(
+    return new Map<string, RekapSesi>(
       sesiSaya.map((s) => {
         const hadir: Entri[] = kehadiran
           .filter((k) => k.sesiId === s.id)
@@ -61,6 +95,7 @@ export default function RekapScreen() {
             ...infoNama(k.praktikanId, k.namaPraktikan, k.nimPraktikan),
             waktu: k.waktuHadir,
             kind: 'hadir' as const,
+            jarak: k.jarak,
           }));
         const daftarIzin = izin.filter((i) => i.sesiId === s.id);
         const izinEntri: Entri[] = daftarIzin
@@ -87,10 +122,38 @@ export default function RekapScreen() {
     );
   }, [sesiSaya, users, kehadiran, izin]);
 
+  const daftarPraktikum = useMemo(() => {
+    const peta = new Map<string, RingkasanPraktikum>();
+    for (const s of sesiSaya) {
+      const data = rekap.get(s.id);
+      const ada = peta.get(s.namaPraktikum) ?? {
+        nama: s.namaPraktikum,
+        sesi: [],
+        hadir: 0,
+        menunggu: 0,
+      };
+      ada.sesi.push(s);
+      ada.hadir += data?.hadir ?? 0;
+      ada.menunggu += data?.menunggu ?? 0;
+      peta.set(s.namaPraktikum, ada);
+    }
+    return Array.from(peta.values()).sort((a, b) => a.nama.localeCompare(b.nama));
+  }, [sesiSaya, rekap]);
+
   if (!currentUser) return null;
 
   const bukaDetail = (id: string) =>
     router.push({ pathname: '/(asisten)/sesi/[id]', params: { id } } as any);
+
+  const kembaliKePraktikum = () => {
+    setPraktikum(null);
+    setTerbuka(null);
+  };
+
+  const belumAdaData = sesiSaya.length === 0;
+  const sesiPraktikum = praktikum
+    ? sesiSaya.filter((s) => s.namaPraktikum === praktikum)
+    : [];
 
   const renderSesi = (session: Sesi) => {
     const data = rekap.get(session.id);
@@ -103,7 +166,7 @@ export default function RekapScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ expanded: sedangBuka }}
-          accessibilityLabel={`Rekap ${session.namaPraktikum}, ${data.hadir} hadir`}
+          accessibilityLabel={`Rekap ${session.namaPraktikum} ${session.kelas}, ${data.hadir} hadir`}
           onPress={() => setTerbuka(sedangBuka ? null : session.id)}
           style={({ pressed }) => [
             styles.recapRow,
@@ -117,10 +180,10 @@ export default function RekapScreen() {
 
           <View style={styles.recapMain}>
             <Text style={styles.recapName} numberOfLines={1}>
-              {session.namaPraktikum}
+              {session.kelas} · {session.lab}
             </Text>
             <Text style={styles.recapMeta} numberOfLines={1}>
-              {session.kelas} · {session.lab}
+              {titikJam(session.jamMulai)}–{titikJam(session.jamSelesai)}
               {data.menunggu > 0 ? ` · ${data.menunggu} izin menunggu` : ''}
             </Text>
           </View>
@@ -172,9 +235,16 @@ export default function RekapScreen() {
                       <Text style={styles.entriNim}>{e.nim}</Text>
                     </View>
                     {e.kind === 'hadir' ? (
-                      <Text style={styles.entriWaktu}>
-                        Hadir {titikJam(formatJam(e.waktu))}
-                      </Text>
+                      <View style={styles.entriKanan}>
+                        <Text style={styles.entriWaktu}>
+                          Hadir {titikJam(formatJam(e.waktu))}
+                        </Text>
+                        {e.jarak !== undefined && (
+                          <Text style={styles.entriJarak}>
+                            {formatJarak(e.jarak)}
+                          </Text>
+                        )}
+                      </View>
                     ) : (
                       e.status && <StatusBadge status={e.status} />
                     )}
@@ -196,6 +266,71 @@ export default function RekapScreen() {
     );
   };
 
+  const renderPraktikum = (p: RingkasanPraktikum) => (
+    <Pressable
+      key={p.nama}
+      accessibilityRole="button"
+      accessibilityLabel={`${p.nama}, ${p.sesi.length} sesi, ${p.hadir} hadir`}
+      onPress={() => {
+        setPraktikum(p.nama);
+        setTerbuka(null);
+      }}
+      style={({ pressed }) => [
+        styles.recapCard,
+        styles.recapRow,
+        pressed && styles.recapRowPressed,
+      ]}
+    >
+      <View style={styles.recapMain}>
+        <Text style={styles.recapName} numberOfLines={1}>
+          {p.nama}
+        </Text>
+        <Text style={styles.recapMeta} numberOfLines={1}>
+          {p.sesi.length} sesi
+          {p.menunggu > 0 ? ` · ${p.menunggu} izin menunggu` : ''}
+        </Text>
+      </View>
+      <View style={styles.recapTotal}>
+        <Text style={styles.recapCount}>{p.hadir}</Text>
+        <Text style={styles.recapCountLabel}>hadir</Text>
+      </View>
+      <ChevronRight size={18} color={colors.textSecondary} />
+    </Pressable>
+  );
+
+  const renderIsi = () => {
+    if (belumAdaData && loading) {
+      return <LoadingBlock pesan="Memuat rekap..." />;
+    }
+    if (belumAdaData && error) {
+      return <ErrorBlock pesan={error} onRetry={retrySync} />;
+    }
+
+    // Level 1: pilih praktikum.
+    if (praktikum === null) {
+      if (daftarPraktikum.length === 0) {
+        return (
+          <EmptyState
+            judul="Belum ada sesi"
+            pesan="Sesi yang kamu kelola akan tampil di sini."
+          />
+        );
+      }
+      return <View style={styles.recapList}>{daftarPraktikum.map(renderPraktikum)}</View>;
+    }
+
+    // Level 2: daftar praktikan per sesi dari praktikum terpilih.
+    if (sesiPraktikum.length === 0) {
+      return (
+        <EmptyState
+          judul="Sesi tidak ditemukan"
+          pesan="Praktikum ini tidak lagi memiliki sesi. Kembali untuk memilih praktikum lain."
+        />
+      );
+    }
+    return <View style={styles.recapList}>{sesiPraktikum.map(renderSesi)}</View>;
+  };
+
   return (
     <View style={styles.root}>
       <ScrollView
@@ -203,23 +338,30 @@ export default function RekapScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.pageTitle}>
+          {praktikum !== null && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Kembali ke daftar praktikum"
+              onPress={kembaliKePraktikum}
+              style={({ pressed }) => [
+                styles.backBtn,
+                pressed && styles.recapRowPressed,
+              ]}
+            >
+              <ArrowLeft size={18} color={colors.textPrimary} />
+              <Text style={styles.backText}>Semua praktikum</Text>
+            </Pressable>
+          )}
           <Text style={styles.kicker}>MONITOR</Text>
-          <Text style={styles.h1}>Rekap kehadiran</Text>
+          <Text style={styles.h1}>{praktikum ?? 'Rekap kehadiran'}</Text>
           <Text style={styles.sub}>
-            Ringkasan kehadiran dan izin seluruh sesi.
+            {praktikum
+              ? 'Daftar praktikan dan jarak presensi per sesi.'
+              : 'Pilih praktikum untuk melihat rekap kehadiran dan izin.'}
           </Text>
         </View>
 
-        <SinkronGuard adaData={sesiSaya.length > 0}>
-          {sesiSaya.length === 0 ? (
-            <EmptyState
-              judul="Belum ada sesi"
-              pesan="Sesi yang kamu kelola akan tampil di sini."
-            />
-          ) : (
-            <View style={styles.recapList}>{sesiSaya.map(renderSesi)}</View>
-          )}
-        </SinkronGuard>
+        {renderIsi()}
       </ScrollView>
     </View>
   );
@@ -238,6 +380,21 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     gap: 2,
+  },
+  backBtn: {
+    alignSelf: 'flex-start',
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s2,
+    paddingRight: spacing.s3,
+    marginBottom: spacing.s2,
+    borderRadius: 12,
+  },
+  backText: {
+    ...type.caption,
+    fontFamily: fontFamily.bold,
+    color: colors.textPrimary,
   },
   kicker: {
     ...type.micro,
@@ -377,10 +534,19 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2,
   },
+  entriKanan: {
+    alignItems: 'flex-end',
+  },
   entriWaktu: {
     ...type.caption,
     fontFamily: fontFamily.bold,
     color: colors.sesiDibukaFg,
+  },
+  entriJarak: {
+    fontSize: 10,
+    fontFamily: fontFamily.medium,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   detailBtn: {
     minHeight: 42,
