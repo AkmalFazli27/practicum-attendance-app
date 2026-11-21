@@ -22,6 +22,12 @@ export type SesiTervalidasi = {
   deskripsi: string;
 };
 
+export type JadwalAwal = {
+  tanggal: string;
+  jamMulai: string;
+  jamSelesai: string;
+};
+
 export type HasilValidasi =
   | { ok: true; data: SesiTervalidasi }
   | { ok: false; pesan: string };
@@ -57,13 +63,18 @@ function hariIniLokal(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+/** Jam selesai (WIB) sudah lewat dari sekarang. */
+function sudahBerakhir(tanggal: string, jamSelesai: string): boolean {
+  return Date.now() > new Date(`${tanggal}T${jamSelesai}:00+07:00`).getTime();
+}
+
 /**
- * @param tanggalAwal tanggal sesi yang sedang diubah (mode edit). Tanggal lampau
- *   hanya diizinkan bila sama dengan tanggal awal ini.
+ * @param jadwalAwal jadwal sesi yang sedang diubah (mode edit). Jadwal yang
+ *   sudah lampau hanya diizinkan bila tidak diubah dari jadwal awal ini.
  */
 export function validasiFormSesi(
   f: FormSesiMentah,
-  tanggalAwal?: string,
+  jadwalAwal?: JadwalAwal,
 ): HasilValidasi {
   const namaPraktikum = f.namaPraktikum.trim();
   const kelas = f.kelas.trim().toUpperCase();
@@ -84,7 +95,7 @@ export function validasiFormSesi(
     };
   }
 
-  if (tanggal < hariIniLokal() && tanggal !== tanggalAwal) {
+  if (tanggal < hariIniLokal() && tanggal !== jadwalAwal?.tanggal) {
     return {
       ok: false,
       pesan: 'Tanggal sesi tidak boleh sebelum hari ini.',
@@ -104,6 +115,18 @@ export function validasiFormSesi(
   }
   if (jamSelesai <= jamMulai) {
     return { ok: false, pesan: 'Jam selesai harus lebih akhir dari jam mulai.' };
+  }
+
+  const jadwalBerubah =
+    !jadwalAwal ||
+    jadwalAwal.tanggal !== tanggal ||
+    normalisasiJam(jadwalAwal.jamMulai) !== jamMulai ||
+    normalisasiJam(jadwalAwal.jamSelesai) !== jamSelesai;
+  if (jadwalBerubah && sudahBerakhir(tanggal, jamSelesai)) {
+    return {
+      ok: false,
+      pesan: 'Jadwal sudah lewat dari waktu sekarang. Pilih tanggal atau jam yang belum berakhir.',
+    };
   }
 
   const kapasitasMentah = f.kapasitas.trim();
