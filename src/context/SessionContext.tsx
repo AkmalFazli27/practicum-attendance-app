@@ -110,11 +110,7 @@ export type SessionContextValue = {
   kehadiran: Kehadiran[];
   izin: Izin[];
   login: (userId: string) => void;
-  loginWithEmail: (
-    email: string,
-    password: string,
-    peranExpected?: Peran,
-  ) => Promise<AuthResult>;
+  loginWithEmail: (email: string, password: string) => Promise<AuthResult>;
   registerUser: (payload: RegisterPayload) => Promise<AuthResult>;
   logout: () => Promise<LogoutResult>;
   openSession: (sesiId: string) => Promise<HasilAksi>;
@@ -647,7 +643,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const loginWithEmail = async (
     emailInput: string,
     passwordInput: string,
-    peranExpected?: Peran,
   ): Promise<AuthResult> => {
     const cleanEmail = emailInput.trim().toLowerCase();
     // Jangan trim password agar spasi yang disengaja di awal/akhir tidak berubah diam-diam
@@ -702,15 +697,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         const peranAkun: Peran = d.peran;
 
-        if (peranExpected && peranAkun !== peranExpected) {
-          await signOut(auth);
-          setCurrentUser(null);
-          return {
-            ok: false,
-            alasan: `Akun ini terdaftar sebagai ${peranAkun}, bukan ${peranExpected}.`,
-          };
-        }
-
         const userProfil: User = {
           id: fbUid,
           nama: d.nama || userCredential.user.displayName || 'Pengguna TapIn',
@@ -754,17 +740,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       (u) => u.email?.toLowerCase() === cleanEmail,
     );
 
+    // Samakan dengan mode Firebase: jangan bedakan email tidak dikenal dari
+    // kata sandi salah agar keberadaan akun tidak bisa ditebak.
     if (!userDitemukan) {
       return {
         ok: false,
-        alasan: 'Profil pengguna tidak ditemukan.',
-      };
-    }
-
-    if (peranExpected && userDitemukan.peran !== peranExpected) {
-      return {
-        ok: false,
-        alasan: `Akun ini terdaftar sebagai ${userDitemukan.peran}, bukan ${peranExpected}.`,
+        alasan: 'Email atau kata sandi salah.',
       };
     }
 
