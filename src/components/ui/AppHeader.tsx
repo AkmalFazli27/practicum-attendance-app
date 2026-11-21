@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, Settings } from 'lucide-react-native';
+import { Bell, MapPin, Settings } from 'lucide-react-native';
 
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
@@ -12,12 +12,14 @@ import { Brand } from './Brand';
 import { useToast } from './Toast';
 
 export interface AppHeaderProps {
+  onMapPress?: () => void;
   onBellPress?: () => void;
   onAvatarPress?: () => void;
   onSettingsPress?: () => void;
 }
 
 export function AppHeader({
+  onMapPress,
   onBellPress,
   onAvatarPress,
   onSettingsPress,
@@ -30,6 +32,14 @@ export function AppHeader({
   const { isDark, themeColors, t } = usePreferences();
 
   const isProfile = pathname?.includes('profil');
+
+  const handleMap = () => {
+    if (onMapPress) {
+      onMapPress();
+      return;
+    }
+    router.push('/peta' as any);
+  };
 
   const handleBell = () => {
     if (onBellPress) {
@@ -76,6 +86,23 @@ export function AppHeader({
         <Brand compact onDark={isDark} />
 
         <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Buka peta laboratorium"
+            onPress={handleMap}
+            style={({ pressed }) => [
+              styles.iconButton,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: pressed
+                  ? themeColors.surfaceMuted
+                  : themeColors.surface,
+              },
+            ]}
+          >
+            <MapPin size={20} color={themeColors.textPrimary} />
+          </Pressable>
+
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Notifikasi"

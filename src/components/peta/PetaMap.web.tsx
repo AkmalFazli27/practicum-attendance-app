@@ -1,9 +1,10 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Map as MapIcon, MapPin, Navigation } from 'lucide-react-native';
+import { Map as MapIcon, Navigation } from 'lucide-react-native';
 
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 import { hitungJarak } from '@/utils/geo';
+import { getLabMarkerStyle } from './labMarkerStyle';
 import { labPunyaKoordinat } from './region';
 import type { PetaMapProps } from './types';
 
@@ -43,8 +44,9 @@ export function PetaMap({
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
       >
-        {labs.map((lab) => {
+        {labs.map((lab, idx) => {
           const aktif = labDipilih?.id === lab.id;
+          const { Icon, bg, fg } = getLabMarkerStyle(lab, idx);
           const jarak =
             pengguna && labPunyaKoordinat(lab)
               ? hitungJarak(pengguna, { lat: lab.lat, lng: lab.lng })
@@ -61,8 +63,8 @@ export function PetaMap({
                 pressed && styles.rowPressed,
               ]}
             >
-              <View style={styles.iconTile}>
-                <MapPin size={18} color={colors.textPrimary} />
+              <View style={[styles.iconTile, { backgroundColor: bg }]}>
+                <Icon size={18} color={fg} />
               </View>
               <View style={styles.copy}>
                 <Text style={styles.nama}>{lab.nama}</Text>
