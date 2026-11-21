@@ -39,7 +39,7 @@ import {
 export default function ScanQrScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { sesi, currentUser } = useSession();
+  const { sesi, currentUser, getStatusEfektif } = useSession();
   const { showToast } = useToast();
   const { themeColors, t } = usePreferences();
 
@@ -80,11 +80,12 @@ export default function ScanQrScreen() {
       if (cocokLangsung) {
         targetSesiId = cocokLangsung.id;
       } else if (currentUser) {
-        // Fallback: cari sesi kelas yang sedang dibuka
+        // Fallback: cari sesi kelas yang sedang dibuka berdasarkan waktu efektif (PB-06)
+        const kelasSaya = (currentUser.kelas ?? '').trim().toUpperCase();
         const sesiDibuka = sesi.find(
           (s) =>
-            s.status === 'DIBUKA' &&
-            (!currentUser.kelas || s.kelas === currentUser.kelas),
+            getStatusEfektif(s) === 'DIBUKA' &&
+            (!kelasSaya || s.kelas.trim().toUpperCase() === kelasSaya),
         );
         targetSesiId = sesiDibuka?.id;
       }

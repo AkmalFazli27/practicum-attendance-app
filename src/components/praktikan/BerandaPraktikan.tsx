@@ -32,7 +32,7 @@ import { useJadwalPraktikan } from './useJadwalPraktikan';
 
 export function BerandaPraktikan() {
   const router = useRouter();
-  const { currentUser } = useSession();
+  const { currentUser, getStatusEfektif } = useSession();
   const { themeColors } = usePreferences();
   const {
     daftarKelas,
@@ -47,13 +47,13 @@ export function BerandaPraktikan() {
 
   if (!currentUser) return null;
 
-  const sesiBerjalan = sesiAktif[0];
+  const sesiBerjalan = sesiAktif.find((s) => getStatusEfektif(s) === 'DIBUKA');
   const sudahHadirAktif = sesiBerjalan ? hadirMap.has(sesiBerjalan.id) : false;
   const sudahIzinAktif = sesiBerjalan ? izinMap.has(sesiBerjalan.id) : false;
   const tombolNonaktif = sudahHadirAktif || sudahIzinAktif;
 
   const jadwalMendatang = daftarKelas
-    .filter((s) => s.status === 'TERJADWAL')
+    .filter((s) => getStatusEfektif(s) === 'TERJADWAL')
     .slice(0, 2);
 
   const waktuHadirText = (sesiId: string) => {
