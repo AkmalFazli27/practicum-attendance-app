@@ -1,10 +1,12 @@
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Check, FileText } from 'lucide-react-native';
+import { Check, FileText, Sparkles } from 'lucide-react-native';
 
 import { EmptyState, StatusBadge } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type StatusIzin } from '@/data/dummy';
+import { KATEGORI_FALLBACK } from '@/services/ai';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
 import { formatHariTanggalSingkat, formatJam, titikJam } from '@/utils/format';
 
@@ -13,12 +15,16 @@ type Catatan = {
   jenis: 'HADIR' | 'IZIN';
   sesiId: string;
   waktu: string;
+  jarak?: number;
   statusIzin?: StatusIzin;
   kategoriAi?: string;
+  ringkasanAi?: string;
 };
 
 export default function RiwayatScreen() {
-  const { currentUser, sesi, kehadiran, izin, loading, error, retrySync } = useSession();
+  const { themeColors } = usePreferences();
+  const { currentUser, sesi, kehadiran, izin, loading, error, retrySync } =
+    useSession();
 
   const daftarCatatan = useMemo<Catatan[]>(() => {
     if (!currentUser) return [];
@@ -31,6 +37,7 @@ export default function RiwayatScreen() {
         jenis: 'HADIR',
         sesiId: k.sesiId,
         waktu: k.waktuHadir,
+        jarak: k.jarak,
       }));
 
     const izinItems: Catatan[] = izin
@@ -42,6 +49,7 @@ export default function RiwayatScreen() {
         waktu: i.waktuPengajuan,
         statusIzin: i.status,
         kategoriAi: i.kategoriAi,
+        ringkasanAi: i.ringkasanAi,
       }));
 
     return [...hadirItems, ...izinItems].sort((a, b) =>
@@ -54,15 +62,19 @@ export default function RiwayatScreen() {
   if (!currentUser) return null;
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.pageTitle}>
-          <Text style={styles.kicker}>CATATANMU</Text>
-          <Text style={styles.h1}>Riwayat kehadiran</Text>
-          <Text style={styles.sub}>
+          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+            CATATANMU
+          </Text>
+          <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
+            Riwayat kehadiran
+          </Text>
+          <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
             Semua presensi dan status pengajuan izinmu.
           </Text>
         </View>
@@ -87,36 +99,115 @@ export default function RiwayatScreen() {
               if (!s) return null;
 
               const isHadir = item.jenis === 'HADIR';
+              const aiTidakTersedia =
+                !item.kategoriAi ||
+                item.kategoriAi === KATEGORI_FALLBACK ||
+                /fallback/i.test(item.ringkasanAi ?? '');
 
               return (
-                <View key={item.id} style={styles.historyRow}>
+                <View
+                  key={item.id}
+                  style={[
+                    styles.historyRow,
+                    {
+                      borderColor: themeColors.border,
+                      backgroundColor: themeColors.surface,
+                    },
+                  ]}
+                >
                   <View
                     style={[
                       styles.iconTile,
-                      isHadir ? styles.iconTileHadir : styles.iconTileIzin,
+                      {
+                        backgroundColor: isHadir
+                          ? themeColors.sesiDibukaBg
+                          : themeColors.izinBg,
+                      },
                     ]}
                   >
                     {isHadir ? (
-                      <Check size={18} color={colors.sesiDibukaFg} />
+                      <Check size={18} color={themeColors.sesiDibukaFg} />
                     ) : (
-                      <FileText size={18} color={colors.izinFg} />
+                      <FileText size={18} color={themeColors.izinFg} />
                     )}
                   </View>
 
                   <View style={styles.historyMain}>
-                    <Text style={styles.historyName} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.historyName,
+                        { color: themeColors.textPrimary },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {s.namaPraktikum}
                     </Text>
-                    <Text style={styles.historyMeta} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.historyMeta,
+                        { color: themeColors.textMuted },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {formatHariTanggalSingkat(s.tanggal)} ·{' '}
                       {titikJam(formatJam(item.waktu))}
-                      {item.kategoriAi ? ` · AI: ${item.kategoriAi}` : ''}
+                      {isHadir && typeof item.jarak === 'number'
+                        ? ` · ${Math.round(item.jarak)} m`
+                        : ''}
                     </Text>
+                    {!isHadir ? (
+                      <View
+                        style={[
+                          styles.aiChip,
+                          {
+                            backgroundColor: aiTidakTersedia
+                              ? themeColors.gpsOffBg
+                              : themeColors.primarySoft,
+                          },
+                        ]}
+                      >
+                        <Sparkles
+                          size={11}
+                          color={
+                            aiTidakTersedia
+                              ? themeColors.gpsOffFg
+                              : themeColors.sesiDibukaFg
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.aiChipText,
+                            {
+                              color: aiTidakTersedia
+                                ? themeColors.gpsOffFg
+                                : themeColors.sesiDibukaFg,
+                            },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {aiTidakTersedia
+                            ? 'AI tidak tersedia · Belum terklasifikasi'
+                            : `AI: ${item.kategoriAi}`}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   {isHadir ? (
-                    <View style={styles.presentBadge}>
-                      <Text style={styles.presentBadgeText}>Hadir</Text>
+                    <View
+                      style={[
+                        styles.presentBadge,
+                        { backgroundColor: themeColors.sesiDibukaBg },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.presentBadgeText,
+                          { color: themeColors.sesiDibukaFg },
+                        ]}
+                      >
+                        Hadir
+                      </Text>
                     </View>
                   ) : item.statusIzin ? (
                     <StatusBadge status={item.statusIzin} />
@@ -176,6 +267,28 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   historyMeta: { ...type.caption, color: colors.textMuted },
+  aiChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginTop: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+  },
+  aiChipMuted: {
+    backgroundColor: colors.gpsOffBg,
+  },
+  aiChipText: {
+    ...type.micro,
+    fontFamily: fontFamily.bold,
+    color: colors.sesiDibukaFg,
+  },
+  aiChipTextMuted: {
+    color: colors.gpsOffFg,
+  },
   presentBadge: {
     paddingHorizontal: 10,
     paddingVertical: 6,

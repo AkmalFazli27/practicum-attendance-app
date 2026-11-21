@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  Compass,
   FileText,
   MapPin,
   Sparkles,
@@ -15,11 +16,14 @@ import {
 } from 'lucide-react-native';
 
 import { IzinSheet } from '@/components/praktikan/IzinSheet';
-import { PresensiSheet } from '@/components/praktikan/PresensiSheet';
 import { EmptyState, StatusBadge, Tombol } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
+import { KATEGORI_FALLBACK } from '@/services/ai';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
 import { formatHariTanggalSingkat, formatJam, titikJam } from '@/utils/format';
+import { sudahLewat, sudahMulai } from '@/utils/statusSesi';
+
+const TICK_WAKTU_MS = 15_000;
 
 export default function DetailSesiPraktikan() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,14 +31,22 @@ export default function DetailSesiPraktikan() {
   const insets = useSafeAreaInsets();
   const {
     currentUser,
+    labs,
     getSesiById,
+    getStatusEfektif,
     sudahPresensi,
     getIzinBySesiPraktikan,
     loading,
   } = useSession();
 
-  const [presensiBuka, setPresensiBuka] = useState(false);
   const [izinBuka, setIzinBuka] = useState(false);
+  const [, setTick] = useState(0);
+
+  // Periksa ulang waktu secara berkala setiap 15 detik agar tombol & status otomatis mengikuti PB-06
+  useEffect(() => {
+    const timer = setInterval(() => setTick((n) => n + 1), TICK_WAKTU_MS);
+    return () => clearInterval(timer);
+  }, []);
 
   const s = getSesiById(id);
 
@@ -70,13 +82,22 @@ export default function DetailSesiPraktikan() {
     );
   }
 
+  const now = Date.now();
+  const statusEfektif = getStatusEfektif(s);
+  const belumMulai = !sudahMulai(s, now);
+  const waktuHabis = sudahLewat(s, now);
+
+  const labSesi = s.labId ? labs.find((l) => l.id === s.labId) : undefined;
+  const namaLabTampil = labSesi?.nama || s.lab;
+
   const hadir = sudahPresensi(s.id, currentUser.id);
   const waktuHadir = hadir ? titikJam(formatJam(hadir.waktuHadir)) : null;
   const izinSaya = getIzinBySesiPraktikan(s.id, currentUser.id);
 
   // Sama dengan aturan di context: izin apa pun (termasuk DITOLAK) memblokir presensi.
-  const bisaPresensi = s.status === 'DIBUKA' && !hadir && !izinSaya;
-  const bisaAjukanIzin = !hadir && !izinSaya && s.status !== 'SELESAI';
+  const bisaPresensi =
+    statusEfektif === 'DIBUKA' && !belumMulai && !waktuHabis && !hadir && !izinSaya;
+  const bisaAjukanIzin = !hadir && !izinSaya && statusEfektif !== 'SELESAI';
 
   const actionLabel = hadir
     ? `Hadir · ${waktuHadir}`
@@ -86,11 +107,27 @@ export default function DetailSesiPraktikan() {
         ? 'Izin menunggu keputusan'
         : izinSaya?.status === 'DITOLAK'
           ? 'Izin ditolak'
-          : s.status === 'DIBUKA'
-            ? 'Tap untuk presensi'
-            : s.status === 'SELESAI'
+          : waktuHabis
+            ? 'Waktu presensi telah berakhir'
+            : s.status === 'SELESAI' || statusEfektif === 'SELESAI'
               ? 'Sesi telah ditutup'
-              : 'Presensi belum tersedia';
+              : belumMulai
+                ? 'Sesi belum dimulai'
+                : statusEfektif === 'DIBUKA'
+                  ? 'Tap untuk presensi'
+                  : 'Sesi belum dibuka asisten';
+
+  const aiTidakTersedia =
+    !izinSaya?.kategoriAi ||
+    izinSaya.kategoriAi === KATEGORI_FALLBACK ||
+    /fallback/i.test(izinSaya.ringkasanAi ?? '');
+
+  const bukaHalamanPresensi = () => {
+    router.push({
+      pathname: '/(praktikan)/presensi/[id]',
+      params: { id: s.id },
+    } as any);
+  };
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -125,9 +162,9 @@ export default function DetailSesiPraktikan() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Status & Topik */}
+        {/* Status & Topik (PB-06: menggunakan statusEfektif) */}
         <View style={styles.statusRow}>
-          <StatusBadge status={s.status} />
+          <StatusBadge status={statusEfektif} />
           {s.topik ? <Text style={styles.topikText}>{s.topik}</Text> : null}
         </View>
 
@@ -160,7 +197,7 @@ export default function DetailSesiPraktikan() {
             <View style={styles.gridCopy}>
               <Text style={styles.gridLabel}>Lokasi</Text>
               <Text style={styles.gridValue} numberOfLines={1}>
-                {s.lab}
+                {namaLabTampil}
               </Text>
             </View>
           </View>
@@ -174,8 +211,28 @@ export default function DetailSesiPraktikan() {
           </View>
         </View>
 
-        {/* Status Pengajuan Izin (FR-15 & FR-16) */}
-        {izinSaya && (
+        {/* Kartu Bukti Presensi & Jarak ke Lab (FR-20) */}
+        {hadir ? (
+          <View style={styles.hadirCard}>
+            <View style={styles.hadirTopRow}>
+              <CheckCircle2 size={18} color={colors.radiusInsideFg} />
+              <Text style={styles.hadirTitle}>
+                Presensi tercatat pukul {waktuHadir} WIB
+              </Text>
+            </View>
+            {typeof hadir.jarak === 'number' ? (
+              <View style={styles.hadirDistanceRow}>
+                <Compass size={14} color={colors.radiusInsideFg} />
+                <Text style={styles.hadirDistanceText}>
+                  Jarak ke laboratorium saat presensi: {Math.round(hadir.jarak)} m
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* Status Pengajuan Izin & Badge Klasifikasi AI (FR-15, FR-16, PB-02) */}
+        {izinSaya ? (
           <View style={styles.izinStatusCard}>
             <View style={styles.izinHeaderRow}>
               <View>
@@ -189,14 +246,41 @@ export default function DetailSesiPraktikan() {
 
             <Text style={styles.izinAlasan}>"{izinSaya.alasan}"</Text>
 
-            <View style={styles.aiBadgeBox}>
-              <Sparkles size={14} color={colors.sesiDibukaFg} />
-              <Text style={styles.aiBadgeText}>
-                Kategori AI: {izinSaya.kategoriAi}
-              </Text>
+            <View
+              style={[
+                styles.aiBadgeBox,
+                aiTidakTersedia && styles.aiBadgeBoxMuted,
+              ]}
+            >
+              <View style={styles.aiBadgeHeader}>
+                <Sparkles
+                  size={14}
+                  color={
+                    aiTidakTersedia ? colors.gpsOffFg : colors.sesiDibukaFg
+                  }
+                />
+                <Text
+                  style={[
+                    styles.aiBadgeText,
+                    aiTidakTersedia && styles.aiBadgeTextMuted,
+                  ]}
+                >
+                  {aiTidakTersedia
+                    ? izinSaya.kategoriAi &&
+                      izinSaya.kategoriAi !== KATEGORI_FALLBACK
+                      ? `AI (Fallback): ${izinSaya.kategoriAi}`
+                      : 'AI tidak tersedia · Belum terklasifikasi'
+                    : `Kategori AI: ${izinSaya.kategoriAi}`}
+                </Text>
+              </View>
+              {izinSaya.ringkasanAi ? (
+                <Text style={styles.aiSummaryText}>
+                  {izinSaya.ringkasanAi}
+                </Text>
+              ) : null}
             </View>
           </View>
-        )}
+        ) : null}
 
         {/* Tombol Aksi */}
         <View style={styles.actionsGroup}>
@@ -213,10 +297,20 @@ export default function DetailSesiPraktikan() {
                 <ArrowRight size={19} color={colors.onPrimary} />
               ) : undefined
             }
-            onPress={() => setPresensiBuka(true)}
+            onPress={bukaHalamanPresensi}
           >
             {actionLabel}
           </Tombol>
+
+          {!bisaPresensi && !hadir && !izinSaya && statusEfektif === 'DIBUKA' ? (
+            <Tombol
+              variant="sekunder"
+              onPress={bukaHalamanPresensi}
+              icon={<MapPin size={17} color={colors.textPrimary} />}
+            >
+              Periksa halaman lokasi & presensi
+            </Tombol>
+          ) : null}
 
           {bisaAjukanIzin && (
             <Tombol
@@ -229,11 +323,6 @@ export default function DetailSesiPraktikan() {
           )}
         </View>
       </ScrollView>
-
-      <PresensiSheet
-        sesi={presensiBuka ? s : null}
-        onClose={() => setPresensiBuka(false)}
-      />
 
       <IzinSheet
         sesi={izinBuka ? s : null}
@@ -325,6 +414,34 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     color: colors.textPrimary,
   },
+  hadirCard: {
+    marginTop: spacing.s4,
+    padding: spacing.s3 + 2,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.radiusInsideBorder,
+    backgroundColor: colors.radiusInsideBg,
+    gap: 6,
+  },
+  hadirTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  hadirTitle: {
+    ...type.caption,
+    fontFamily: fontFamily.bold,
+    color: colors.radiusInsideFg,
+  },
+  hadirDistanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  hadirDistanceText: {
+    ...type.caption,
+    color: colors.radiusInsideFg,
+  },
   izinStatusCard: {
     marginTop: spacing.s4,
     padding: spacing.s4,
@@ -352,19 +469,36 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   aiBadgeBox: {
+    gap: 4,
+    paddingHorizontal: spacing.s3,
+    paddingVertical: spacing.s2 + 2,
+    borderRadius: 10,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.radiusInsideBorder,
+  },
+  aiBadgeBoxMuted: {
+    backgroundColor: colors.gpsOffBg,
+    borderColor: colors.gpsOffBorder,
+  },
+  aiBadgeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: spacing.s3,
-    paddingVertical: spacing.s2,
-    borderRadius: 10,
-    backgroundColor: colors.primarySoft,
-    alignSelf: 'flex-start',
   },
   aiBadgeText: {
     fontSize: 11,
     fontFamily: fontFamily.bold,
     color: colors.sesiDibukaFg,
+  },
+  aiBadgeTextMuted: {
+    color: colors.gpsOffFg,
+  },
+  aiSummaryText: {
+    ...type.micro,
+    fontFamily: fontFamily.regular,
+    color: colors.textSecondary,
+    lineHeight: 15,
   },
   actionsGroup: { marginTop: spacing.s5, gap: spacing.s3 },
 });

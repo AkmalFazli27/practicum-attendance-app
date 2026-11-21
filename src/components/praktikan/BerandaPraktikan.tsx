@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -15,8 +15,8 @@ import {
   SessionCard,
   Tombol,
 } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
-import { type Sesi } from '@/data/dummy';
 import {
   colors,
   fontFamily,
@@ -27,17 +27,23 @@ import {
   type,
 } from '@/theme/tokens';
 import { formatJam, titikJam } from '@/utils/format';
-import { PresensiSheet } from './PresensiSheet';
 import { ScoreRingSvg } from './ScoreRingSvg';
 import { useJadwalPraktikan } from './useJadwalPraktikan';
 
 export function BerandaPraktikan() {
   const router = useRouter();
   const { currentUser } = useSession();
-  const { daftarKelas, hadirMap, izinMap, sesiAktif, ringkasan, loading, error, retrySync } =
-    useJadwalPraktikan();
-
-  const [sesiPresensi, setSesiPresensi] = useState<Sesi | null>(null);
+  const { themeColors } = usePreferences();
+  const {
+    daftarKelas,
+    hadirMap,
+    izinMap,
+    sesiAktif,
+    ringkasan,
+    loading,
+    error,
+    retrySync,
+  } = useJadwalPraktikan();
 
   if (!currentUser) return null;
 
@@ -58,19 +64,35 @@ export function BerandaPraktikan() {
   const bukaDetail = (id: string) =>
     router.push({ pathname: '/(praktikan)/sesi/[id]', params: { id } } as any);
 
+  const bukaPresensi = (id: string) =>
+    router.push({
+      pathname: '/(praktikan)/presensi/[id]',
+      params: { id },
+    } as any);
+
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* 1. Sapaan */}
         <View style={styles.welcome}>
-          <Text style={styles.welcomeKicker}>Selamat datang,</Text>
-          <Text style={styles.welcomeTitle}>
+          <Text
+            style={[styles.welcomeKicker, { color: themeColors.textSecondary }]}
+          >
+            Selamat datang,
+          </Text>
+          <Text
+            style={[styles.welcomeTitle, { color: themeColors.textPrimary }]}
+          >
             {currentUser.nama.split(' ')[0]}!
           </Text>
-          <Text style={styles.welcomeSub}>Siap untuk praktikum hari ini?</Text>
+          <Text
+            style={[styles.welcomeSub, { color: themeColors.textSecondary }]}
+          >
+            Siap untuk praktikum hari ini?
+          </Text>
         </View>
 
         {/* 2. Kartu Sesi Aktif */}
@@ -131,7 +153,7 @@ export function BerandaPraktikan() {
                   <ArrowRight size={18} color={colors.onPrimary} />
                 ) : undefined
               }
-              onPress={() => setSesiPresensi(sesiBerjalan)}
+              onPress={() => bukaPresensi(sesiBerjalan.id)}
             >
               {sudahHadirAktif
                 ? 'Sudah presensi'
@@ -150,31 +172,103 @@ export function BerandaPraktikan() {
         )}
 
         {/* 3. Kartu Ringkasan Kehadiran */}
-        <View style={styles.summaryCard}>
+        <View
+          style={[
+            styles.summaryCard,
+            {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
           <View style={styles.summaryTopRow}>
             <View style={styles.summaryCopy}>
-              <Text style={styles.kicker}>RINGKASANMU</Text>
-              <Text style={styles.summaryTitle}>Kehadiran semester ini</Text>
+              <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+                RINGKASANMU
+              </Text>
+              <Text
+                style={[
+                  styles.summaryTitle,
+                  { color: themeColors.textPrimary },
+                ]}
+              >
+                Kehadiran semester ini
+              </Text>
             </View>
             <ScoreRingSvg value={ringkasan.persen} label="hadir" />
           </View>
 
-          <View style={styles.summaryStatsRow}>
+          <View
+            style={[
+              styles.summaryStatsRow,
+              { borderTopColor: themeColors.border },
+            ]}
+          >
             <View style={styles.statCol}>
-              <Text style={styles.statValue}>{ringkasan.hadir}</Text>
-              <Text style={styles.statLabel}>Hadir</Text>
+              <Text
+                style={[styles.statValue, { color: themeColors.textPrimary }]}
+              >
+                {ringkasan.hadir}
+              </Text>
+              <Text
+                style={[styles.statLabel, { color: themeColors.textSecondary }]}
+              >
+                Hadir
+              </Text>
             </View>
-            <View style={[styles.statCol, styles.statColBorder]}>
-              <Text style={styles.statValue}>{ringkasan.izin}</Text>
-              <Text style={styles.statLabel}>Izin</Text>
+            <View
+              style={[
+                styles.statCol,
+                styles.statColBorder,
+                { borderLeftColor: themeColors.border },
+              ]}
+            >
+              <Text
+                style={[styles.statValue, { color: themeColors.textPrimary }]}
+              >
+                {ringkasan.izin}
+              </Text>
+              <Text
+                style={[styles.statLabel, { color: themeColors.textSecondary }]}
+              >
+                Izin
+              </Text>
             </View>
-            <View style={[styles.statCol, styles.statColBorder]}>
-              <Text style={styles.statValue}>{ringkasan.belumHadir}</Text>
-              <Text style={styles.statLabel}>Belum hadir</Text>
+            <View
+              style={[
+                styles.statCol,
+                styles.statColBorder,
+                { borderLeftColor: themeColors.border },
+              ]}
+            >
+              <Text
+                style={[styles.statValue, { color: themeColors.textPrimary }]}
+              >
+                {ringkasan.belumHadir}
+              </Text>
+              <Text
+                style={[styles.statLabel, { color: themeColors.textSecondary }]}
+              >
+                Belum hadir
+              </Text>
             </View>
-            <View style={[styles.statCol, styles.statColBorder]}>
-              <Text style={styles.statValue}>{ringkasan.total}</Text>
-              <Text style={styles.statLabel}>Total sesi</Text>
+            <View
+              style={[
+                styles.statCol,
+                styles.statColBorder,
+                { borderLeftColor: themeColors.border },
+              ]}
+            >
+              <Text
+                style={[styles.statValue, { color: themeColors.textPrimary }]}
+              >
+                {ringkasan.total}
+              </Text>
+              <Text
+                style={[styles.statLabel, { color: themeColors.textSecondary }]}
+              >
+                Total sesi
+              </Text>
             </View>
           </View>
         </View>
@@ -207,11 +301,6 @@ export function BerandaPraktikan() {
           </View>
         )}
       </ScrollView>
-
-      <PresensiSheet
-        sesi={sesiPresensi}
-        onClose={() => setSesiPresensi(null)}
-      />
     </View>
   );
 }
@@ -244,7 +333,7 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 75,
     borderWidth: 1,
-    borderColor: 'rgba(196, 241, 91, 0.2)',
+    borderColor: colors.graphiteSurface,
   },
   activeCardHead: {
     flexDirection: 'row',

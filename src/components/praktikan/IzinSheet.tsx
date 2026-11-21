@@ -5,6 +5,7 @@ import { Sparkles } from 'lucide-react-native';
 import { SheetModal, Tombol, useToast } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
+import { KATEGORI_FALLBACK, KATEGORI_IZIN_RESMI } from '@/services/ai';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 import { formatHariTanggalSingkat, titikJam } from '@/utils/format';
 
@@ -14,7 +15,12 @@ export interface IzinSheetProps {
 }
 
 export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
-  const { currentUser, submitIzin, getIzinBySesiPraktikan } = useSession();
+  const {
+    currentUser,
+    submitIzin,
+    getIzinBySesiPraktikan,
+    getStatusEfektif,
+  } = useSession();
   const { showToast } = useToast();
 
   const [alasan, setAlasan] = useState('');
@@ -33,6 +39,10 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
 
   const handleKirim = async () => {
     if (!sesi || mengirim) return;
+    if (getStatusEfektif(sesi) === 'SELESAI') {
+      setGalat('Tidak dapat mengajukan izin karena waktu sesi telah selesai.');
+      return;
+    }
     if (alasan.trim().length < 10) {
       setGalat('Tuliskan alasan ketidakhadiran minimal 10 karakter.');
       return;
@@ -54,11 +64,13 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
       }
       onClose();
 
-      const aiFallback = /fallback/i.test(hasil.izin.ringkasanAi ?? '') || hasil.izin.kategoriAi === 'Belum Terklasifikasi';
+      const aiFallback =
+        /fallback/i.test(hasil.izin.ringkasanAi ?? '') ||
+        hasil.izin.kategoriAi === KATEGORI_FALLBACK;
       showToast(
         aiFallback
-          ? 'Izin diajukan. Layanan AI sedang tidak tersedia, klasifikasi dibuat sementara. Menunggu pemeriksaan asisten.'
-          : `Izin diajukan (AI: ${hasil.izin.kategoriAi}). Menunggu pemeriksaan asisten.`,
+          ? 'Izin diajukan (AI tidak tersedia · Belum terklasifikasi). Menunggu pemeriksaan asisten.'
+          : `Izin diajukan (Kategori AI: ${hasil.izin.kategoriAi}). Menunggu pemeriksaan asisten.`,
       );
     } catch (e: any) {
       setMengirim(false);
@@ -135,13 +147,26 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
             />
           </View>
 
+          {/* Informasi Kategori Klasifikasi AI (PB-02) */}
           <View style={styles.aiNotice}>
-            <Sparkles size={16} color={colors.sesiDibukaFg} />
+            <View style={styles.aiHeaderRow}>
+              <Sparkles size={15} color={colors.sesiDibukaFg} />
+              <Text style={styles.aiNoticeTitle}>
+                Klasifikasi Otomatis Model AI
+              </Text>
+            </View>
             <Text style={styles.aiNoticeText}>
-              Alasan izin akan diklasifikasikan oleh model AI sebagai informasi
-              pendukung bagi asisten. Keputusan akhir tetap ditentukan oleh
-              asisten.
+              Alasanmu akan diklasifikasikan ke salah satu kategori berikut
+              sebagai referensi pendukung bagi asisten (keputusan akhir tetap
+              oleh asisten):
             </Text>
+            <View style={styles.categoryChipWrap}>
+              {KATEGORI_IZIN_RESMI.map((kat) => (
+                <View key={kat} style={styles.categoryPill}>
+                  <Text style={styles.categoryPillText}>{kat}</Text>
+                </View>
+              ))}
+            </View>
           </View>
 
           {galat && (
@@ -195,18 +220,46 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   aiNotice: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.s2 + 2,
+    gap: 6,
     padding: spacing.s3,
     borderRadius: radius.button,
     backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.radiusInsideBorder,
+  },
+  aiHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  aiNoticeTitle: {
+    ...type.caption,
+    fontFamily: fontFamily.bold,
+    color: colors.sesiDibukaFg,
   },
   aiNoticeText: {
     ...type.caption,
     color: colors.textPrimary,
-    flex: 1,
     lineHeight: 17,
+  },
+  categoryChipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 2,
+  },
+  categoryPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  categoryPillText: {
+    ...type.micro,
+    fontFamily: fontFamily.semibold,
+    color: colors.textSecondary,
   },
   errorBox: {
     padding: spacing.s3,
