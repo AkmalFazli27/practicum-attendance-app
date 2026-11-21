@@ -8,6 +8,7 @@ import { SinkronGuard } from '@/components/asisten/SyncState';
 import { useAksiSesi } from '@/components/asisten/useAksiSesi';
 import { useStatusSesi } from '@/components/asisten/useStatusSesi';
 import { EmptyState, SessionCard, Tombol } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
 import { colors, layout, spacing, type } from '@/theme/tokens';
@@ -15,6 +16,7 @@ import { colors, layout, spacing, type } from '@/theme/tokens';
 export default function SesiAsistenScreen() {
   const router = useRouter();
   const { currentUser, sesi, getKehadiranSesi, getIzinSesi } = useSession();
+  const { themeColors } = usePreferences();
   const { mulai, sheet } = useAksiSesi();
   const { statusEfektif, aksiUtama } = useStatusSesi();
 
@@ -47,7 +49,7 @@ export default function SesiAsistenScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -55,15 +57,19 @@ export default function SesiAsistenScreen() {
         {/* Page Title + Tombol Tambah Sesi */}
         <View style={styles.headerRow}>
           <View style={styles.pageTitle}>
-            <Text style={styles.kicker}>KELOLA</Text>
-            <Text style={styles.h1}>Sesi praktikum</Text>
-            <Text style={styles.sub}>
+            <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+              KELOLA
+            </Text>
+            <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
+              Sesi praktikum
+            </Text>
+            <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
               Buka, tutup, ubah, dan pantau setiap sesi.
             </Text>
           </View>
           <Tombol
             variant="primer"
-            icon={<Plus size={18} color={colors.onPrimary} />}
+            icon={<Plus size={18} color={themeColors.onPrimary} />}
             onPress={bukaTambah}
             style={styles.addBtn}
           >

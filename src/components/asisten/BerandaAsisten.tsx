@@ -10,6 +10,7 @@ import {
   SessionCard,
   Tombol,
 } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
 import { titikJam } from '@/utils/format';
@@ -20,6 +21,7 @@ import { useStatusSesi } from './useStatusSesi';
 export function BerandaAsisten() {
   const router = useRouter();
   const { currentUser, sesi, getKehadiranSesi, getIzinSesi } = useSession();
+  const { themeColors } = usePreferences();
   const [tambahVisible, setTambahVisible] = useState(false);
   const { statusEfektif } = useStatusSesi();
 
@@ -53,18 +55,26 @@ export function BerandaAsisten() {
   );
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* 1. Sapaan */}
         <View style={styles.welcome}>
-          <Text style={styles.welcomeKicker}>Panel asisten,</Text>
-          <Text style={styles.welcomeTitle}>
+          <Text
+            style={[styles.welcomeKicker, { color: themeColors.textSecondary }]}
+          >
+            Panel asisten,
+          </Text>
+          <Text
+            style={[styles.welcomeTitle, { color: themeColors.textPrimary }]}
+          >
             {currentUser.nama.split(' ')[0]}!
           </Text>
-          <Text style={styles.welcomeSub}>
+          <Text
+            style={[styles.welcomeSub, { color: themeColors.textSecondary }]}
+          >
             Kelola sesi dan pantau kehadiran hari ini.
           </Text>
         </View>
@@ -73,13 +83,12 @@ export function BerandaAsisten() {
         {/* 2. Metric Grid 2 Kolom */}
         <View style={styles.metricGrid}>
           <MetricCard
-            dark
-            icon={<DoorOpen size={20} color={colors.graphite} />}
+            icon={<DoorOpen size={20} color={themeColors.textPrimary} />}
             value={jumlahAktif}
             label="Sesi aktif"
           />
           <MetricCard
-            icon={<Users size={20} color={colors.textPrimary} />}
+            icon={<Users size={20} color={themeColors.textPrimary} />}
             value={totalHadir}
             label="Total hadir"
           />
@@ -87,25 +96,60 @@ export function BerandaAsisten() {
 
         {/* 3. Kartu Sesi Berjalan */}
         {sesiAktif ? (
-          <View style={styles.activeSessionCard}>
-            <Text style={styles.kicker}>SEDANG BERLANGSUNG</Text>
+          <View
+            style={[
+              styles.activeSessionCard,
+              {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+              SEDANG BERLANGSUNG
+            </Text>
             <View style={styles.activeMainRow}>
               <View style={styles.activeInfoLeft}>
-                <Text style={styles.activeTitle} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.activeTitle,
+                    { color: themeColors.textPrimary },
+                  ]}
+                  numberOfLines={1}
+                >
                   {sesiAktif.namaPraktikum}
                 </Text>
-                <Text style={styles.activeSub}>
+                <Text
+                  style={[
+                    styles.activeSub,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
                   {titikJam(sesiAktif.jamMulai)}–{titikJam(sesiAktif.jamSelesai)} ·{' '}
                   {sesiAktif.lab}
                 </Text>
               </View>
-              <Text style={styles.bigCount}>
+              <Text
+                style={[styles.bigCount, { color: themeColors.textPrimary }]}
+              >
                 {hadirSesiAktif}
-                <Text style={styles.bigCountSub}>/{kapasitasAktif}</Text>
+                <Text
+                  style={[
+                    styles.bigCountSub,
+                    { color: themeColors.textMuted },
+                  ]}
+                >
+                  /{kapasitasAktif}
+                </Text>
               </Text>
             </View>
 
-            <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressTrack,
+                { backgroundColor: themeColors.surfaceMuted },
+              ]}
+            >
               <View
                 style={[styles.progressFill, { width: `${persenAktif}%` }]}
               />
@@ -114,7 +158,7 @@ export function BerandaAsisten() {
             <Tombol
               variant="primer"
               onPress={() => bukaDetail(sesiAktif.id)}
-              rightIcon={<ArrowRight size={18} color={colors.onPrimary} />}
+              rightIcon={<ArrowRight size={18} color={themeColors.onPrimary} />}
             >
               Kelola sesi
             </Tombol>
@@ -141,11 +185,22 @@ export function BerandaAsisten() {
                 onPress={() => router.push('/kelola-lab' as any)}
                 style={({ pressed }) => [
                   styles.labChip,
+                  {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                  },
                   pressed && styles.addChipPressed,
                 ]}
               >
-                <MapPin size={14} color={colors.textPrimary} />
-                <Text style={styles.addChipText}>Kelola Lab</Text>
+                <MapPin size={14} color={themeColors.textPrimary} />
+                <Text
+                  style={[
+                    styles.addChipText,
+                    { color: themeColors.textPrimary },
+                  ]}
+                >
+                  Kelola Lab
+                </Text>
               </Pressable>
 
               <Pressable
@@ -154,11 +209,22 @@ export function BerandaAsisten() {
                 onPress={() => setTambahVisible(true)}
                 style={({ pressed }) => [
                   styles.addChip,
+                  {
+                    backgroundColor: themeColors.primarySoft,
+                    borderColor: themeColors.primary,
+                  },
                   pressed && styles.addChipPressed,
                 ]}
               >
-                <Plus size={15} color={colors.textPrimary} />
-                <Text style={styles.addChipText}>Sesi Baru</Text>
+                <Plus size={15} color={themeColors.textPrimary} />
+                <Text
+                  style={[
+                    styles.addChipText,
+                    { color: themeColors.textPrimary },
+                  ]}
+                >
+                  Sesi Baru
+                </Text>
               </Pressable>
             </View>
           }

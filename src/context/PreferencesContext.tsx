@@ -25,6 +25,8 @@ const translations = {
     tab_qr: 'QR',
     tab_history: 'Riwayat',
     tab_profile: 'Profil',
+    tab_sessions: 'Sesi',
+    tab_recap: 'Rekap',
 
     // Header
     header_notif_toast: 'Notifikasi push aktif untuk akunmu.',
@@ -37,6 +39,7 @@ const translations = {
     profile_status: 'Status akun',
     profile_active: 'Aktif',
     profile_total_attendance: 'Total presensi',
+    profile_managed_sessions: 'Sesi dikelola',
     profile_sessions_unit: 'sesi',
     profile_settings_title: 'Pengaturan & Preferensi',
     profile_settings_sub: 'Tema, bahasa, perizinan perangkat, & akun',
@@ -151,6 +154,8 @@ const translations = {
     tab_qr: 'QR',
     tab_history: 'History',
     tab_profile: 'Profile',
+    tab_sessions: 'Sessions',
+    tab_recap: 'Recap',
 
     // Header
     header_notif_toast: 'Push notifications are active for your account.',
@@ -163,6 +168,7 @@ const translations = {
     profile_status: 'Account status',
     profile_active: 'Active',
     profile_total_attendance: 'Total attendance',
+    profile_managed_sessions: 'Managed sessions',
     profile_sessions_unit: 'sessions',
     profile_settings_title: 'Settings & Preferences',
     profile_settings_sub: 'Theme, language, device permissions, & account',

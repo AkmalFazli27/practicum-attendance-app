@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
@@ -7,6 +8,51 @@ import { useRouter } from 'expo-router';
 
 import { useToast } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
+
+export interface NotifikasiRiwayatItem {
+  id: string;
+  judul: string;
+  pesan: string;
+  waktu: string;
+  sesiId?: string;
+}
+
+const keyRiwayat = (uid: string) => `@tapin_notif_history_${uid}`;
+
+export async function bacaRiwayatNotifikasi(
+  uid: string,
+): Promise<NotifikasiRiwayatItem[]> {
+  try {
+    const raw = await AsyncStorage.getItem(keyRiwayat(uid));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function simpanRiwayatNotifikasi(
+  uid: string,
+  item: NotifikasiRiwayatItem,
+): Promise<void> {
+  try {
+    const lama = await bacaRiwayatNotifikasi(uid);
+    const tanpaDuplikat = lama.filter((x) => x.id !== item.id);
+    const baru = [item, ...tanpaDuplikat].slice(0, 50);
+    await AsyncStorage.setItem(keyRiwayat(uid), JSON.stringify(baru));
+  } catch {
+    // Abaikan kegagalan storage lokal
+  }
+}
+
+export async function hapusRiwayatNotifikasi(uid: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(keyRiwayat(uid));
+  } catch {
+    // Abaikan kegagalan storage lokal
+  }
+}
 
 try {
   Notifications.setNotificationHandler({
@@ -174,13 +220,43 @@ export function useNotifications(): void {
       })
       .catch(() => {});
 
+    const subReceived = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        const content = notification.request.content;
+        const rawData = content.data as Record<string, unknown> | undefined;
+        const sesiId = ekstrakSesiId(rawData) ?? undefined;
+        void simpanRiwayatNotifikasi(currentUser.id, {
+          id:
+            notification.request.identifier ||
+            `notif-${Date.now()}`,
+          judul: content.title || 'Notifikasi TapIn',
+          pesan: content.body || '',
+          waktu: new Date().toISOString(),
+          sesiId,
+        });
+      },
+    );
+
     const subTap = Notifications.addNotificationResponseReceivedListener(
       (response) => {
+        const content = response.notification.request.content;
+        const rawData = content.data as Record<string, unknown> | undefined;
+        const sesiId = ekstrakSesiId(rawData) ?? undefined;
+        void simpanRiwayatNotifikasi(currentUser.id, {
+          id:
+            response.notification.request.identifier ||
+            `notif-${Date.now()}`,
+          judul: content.title || 'Notifikasi TapIn',
+          pesan: content.body || '',
+          waktu: new Date().toISOString(),
+          sesiId,
+        });
         arahkanKeSesi(response);
       },
     );
 
     return () => {
+      subReceived.remove();
       subTap.remove();
     };
   }, [currentUser, router]);
