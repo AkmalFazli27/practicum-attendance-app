@@ -1,17 +1,19 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   CalendarDays,
   History,
   Home,
+  QrCode,
   UserRound,
   type LucideIcon,
 } from 'lucide-react-native';
 
 import { AppHeader } from '@/components/ui';
-import { colors, fontFamily, layout, type } from '@/theme/tokens';
+import { usePreferences } from '@/context/PreferencesContext';
+import { colors, fontFamily, layout, shadows, type } from '@/theme/tokens';
 
 function TabItem({
   label,
@@ -22,16 +24,60 @@ function TabItem({
   focused: boolean;
   Icon: LucideIcon;
 }) {
+  const { themeColors } = usePreferences();
   return (
     <View style={styles.tabItem}>
-      <View style={[styles.iconPill, focused && styles.iconPillActive]}>
+      <View
+        style={[
+          styles.iconPill,
+          focused && { backgroundColor: themeColors.primary },
+        ]}
+      >
         <Icon
           size={21}
           strokeWidth={2.2}
-          color={focused ? colors.textPrimary : colors.textMuted}
+          color={focused ? themeColors.onPrimary : themeColors.textMuted}
         />
       </View>
-      <Text style={[styles.label, focused ? styles.labelOn : styles.labelOff]}>
+      <Text
+        style={[
+          styles.label,
+          focused
+            ? { fontFamily: fontFamily.bold, color: themeColors.textPrimary }
+            : { color: themeColors.textMuted },
+        ]}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function QrCenterTab({ label }: { label: string }) {
+  const { themeColors } = usePreferences();
+  return (
+    <View style={styles.qrTabWrap}>
+      <View
+        style={[
+          styles.qrCircle,
+          {
+            backgroundColor: themeColors.primary,
+            borderColor: themeColors.surface,
+          },
+        ]}
+      >
+        <QrCode size={28} strokeWidth={2.3} color={themeColors.onPrimary} />
+      </View>
+      <Text
+        style={[
+          styles.label,
+          {
+            fontFamily: fontFamily.bold,
+            color: themeColors.textPrimary,
+            marginTop: 2,
+          },
+        ]}
+      >
         {label}
       </Text>
     </View>
@@ -40,59 +86,87 @@ function TabItem({
 
 export default function PraktikanTabs() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { themeColors, t } = usePreferences();
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <AppHeader />
       <Tabs
         screenOptions={{
           headerShown: false,
           tabBarShowLabel: true,
           tabBarStyle: {
-            backgroundColor: colors.surface,
+            backgroundColor: themeColors.surface,
             borderTopWidth: 1,
-            borderTopColor: colors.border,
+            borderTopColor: themeColors.border,
             height: layout.tabBarHeight + insets.bottom,
             paddingBottom: Math.max(insets.bottom, 10),
             paddingTop: 8,
+            overflow: 'visible',
           },
-          tabBarItemStyle: { justifyContent: 'center' },
+          tabBarItemStyle: { justifyContent: 'center', overflow: 'visible' },
           tabBarIconStyle: { display: 'none' },
         }}
       >
         <Tabs.Screen
           name="beranda-praktikan"
           options={{
-            title: 'Beranda',
+            title: t('tab_home'),
             tabBarLabel: ({ focused }) => (
-              <TabItem label="Beranda" focused={focused} Icon={Home} />
+              <TabItem label={t('tab_home')} focused={focused} Icon={Home} />
             ),
           }}
         />
         <Tabs.Screen
           name="jadwal"
           options={{
-            title: 'Jadwal',
+            title: t('tab_schedule'),
             tabBarLabel: ({ focused }) => (
-              <TabItem label="Jadwal" focused={focused} Icon={CalendarDays} />
+              <TabItem
+                label={t('tab_schedule')}
+                focused={focused}
+                Icon={CalendarDays}
+              />
             ),
+          }}
+        />
+        <Tabs.Screen
+          name="qr-tab"
+          listeners={{
+            tabPress: (e) => {
+              e.preventDefault();
+              router.push('/scan-qr' as any);
+            },
+          }}
+          options={{
+            title: t('tab_qr'),
+            tabBarLabel: () => <QrCenterTab label={t('tab_qr')} />,
           }}
         />
         <Tabs.Screen
           name="riwayat"
           options={{
-            title: 'Riwayat',
+            title: t('tab_history'),
             tabBarLabel: ({ focused }) => (
-              <TabItem label="Riwayat" focused={focused} Icon={History} />
+              <TabItem
+                label={t('tab_history')}
+                focused={focused}
+                Icon={History}
+              />
             ),
           }}
         />
         <Tabs.Screen
           name="profil"
           options={{
-            title: 'Profil',
+            title: t('tab_profile'),
             tabBarLabel: ({ focused }) => (
-              <TabItem label="Profil" focused={focused} Icon={UserRound} />
+              <TabItem
+                label={t('tab_profile')}
+                focused={focused}
+                Icon={UserRound}
+              />
             ),
           }}
         />
@@ -118,19 +192,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconPillActive: {
-    backgroundColor: colors.primary,
+  qrTabWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -22,
+  },
+  qrCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    borderWidth: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.activeCard,
   },
   label: {
     ...type.micro,
     letterSpacing: 0.2,
-  },
-  labelOn: {
-    color: colors.textPrimary,
-    fontFamily: fontFamily.bold,
-  },
-  labelOff: {
-    color: colors.textMuted,
-    fontFamily: fontFamily.semibold,
   },
 });
