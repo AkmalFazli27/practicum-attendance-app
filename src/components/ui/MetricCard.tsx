@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 
 export interface MetricCardProps {
@@ -18,14 +19,52 @@ export function MetricCard({
   dark = false,
   style,
 }: MetricCardProps) {
+  const { themeColors } = usePreferences();
+
   return (
-    <View style={[styles.card, dark && styles.cardDark, style]}>
-      <View style={[styles.iconTile, dark ? styles.iconDark : styles.iconLight]}>
+    <View
+      style={[
+        styles.card,
+        {
+          borderColor: dark ? themeColors.border : themeColors.border,
+          backgroundColor: dark ? themeColors.graphite : themeColors.surface,
+        },
+        style,
+      ]}
+    >
+      <View
+        style={[
+          styles.iconTile,
+          {
+            backgroundColor: dark
+              ? themeColors.primary
+              : themeColors.primarySoft,
+          },
+        ]}
+      >
         {icon}
       </View>
       <View style={styles.bottomGroup}>
-        <Text style={[styles.value, dark && styles.valueDark]}>{value}</Text>
-        <Text style={[styles.label, dark && styles.labelDark]}>{label}</Text>
+        <Text
+          style={[
+            styles.value,
+            { color: dark ? themeColors.onGraphite : themeColors.textPrimary },
+          ]}
+        >
+          {value}
+        </Text>
+        <Text
+          style={[
+            styles.label,
+            {
+              color: dark
+                ? themeColors.textOnDarkMuted
+                : themeColors.textMuted,
+            },
+          ]}
+        >
+          {label}
+        </Text>
       </View>
     </View>
   );

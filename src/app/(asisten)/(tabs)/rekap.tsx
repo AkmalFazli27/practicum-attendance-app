@@ -11,6 +11,7 @@ import {
 import { formatJarak } from '@/components/asisten/formatJarak';
 import { ErrorBlock, LoadingBlock } from '@/components/asisten/SyncState';
 import { EmptyState, StatusBadge, Tombol } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
@@ -45,6 +46,7 @@ export default function RekapScreen() {
   const params = useLocalSearchParams<{ sesiId?: string; t?: string }>();
   const { currentUser, users, sesi, kehadiran, izin, loading, error, retrySync } =
     useSession();
+  const { themeColors } = usePreferences();
 
   // Level 1 = daftar praktikum (null). Level 2 = daftar praktikan per sesi.
   const [praktikum, setPraktikum] = useState<string | null>(null);
@@ -162,7 +164,16 @@ export default function RekapScreen() {
     const sedangBuka = terbuka === session.id;
 
     return (
-      <View key={session.id} style={styles.recapCard}>
+      <View
+        key={session.id}
+        style={[
+          styles.recapCard,
+          {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.border,
+          },
+        ]}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ expanded: sedangBuka }}
@@ -170,77 +181,197 @@ export default function RekapScreen() {
           onPress={() => setTerbuka(sedangBuka ? null : session.id)}
           style={({ pressed }) => [
             styles.recapRow,
-            pressed && styles.recapRowPressed,
+            pressed && { backgroundColor: themeColors.surfaceMuted },
           ]}
         >
-          <View style={styles.recapDateTile}>
-            <Text style={styles.recapDateDay}>{tile.hari}</Text>
-            <Text style={styles.recapDateMonth}>{tile.bulan}</Text>
+          <View
+            style={[
+              styles.recapDateTile,
+              { backgroundColor: themeColors.primarySoft },
+            ]}
+          >
+            <Text
+              style={[styles.recapDateDay, { color: themeColors.textPrimary }]}
+            >
+              {tile.hari}
+            </Text>
+            <Text
+              style={[
+                styles.recapDateMonth,
+                { color: themeColors.textSecondary },
+              ]}
+            >
+              {tile.bulan}
+            </Text>
           </View>
 
           <View style={styles.recapMain}>
-            <Text style={styles.recapName} numberOfLines={1}>
+            <Text
+              style={[styles.recapName, { color: themeColors.textPrimary }]}
+              numberOfLines={1}
+            >
               {session.kelas} · {session.lab}
             </Text>
-            <Text style={styles.recapMeta} numberOfLines={1}>
+            <Text
+              style={[styles.recapMeta, { color: themeColors.textMuted }]}
+              numberOfLines={1}
+            >
               {titikJam(session.jamMulai)}–{titikJam(session.jamSelesai)}
               {data.menunggu > 0 ? ` · ${data.menunggu} izin menunggu` : ''}
             </Text>
           </View>
 
           <View style={styles.recapTotal}>
-            <Text style={styles.recapCount}>{data.hadir}</Text>
-            <Text style={styles.recapCountLabel}>hadir</Text>
+            <Text
+              style={[styles.recapCount, { color: themeColors.textPrimary }]}
+            >
+              {data.hadir}
+            </Text>
+            <Text
+              style={[styles.recapCountLabel, { color: themeColors.textMuted }]}
+            >
+              hadir
+            </Text>
           </View>
 
           {sedangBuka ? (
-            <ChevronUp size={18} color={colors.textSecondary} />
+            <ChevronUp size={18} color={themeColors.textSecondary} />
           ) : (
-            <ChevronDown size={18} color={colors.textSecondary} />
+            <ChevronDown size={18} color={themeColors.textSecondary} />
           )}
         </Pressable>
 
         {sedangBuka && (
-          <View style={styles.detail}>
+          <View style={[styles.detail, { borderTopColor: themeColors.border }]}>
             <View style={styles.statRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>
+              <View
+                style={[
+                  styles.statBox,
+                  {
+                    backgroundColor: themeColors.background,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.statValue, { color: themeColors.textPrimary }]}
+                >
                   {data.hadir}
-                  <Text style={styles.statSub}>/{session.kapasitas ?? 32}</Text>
+                  <Text
+                    style={[styles.statSub, { color: themeColors.textMuted }]}
+                  >
+                    /{session.kapasitas ?? 32}
+                  </Text>
                 </Text>
-                <Text style={styles.statLabel}>Hadir</Text>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  Hadir
+                </Text>
               </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>{data.diterima}</Text>
-                <Text style={styles.statLabel}>Izin diterima</Text>
+              <View
+                style={[
+                  styles.statBox,
+                  {
+                    backgroundColor: themeColors.background,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.statValue, { color: themeColors.textPrimary }]}
+                >
+                  {data.diterima}
+                </Text>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  Izin diterima
+                </Text>
               </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>{data.menunggu}</Text>
-                <Text style={styles.statLabel}>Izin menunggu</Text>
+              <View
+                style={[
+                  styles.statBox,
+                  {
+                    backgroundColor: themeColors.background,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.statValue, { color: themeColors.textPrimary }]}
+                >
+                  {data.menunggu}
+                </Text>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  Izin menunggu
+                </Text>
               </View>
             </View>
 
             {data.entri.length === 0 ? (
-              <Text style={styles.emptyList}>
+              <Text
+                style={[styles.emptyList, { color: themeColors.textMuted }]}
+              >
                 Belum ada presensi atau pengajuan izin pada sesi ini.
               </Text>
             ) : (
               <View>
                 {data.entri.map((e) => (
-                  <View key={e.id} style={styles.entriRow}>
+                  <View
+                    key={e.id}
+                    style={[
+                      styles.entriRow,
+                      { borderTopColor: themeColors.border },
+                    ]}
+                  >
                     <View style={styles.entriInfo}>
-                      <Text style={styles.entriNama} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.entriNama,
+                          { color: themeColors.textPrimary },
+                        ]}
+                        numberOfLines={1}
+                      >
                         {e.nama}
                       </Text>
-                      <Text style={styles.entriNim}>{e.nim}</Text>
+                      <Text
+                        style={[
+                          styles.entriNim,
+                          { color: themeColors.textMuted },
+                        ]}
+                      >
+                        {e.nim}
+                      </Text>
                     </View>
                     {e.kind === 'hadir' ? (
                       <View style={styles.entriKanan}>
-                        <Text style={styles.entriWaktu}>
+                        <Text
+                          style={[
+                            styles.entriWaktu,
+                            { color: themeColors.sesiDibukaFg },
+                          ]}
+                        >
                           Hadir {titikJam(formatJam(e.waktu))}
                         </Text>
                         {e.jarak !== undefined && (
-                          <Text style={styles.entriJarak}>
+                          <Text
+                            style={[
+                              styles.entriJarak,
+                              { color: themeColors.textMuted },
+                            ]}
+                          >
                             {formatJarak(e.jarak)}
                           </Text>
                         )}
@@ -278,23 +409,40 @@ export default function RekapScreen() {
       style={({ pressed }) => [
         styles.recapCard,
         styles.recapRow,
-        pressed && styles.recapRowPressed,
+        {
+          backgroundColor: pressed
+            ? themeColors.surfaceMuted
+            : themeColors.surface,
+          borderColor: themeColors.border,
+        },
       ]}
     >
       <View style={styles.recapMain}>
-        <Text style={styles.recapName} numberOfLines={1}>
+        <Text
+          style={[styles.recapName, { color: themeColors.textPrimary }]}
+          numberOfLines={1}
+        >
           {p.nama}
         </Text>
-        <Text style={styles.recapMeta} numberOfLines={1}>
+        <Text
+          style={[styles.recapMeta, { color: themeColors.textMuted }]}
+          numberOfLines={1}
+        >
           {p.sesi.length} sesi
           {p.menunggu > 0 ? ` · ${p.menunggu} izin menunggu` : ''}
         </Text>
       </View>
       <View style={styles.recapTotal}>
-        <Text style={styles.recapCount}>{p.hadir}</Text>
-        <Text style={styles.recapCountLabel}>hadir</Text>
+        <Text style={[styles.recapCount, { color: themeColors.textPrimary }]}>
+          {p.hadir}
+        </Text>
+        <Text
+          style={[styles.recapCountLabel, { color: themeColors.textMuted }]}
+        >
+          hadir
+        </Text>
       </View>
-      <ChevronRight size={18} color={colors.textSecondary} />
+      <ChevronRight size={18} color={themeColors.textSecondary} />
     </Pressable>
   );
 
@@ -332,7 +480,7 @@ export default function RekapScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -345,16 +493,24 @@ export default function RekapScreen() {
               onPress={kembaliKePraktikum}
               style={({ pressed }) => [
                 styles.backBtn,
-                pressed && styles.recapRowPressed,
+                pressed && { backgroundColor: themeColors.surfaceMuted },
               ]}
             >
-              <ArrowLeft size={18} color={colors.textPrimary} />
-              <Text style={styles.backText}>Semua praktikum</Text>
+              <ArrowLeft size={18} color={themeColors.textPrimary} />
+              <Text
+                style={[styles.backText, { color: themeColors.textPrimary }]}
+              >
+                Semua praktikum
+              </Text>
             </Pressable>
           )}
-          <Text style={styles.kicker}>MONITOR</Text>
-          <Text style={styles.h1}>{praktikum ?? 'Rekap kehadiran'}</Text>
-          <Text style={styles.sub}>
+          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+            MONITOR
+          </Text>
+          <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
+            {praktikum ?? 'Rekap kehadiran'}
+          </Text>
+          <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
             {praktikum
               ? 'Daftar praktikan dan jarak presensi per sesi.'
               : 'Pilih praktikum untuk melihat rekap kehadiran dan izin.'}

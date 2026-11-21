@@ -46,7 +46,7 @@ export function AppHeader({
       onBellPress();
       return;
     }
-    showToast(t('header_notif_toast'));
+    router.push('/notifikasi' as any);
   };
 
   const handleAvatar = () => {

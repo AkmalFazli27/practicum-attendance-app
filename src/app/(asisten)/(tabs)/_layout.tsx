@@ -11,6 +11,7 @@ import {
 } from 'lucide-react-native';
 
 import { AppHeader } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, layout, type } from '@/theme/tokens';
 
 function TabItem({
@@ -22,16 +23,29 @@ function TabItem({
   focused: boolean;
   Icon: LucideIcon;
 }) {
+  const { themeColors } = usePreferences();
   return (
     <View style={styles.tabItem}>
-      <View style={[styles.iconPill, focused && styles.iconPillActive]}>
+      <View
+        style={[
+          styles.iconPill,
+          focused && { backgroundColor: themeColors.primary },
+        ]}
+      >
         <Icon
           size={21}
           strokeWidth={2.2}
-          color={focused ? colors.textPrimary : colors.textMuted}
+          color={focused ? themeColors.onPrimary : themeColors.textMuted}
         />
       </View>
-      <Text style={[styles.label, focused ? styles.labelOn : styles.labelOff]}>
+      <Text
+        style={[
+          styles.label,
+          focused
+            ? { fontFamily: fontFamily.bold, color: themeColors.textPrimary }
+            : { color: themeColors.textMuted },
+        ]}
+      >
         {label}
       </Text>
     </View>
@@ -40,18 +54,19 @@ function TabItem({
 
 export default function AsistenTabs() {
   const insets = useSafeAreaInsets();
+  const { themeColors, t } = usePreferences();
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <AppHeader />
       <Tabs
         screenOptions={{
           headerShown: false,
           tabBarShowLabel: true,
           tabBarStyle: {
-            backgroundColor: colors.surface,
+            backgroundColor: themeColors.surface,
             borderTopWidth: 1,
-            borderTopColor: colors.border,
+            borderTopColor: themeColors.border,
             height: layout.tabBarHeight + insets.bottom,
             paddingBottom: Math.max(insets.bottom, 10),
             paddingTop: 8,
@@ -63,36 +78,48 @@ export default function AsistenTabs() {
         <Tabs.Screen
           name="beranda-asisten"
           options={{
-            title: 'Beranda',
+            title: t('tab_home'),
             tabBarLabel: ({ focused }) => (
-              <TabItem label="Beranda" focused={focused} Icon={Home} />
+              <TabItem label={t('tab_home')} focused={focused} Icon={Home} />
             ),
           }}
         />
         <Tabs.Screen
           name="sesi"
           options={{
-            title: 'Sesi',
+            title: t('tab_sessions'),
             tabBarLabel: ({ focused }) => (
-              <TabItem label="Sesi" focused={focused} Icon={LayoutGrid} />
+              <TabItem
+                label={t('tab_sessions')}
+                focused={focused}
+                Icon={LayoutGrid}
+              />
             ),
           }}
         />
         <Tabs.Screen
           name="rekap"
           options={{
-            title: 'Rekap',
+            title: t('tab_recap'),
             tabBarLabel: ({ focused }) => (
-              <TabItem label="Rekap" focused={focused} Icon={BarChart3} />
+              <TabItem
+                label={t('tab_recap')}
+                focused={focused}
+                Icon={BarChart3}
+              />
             ),
           }}
         />
         <Tabs.Screen
           name="profil"
           options={{
-            title: 'Profil',
+            title: t('tab_profile'),
             tabBarLabel: ({ focused }) => (
-              <TabItem label="Profil" focused={focused} Icon={UserRound} />
+              <TabItem
+                label={t('tab_profile')}
+                focused={focused}
+                Icon={UserRound}
+              />
             ),
           }}
         />
