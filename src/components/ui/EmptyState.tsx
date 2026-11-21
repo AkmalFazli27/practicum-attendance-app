@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Search } from 'lucide-react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, radius, spacing, type } from '@/theme/tokens';
 import { Tombol } from './Tombol';
 
@@ -31,6 +32,8 @@ export function EmptyState({
   icon,
   style,
 }: EmptyStateProps) {
+  const { themeColors } = usePreferences();
+
   const renderAksi = () => {
     if (!aksi) return null;
 
@@ -52,19 +55,37 @@ export function EmptyState({
   };
 
   return (
-    <View style={[styles.container, style]}>
+    <View
+      style={[
+        styles.container,
+        {
+          borderColor: themeColors.borderDashed,
+          backgroundColor: themeColors.surface,
+        },
+        style,
+      ]}
+    >
       <View style={styles.contentWrapper}>
         <View style={styles.iconContainer}>
           {icon ? (
             icon
           ) : (
-            <View style={styles.defaultIconTile}>
-              <Search size={22} color={colors.textMuted} />
+            <View
+              style={[
+                styles.defaultIconTile,
+                { backgroundColor: themeColors.surfaceMuted },
+              ]}
+            >
+              <Search size={22} color={themeColors.textMuted} />
             </View>
           )}
         </View>
-        <Text style={styles.judul}>{judul}</Text>
-        <Text style={styles.pesan}>{pesan}</Text>
+        <Text style={[styles.judul, { color: themeColors.textPrimary }]}>
+          {judul}
+        </Text>
+        <Text style={[styles.pesan, { color: themeColors.textSecondary }]}>
+          {pesan}
+        </Text>
         {renderAksi()}
       </View>
     </View>

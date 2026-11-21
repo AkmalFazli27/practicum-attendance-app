@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, radius, shadows, spacing, type } from '@/theme/tokens';
 
 export interface SheetModalProps {
@@ -40,6 +41,7 @@ export function SheetModal({
   style,
 }: SheetModalProps) {
   const insets = useSafeAreaInsets();
+  const { themeColors } = usePreferences();
 
   const handleBackdropPress = () => {
     if (dismissible) {
@@ -73,21 +75,38 @@ export function SheetModal({
         <View
           style={[
             styles.sheetContainer,
-            { paddingBottom: Math.max(insets.bottom, spacing.s5) },
+            {
+              backgroundColor: themeColors.background,
+              paddingBottom: Math.max(insets.bottom, spacing.s5),
+            },
             style,
           ]}
         >
           {/* Grabber bar */}
           <View style={styles.grabberContainer}>
-            <View style={styles.grabber} />
+            <View
+              style={[
+                styles.grabber,
+                { backgroundColor: themeColors.borderDashed },
+              ]}
+            />
           </View>
 
           {/* Header */}
           {!hideHeader && (
             <View style={styles.header}>
               <View style={styles.headerTextWrap}>
-                {kicker && <Text style={styles.kicker}>{kicker}</Text>}
-                <Text style={styles.judul} numberOfLines={2}>
+                {kicker && (
+                  <Text
+                    style={[styles.kicker, { color: themeColors.textMuted }]}
+                  >
+                    {kicker}
+                  </Text>
+                )}
+                <Text
+                  style={[styles.judul, { color: themeColors.textPrimary }]}
+                  numberOfLines={2}
+                >
                   {judul}
                 </Text>
               </View>
@@ -99,13 +118,23 @@ export function SheetModal({
                 onPress={onClose}
                 style={({ pressed }) => [
                   styles.closeButton,
-                  pressed && dismissible && styles.closeButtonPressed,
+                  {
+                    borderColor: themeColors.border,
+                    backgroundColor:
+                      pressed && dismissible
+                        ? themeColors.surfaceMuted
+                        : themeColors.surface,
+                  },
                   !dismissible && styles.closeButtonDisabled,
                 ]}
               >
                 <X
                   size={20}
-                  color={dismissible ? colors.textPrimary : colors.disabledText}
+                  color={
+                    dismissible
+                      ? themeColors.textPrimary
+                      : themeColors.disabledText
+                  }
                 />
               </Pressable>
             </View>

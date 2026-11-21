@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, spacing, type } from '@/theme/tokens';
 
 export interface SectionHeadingProps {
@@ -16,11 +17,19 @@ export function SectionHeading({
   right,
   style,
 }: SectionHeadingProps) {
+  const { themeColors } = usePreferences();
+
   return (
     <View style={[styles.container, style]}>
       <View style={styles.left}>
-        {kicker && <Text style={styles.kicker}>{kicker}</Text>}
-        <Text style={styles.title}>{title}</Text>
+        {kicker && (
+          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+            {kicker}
+          </Text>
+        )}
+        <Text style={[styles.title, { color: themeColors.textPrimary }]}>
+          {title}
+        </Text>
       </View>
       {right}
     </View>
