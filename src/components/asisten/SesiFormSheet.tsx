@@ -6,6 +6,9 @@ import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 import { nowLocalISO } from '@/utils/format';
+import { validasiJadwal } from '@/utils/statusSesi';
+import { PickerJam } from './PickerJam';
+import { PickerTanggal } from './PickerTanggal';
 import { validasiFormSesi } from './validasiSesi';
 
 export interface SesiFormSheetProps {
@@ -84,6 +87,16 @@ export function SesiFormSheet({
     );
     if (!hasil.ok) {
       setGalat(hasil.pesan);
+      return;
+    }
+
+    const jadwal = validasiJadwal({
+      tanggal: hasil.data.tanggal,
+      jamMulai: hasil.data.jamMulai,
+      jamSelesai: hasil.data.jamSelesai,
+    });
+    if (!jadwal.ok) {
+      setGalat(jadwal.alasan);
       return;
     }
 
@@ -191,51 +204,52 @@ export function SesiFormSheet({
         </View>
       </View>
 
-      <View style={styles.row}>
-        <View style={[styles.fieldGroup, { flex: 1.3 }]}>
-          <Text style={styles.label}>Tanggal (YYYY-MM-DD)</Text>
-          <TextInput
-            value={tanggal}
-            onChangeText={setTanggal}
-            placeholder="2026-11-20"
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-          />
-        </View>
-        <View style={[styles.fieldGroup, { flex: 0.7 }]}>
-          <Text style={styles.label}>Kapasitas</Text>
-          <TextInput
-            value={kapasitas}
-            onChangeText={setKapasitas}
-            placeholder="32"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="number-pad"
-            style={styles.input}
-          />
-        </View>
-      </View>
+      <PickerTanggal
+        label="Tanggal"
+        value={tanggal}
+        onChange={(t) => {
+          setTanggal(t);
+          setGalat(null);
+        }}
+        minTanggal={
+          initialSesi?.tanggal && initialSesi.tanggal < hariIni()
+            ? initialSesi.tanggal
+            : hariIni()
+        }
+        disabled={menyimpan}
+      />
 
       <View style={styles.row}>
-        <View style={[styles.fieldGroup, { flex: 1 }]}>
-          <Text style={styles.label}>Jam mulai</Text>
-          <TextInput
-            value={jamMulai}
-            onChangeText={setJamMulai}
-            placeholder="08:00"
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-          />
-        </View>
-        <View style={[styles.fieldGroup, { flex: 1 }]}>
-          <Text style={styles.label}>Jam selesai</Text>
-          <TextInput
-            value={jamSelesai}
-            onChangeText={setJamSelesai}
-            placeholder="10:00"
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-          />
-        </View>
+        <PickerJam
+          label="Jam mulai"
+          value={jamMulai}
+          onChange={(j) => {
+            setJamMulai(j);
+            setGalat(null);
+          }}
+          disabled={menyimpan}
+        />
+        <PickerJam
+          label="Jam selesai"
+          value={jamSelesai}
+          onChange={(j) => {
+            setJamSelesai(j);
+            setGalat(null);
+          }}
+          disabled={menyimpan}
+        />
+      </View>
+
+      <View style={styles.fieldGroup}>
+        <Text style={styles.label}>Kapasitas</Text>
+        <TextInput
+          value={kapasitas}
+          onChangeText={setKapasitas}
+          placeholder="32"
+          placeholderTextColor={colors.textMuted}
+          keyboardType="number-pad"
+          style={styles.input}
+        />
       </View>
 
       <View style={styles.fieldGroup}>
