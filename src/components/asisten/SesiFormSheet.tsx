@@ -144,7 +144,13 @@ export function SesiFormSheet({
       dismissible={!menyimpan}
       onClose={onClose}
       footer={
-        <View style={styles.footerRow}>
+        <View style={styles.footerWrap}>
+          {galat && (
+            <View accessibilityLiveRegion="polite" style={styles.errorBox}>
+              <Text style={styles.errorText}>{galat}</Text>
+            </View>
+          )}
+          <View style={styles.footerRow}>
           <Tombol
             variant="sekunder"
             disabled={menyimpan}
@@ -161,6 +167,7 @@ export function SesiFormSheet({
           >
             {isEdit ? 'Simpan Perubahan' : 'Tambah Sesi'}
           </Tombol>
+          </View>
         </View>
       }
     >
@@ -271,12 +278,6 @@ export function SesiFormSheet({
           style={[styles.input, styles.textArea]}
         />
       </View>
-
-      {galat && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{galat}</Text>
-        </View>
-      )}
     </SheetModal>
   );
 }
@@ -320,6 +321,9 @@ const styles = StyleSheet.create({
     ...type.caption,
     fontFamily: fontFamily.semibold,
     color: colors.errorFg,
+  },
+  footerWrap: {
+    gap: spacing.s2,
   },
   footerRow: {
     flexDirection: 'row',
