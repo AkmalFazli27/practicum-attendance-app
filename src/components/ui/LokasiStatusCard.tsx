@@ -18,6 +18,7 @@ import {
   XCircle,
 } from 'lucide-react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 import { Tombol } from './Tombol';
 
@@ -133,38 +134,50 @@ export function LokasiStatusCard({
   onMintaIzin,
   style,
 }: LokasiStatusCardProps) {
+  const { themeColors } = usePreferences();
   const cfg = KONFIG_STATUS[status];
 
   const palette =
     cfg.tone === 'inside'
       ? {
-          bg: colors.radiusInsideBg,
-          fg: colors.radiusInsideFg,
-          border: colors.radiusInsideBorder,
+          bg: themeColors.radiusInsideBg,
+          fg: themeColors.radiusInsideFg,
+          border: themeColors.radiusInsideBorder,
         }
       : cfg.tone === 'outside'
         ? {
-            bg: colors.radiusOutsideBg,
-            fg: colors.radiusOutsideFg,
-            border: colors.radiusOutsideBorder,
+            bg: themeColors.radiusOutsideBg,
+            fg: themeColors.radiusOutsideFg,
+            border: themeColors.radiusOutsideBorder,
           }
         : cfg.tone === 'warning'
           ? {
-              bg: colors.gpsOffBg,
-              fg: colors.gpsOffFg,
-              border: colors.gpsOffBorder,
+              bg: themeColors.gpsOffBg,
+              fg: themeColors.gpsOffFg,
+              border: themeColors.gpsOffBorder,
             }
           : {
-              bg: colors.lokasiMemuatBg,
-              fg: colors.lokasiMemuatFg,
-              border: colors.border,
+              bg: themeColors.lokasiMemuatBg,
+              fg: themeColors.lokasiMemuatFg,
+              border: themeColors.border,
             };
 
   return (
-    <View style={[styles.card, style]}>
+    <View
+      style={[
+        styles.card,
+        {
+          borderColor: themeColors.border,
+          backgroundColor: themeColors.surface,
+        },
+        style,
+      ]}
+    >
       {/* Baris Header Status */}
       <View style={styles.topRow}>
-        <Text style={styles.kicker}>VERIFIKASI LOKASI LAB</Text>
+        <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+          VERIFIKASI LOKASI LAB
+        </Text>
         <View
           style={[
             styles.statusBadge,
@@ -191,52 +204,95 @@ export function LokasiStatusCard({
       </View>
 
       {/* Judul & Deskripsi Status */}
-      <Text style={styles.title}>{cfg.judul}</Text>
-      <Text style={styles.desc}>{pesanTambahan || cfg.deskripsi}</Text>
+      <Text style={[styles.title, { color: themeColors.textPrimary }]}>
+        {cfg.judul}
+      </Text>
+      <Text style={[styles.desc, { color: themeColors.textSecondary }]}>
+        {pesanTambahan || cfg.deskripsi}
+      </Text>
 
       {/* Metrik Jarak & Radius */}
       <View style={styles.metricsRow}>
-        <View style={styles.metricBox}>
+        <View
+          style={[
+            styles.metricBox,
+            {
+              backgroundColor: themeColors.background,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
           <View style={styles.metricHeader}>
-            <Compass size={14} color={colors.textMuted} />
-            <Text style={styles.metricLabel}>Jarakmu ke Lab</Text>
+            <Compass size={14} color={themeColors.textMuted} />
+            <Text
+              style={[styles.metricLabel, { color: themeColors.textMuted }]}
+            >
+              Jarakmu ke Lab
+            </Text>
           </View>
           <Text
             style={[
               styles.metricValue,
-              status === 'dalam-radius' && { color: colors.radiusInsideFg },
-              status === 'luar-radius' && { color: colors.radiusOutsideFg },
+              { color: themeColors.textPrimary },
+              status === 'dalam-radius' && {
+                color: themeColors.radiusInsideFg,
+              },
+              status === 'luar-radius' && {
+                color: themeColors.radiusOutsideFg,
+              },
             ]}
           >
             {formatJarak(jarakMeter)}
           </Text>
           {typeof akurasiMeter === 'number' && Number.isFinite(akurasiMeter) ? (
-            <Text style={styles.metricSub}>
+            <Text style={[styles.metricSub, { color: themeColors.textMuted }]}>
               Akurasi GPS ±{Math.round(akurasiMeter)} m
             </Text>
           ) : null}
         </View>
 
-        <View style={styles.metricBox}>
+        <View
+          style={[
+            styles.metricBox,
+            {
+              backgroundColor: themeColors.background,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
           <View style={styles.metricHeader}>
-            <MapPin size={14} color={colors.textMuted} />
-            <Text style={styles.metricLabel}>Batas Radius Lab</Text>
+            <MapPin size={14} color={themeColors.textMuted} />
+            <Text
+              style={[styles.metricLabel, { color: themeColors.textMuted }]}
+            >
+              Batas Radius Lab
+            </Text>
           </View>
-          <Text style={styles.metricValue}>
+          <Text
+            style={[styles.metricValue, { color: themeColors.textPrimary }]}
+          >
             {typeof radiusMeter === 'number' && Number.isFinite(radiusMeter)
               ? `≤ ${radiusMeter} m`
               : 'Belum diatur'}
           </Text>
-          <Text style={styles.metricSub} numberOfLines={1}>
+          <Text
+            style={[styles.metricSub, { color: themeColors.textMuted }]}
+            numberOfLines={1}
+          >
             {namaLab || 'Laboratorium'}
           </Text>
         </View>
       </View>
 
       {alamatLab ? (
-        <View style={styles.addressRow}>
-          <MapPin size={14} color={colors.textMuted} />
-          <Text style={styles.addressText} numberOfLines={2}>
+        <View
+          style={[styles.addressRow, { borderTopColor: themeColors.border }]}
+        >
+          <MapPin size={14} color={themeColors.textMuted} />
+          <Text
+            style={[styles.addressText, { color: themeColors.textSecondary }]}
+            numberOfLines={2}
+          >
             {namaLab} · {alamatLab}
           </Text>
         </View>
@@ -247,7 +303,7 @@ export function LokasiStatusCard({
         <Tombol
           variant="sekunder"
           onPress={onMintaIzin}
-          icon={<MapPin size={16} color={colors.textPrimary} />}
+          icon={<MapPin size={16} color={themeColors.textPrimary} />}
           style={styles.actionBtn}
         >
           Izinkan akses lokasi

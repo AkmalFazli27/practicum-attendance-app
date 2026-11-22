@@ -21,7 +21,8 @@ import { useStatusSesi } from './useStatusSesi';
 export function BerandaAsisten() {
   const router = useRouter();
   const { currentUser, sesi, getKehadiranSesi, getIzinSesi } = useSession();
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
   const [tambahVisible, setTambahVisible] = useState(false);
   const { statusEfektif } = useStatusSesi();
 
@@ -65,7 +66,7 @@ export function BerandaAsisten() {
           <Text
             style={[styles.welcomeKicker, { color: themeColors.textSecondary }]}
           >
-            Panel asisten,
+            {isEn ? 'Assistant panel,' : 'Panel asisten,'}
           </Text>
           <Text
             style={[styles.welcomeTitle, { color: themeColors.textPrimary }]}
@@ -75,7 +76,9 @@ export function BerandaAsisten() {
           <Text
             style={[styles.welcomeSub, { color: themeColors.textSecondary }]}
           >
-            Kelola sesi dan pantau kehadiran hari ini.
+            {isEn
+              ? "Manage sessions and monitor today's attendance."
+              : 'Kelola sesi dan pantau kehadiran hari ini.'}
           </Text>
         </View>
 
@@ -85,12 +88,12 @@ export function BerandaAsisten() {
           <MetricCard
             icon={<DoorOpen size={20} color={themeColors.textPrimary} />}
             value={jumlahAktif}
-            label="Sesi aktif"
+            label={isEn ? 'Active sessions' : 'Sesi aktif'}
           />
           <MetricCard
             icon={<Users size={20} color={themeColors.textPrimary} />}
             value={totalHadir}
-            label="Total hadir"
+            label={isEn ? 'Total attended' : 'Total hadir'}
           />
         </View>
 
@@ -106,7 +109,7 @@ export function BerandaAsisten() {
             ]}
           >
             <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-              SEDANG BERLANGSUNG
+              {isEn ? 'IN PROGRESS' : 'SEDANG BERLANGSUNG'}
             </Text>
             <View style={styles.activeMainRow}>
               <View style={styles.activeInfoLeft}>
@@ -160,22 +163,26 @@ export function BerandaAsisten() {
               onPress={() => bukaDetail(sesiAktif.id)}
               rightIcon={<ArrowRight size={18} color={themeColors.onPrimary} />}
             >
-              Kelola sesi
+              {isEn ? 'Manage session' : 'Kelola sesi'}
             </Tombol>
           </View>
         ) : (
           <View style={styles.noActiveWrapper}>
             <EmptyState
-              judul="Tidak ada sesi aktif"
-              pesan="Buka salah satu sesi terjadwal saat kegiatan praktikum dimulai."
+              judul={isEn ? 'No active sessions' : 'Tidak ada sesi aktif'}
+              pesan={
+                isEn
+                  ? 'Open a scheduled session when the practicum starts.'
+                  : 'Buka salah satu sesi terjadwal saat kegiatan praktikum dimulai.'
+              }
             />
           </View>
         )}
 
         {/* 4. Daftar Sesi Kamu */}
         <SectionHeading
-          kicker="HARI INI & MENDATANG"
-          title="Sesi kamu"
+          kicker={isEn ? 'TODAY & UPCOMING' : 'HARI INI & MENDATANG'}
+          title={isEn ? 'Your sessions' : 'Sesi kamu'}
           style={styles.sectionHeading}
           right={
             <View style={styles.headingActions}>
@@ -199,7 +206,7 @@ export function BerandaAsisten() {
                     { color: themeColors.textPrimary },
                   ]}
                 >
-                  Kelola Lab
+                  {isEn ? 'Manage Labs' : 'Kelola Lab'}
                 </Text>
               </Pressable>
 
@@ -223,7 +230,7 @@ export function BerandaAsisten() {
                     { color: themeColors.textPrimary },
                   ]}
                 >
-                  Sesi Baru
+                  {isEn ? 'New Session' : 'Sesi Baru'}
                 </Text>
               </Pressable>
             </View>
@@ -232,10 +239,14 @@ export function BerandaAsisten() {
 
         {sesiSaya.length === 0 ? (
           <EmptyState
-            judul="Belum ada sesi"
-            pesan="Tambahkan sesi praktikum baru untuk mulai mengelola kehadiran."
+            judul={isEn ? 'No sessions yet' : 'Belum ada sesi'}
+            pesan={
+              isEn
+                ? 'Add a new practicum session to start managing attendance.'
+                : 'Tambahkan sesi praktikum baru untuk mulai mengelola kehadiran.'
+            }
             aksi={{
-              label: 'Tambah Sesi Baru',
+              label: isEn ? 'Add New Session' : 'Tambah Sesi Baru',
               onPress: () => setTambahVisible(true),
             }}
           />

@@ -30,6 +30,7 @@ import {
   useToast,
   type StatusPemeriksaanLokasi,
 } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import type { AlasanTolak } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
@@ -136,6 +137,7 @@ export default function HalamanPresensiPraktikan() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
+  const { themeColors } = usePreferences();
 
   const {
     currentUser,
@@ -327,24 +329,41 @@ export default function HalamanPresensiPraktikan() {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.root,
+        { backgroundColor: themeColors.background, paddingTop: insets.top },
+      ]}
+    >
       {/* Header Halaman Presensi */}
-      <View style={styles.topHeader}>
+      <View
+        style={[styles.topHeader, { borderBottomColor: themeColors.border }]}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Kembali"
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.iconBtn,
-            pressed && styles.iconBtnPressed,
+            {
+              borderColor: themeColors.border,
+              backgroundColor: pressed
+                ? themeColors.surfaceMuted
+                : themeColors.surface,
+            },
           ]}
         >
-          <ArrowLeft size={20} color={colors.textPrimary} />
+          <ArrowLeft size={20} color={themeColors.textPrimary} />
         </Pressable>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.kicker}>VERIFIKASI KEHADIRAN</Text>
-          <Text style={styles.headerTitle} numberOfLines={1}>
+          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+            VERIFIKASI KEHADIRAN
+          </Text>
+          <Text
+            style={[styles.headerTitle, { color: themeColors.textPrimary }]}
+            numberOfLines={1}
+          >
             Presensi Praktikum
           </Text>
         </View>
@@ -355,10 +374,15 @@ export default function HalamanPresensiPraktikan() {
           onPress={() => router.push('/peta' as any)}
           style={({ pressed }) => [
             styles.iconBtn,
-            pressed && styles.iconBtnPressed,
+            {
+              borderColor: themeColors.border,
+              backgroundColor: pressed
+                ? themeColors.surfaceMuted
+                : themeColors.surface,
+            },
           ]}
         >
-          <MapPin size={19} color={colors.textPrimary} />
+          <MapPin size={19} color={themeColors.textPrimary} />
         </Pressable>
       </View>
 
@@ -403,13 +427,34 @@ export default function HalamanPresensiPraktikan() {
         ) : null}
 
         {/* 1. Kartu Informasi Sesi & Status Efektif */}
-        <View style={styles.sessionCard}>
+        <View
+          style={[
+            styles.sessionCard,
+            {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
           <View style={styles.sessionTopRow}>
             <View style={styles.sessionTitleWrap}>
-              <Text style={styles.kicker}>SESI PRAKTIKUM</Text>
-              <Text style={styles.sessionName}>{s.namaPraktikum}</Text>
+              <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+                SESI PRAKTIKUM
+              </Text>
+              <Text
+                style={[styles.sessionName, { color: themeColors.textPrimary }]}
+              >
+                {s.namaPraktikum}
+              </Text>
               {s.topik ? (
-                <Text style={styles.sessionTopic}>{s.topik}</Text>
+                <Text
+                  style={[
+                    styles.sessionTopic,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  {s.topik}
+                </Text>
               ) : null}
             </View>
             <StatusBadge status={statusEfektif} />
@@ -417,24 +462,35 @@ export default function HalamanPresensiPraktikan() {
 
           <View style={styles.metaGrid}>
             <View style={styles.metaCell}>
-              <Users size={15} color={colors.textMuted} />
-              <Text style={styles.metaText}>Kelas {s.kelas}</Text>
+              <Users size={15} color={themeColors.textMuted} />
+              <Text
+                style={[styles.metaText, { color: themeColors.textSecondary }]}
+              >
+                Kelas {s.kelas}
+              </Text>
             </View>
             <View style={styles.metaCell}>
-              <MapPin size={15} color={colors.textMuted} />
-              <Text style={styles.metaText} numberOfLines={1}>
+              <MapPin size={15} color={themeColors.textMuted} />
+              <Text
+                style={[styles.metaText, { color: themeColors.textSecondary }]}
+                numberOfLines={1}
+              >
                 {labSesi?.nama ?? s.lab}
               </Text>
             </View>
             <View style={styles.metaCell}>
-              <CalendarDays size={15} color={colors.textMuted} />
-              <Text style={styles.metaText}>
+              <CalendarDays size={15} color={themeColors.textMuted} />
+              <Text
+                style={[styles.metaText, { color: themeColors.textSecondary }]}
+              >
                 {formatHariTanggalSingkat(s.tanggal)}
               </Text>
             </View>
             <View style={styles.metaCell}>
-              <Clock3 size={15} color={colors.textMuted} />
-              <Text style={styles.metaText}>
+              <Clock3 size={15} color={themeColors.textMuted} />
+              <Text
+                style={[styles.metaText, { color: themeColors.textSecondary }]}
+              >
                 {titikJam(s.jamMulai)}–{titikJam(s.jamSelesai)} WIB
               </Text>
             </View>
@@ -442,22 +498,61 @@ export default function HalamanPresensiPraktikan() {
 
           {/* Keterangan Waktu Sesi (PB-06) */}
           {waktuHabis ? (
-            <View style={styles.timeNoticeDanger}>
-              <Text style={styles.timeNoticeDangerText}>
+            <View
+              style={[
+                styles.timeNoticeDanger,
+                {
+                  backgroundColor: themeColors.radiusOutsideBg,
+                  borderColor: themeColors.radiusOutsideBorder,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.timeNoticeDangerText,
+                  { color: themeColors.radiusOutsideFg },
+                ]}
+              >
                 Waktu presensi telah berakhir (jadwal selesai pukul{' '}
                 {titikJam(s.jamSelesai)} WIB).
               </Text>
             </View>
           ) : belumMulai ? (
-            <View style={styles.timeNoticeWarn}>
-              <Text style={styles.timeNoticeWarnText}>
+            <View
+              style={[
+                styles.timeNoticeWarn,
+                {
+                  backgroundColor: themeColors.gpsOffBg,
+                  borderColor: themeColors.gpsOffBorder,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.timeNoticeWarnText,
+                  { color: themeColors.gpsOffFg },
+                ]}
+              >
                 Sesi belum dimulai. Presensi baru dapat dilakukan mulai pukul{' '}
                 {titikJam(s.jamMulai)} WIB.
               </Text>
             </View>
           ) : statusEfektif !== 'DIBUKA' ? (
-            <View style={styles.timeNoticeWarn}>
-              <Text style={styles.timeNoticeWarnText}>
+            <View
+              style={[
+                styles.timeNoticeWarn,
+                {
+                  backgroundColor: themeColors.gpsOffBg,
+                  borderColor: themeColors.gpsOffBorder,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.timeNoticeWarnText,
+                  { color: themeColors.gpsOffFg },
+                ]}
+              >
                 {s.status === 'SELESAI'
                   ? 'Sesi ini telah ditutup oleh asisten.'
                   : 'Menunggu asisten membuka sesi praktikum.'}
@@ -514,8 +609,18 @@ export default function HalamanPresensiPraktikan() {
           </View>
         ) : (
           /* 4. Pernyataan Kehadiran & Tombol Konfirmasi */
-          <View style={styles.confirmCard}>
-            <Text style={styles.kicker}>KONFIRMASI KEHADIRAN</Text>
+          <View
+            style={[
+              styles.confirmCard,
+              {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+              KONFIRMASI KEHADIRAN
+            </Text>
             <Pressable
               accessibilityRole="checkbox"
               accessibilityState={{
@@ -529,14 +634,26 @@ export default function HalamanPresensiPraktikan() {
               <View
                 style={[
                   styles.checkboxBox,
-                  setujuHadir && styles.checkboxBoxChecked,
+                  {
+                    borderColor: setujuHadir
+                      ? themeColors.primary
+                      : themeColors.borderDashed,
+                    backgroundColor: setujuHadir
+                      ? themeColors.primary
+                      : themeColors.background,
+                  },
                 ]}
               >
                 {setujuHadir ? (
-                  <Check size={14} color={colors.onGraphite} />
+                  <Check size={14} color={themeColors.onPrimary} />
                 ) : null}
               </View>
-              <Text style={styles.checkboxLabel}>
+              <Text
+                style={[
+                  styles.checkboxLabel,
+                  { color: themeColors.textPrimary },
+                ]}
+              >
                 Saya menyatakan hadir secara langsung di ruang laboratorium pada
                 sesi praktikum ini.
               </Text>
@@ -548,7 +665,7 @@ export default function HalamanPresensiPraktikan() {
               disabled={tombolKonfirmasiNonaktif}
               icon={
                 !sesiBisaPresensi || !lokasiSiapSubmit ? (
-                  <CheckCircle2 size={18} color={colors.disabledText} />
+                  <CheckCircle2 size={18} color={themeColors.disabledText} />
                 ) : undefined
               }
               onPress={handlePresensi}

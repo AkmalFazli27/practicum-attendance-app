@@ -16,7 +16,8 @@ import { colors, layout, spacing, type } from '@/theme/tokens';
 export default function SesiAsistenScreen() {
   const router = useRouter();
   const { currentUser, sesi, getKehadiranSesi, getIzinSesi } = useSession();
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
   const { mulai, sheet } = useAksiSesi();
   const { statusEfektif, aksiUtama } = useStatusSesi();
 
@@ -58,13 +59,15 @@ export default function SesiAsistenScreen() {
         <View style={styles.headerRow}>
           <View style={styles.pageTitle}>
             <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-              KELOLA
+              {isEn ? 'MANAGE' : 'KELOLA'}
             </Text>
             <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
-              Sesi praktikum
+              {isEn ? 'Practicum sessions' : 'Sesi praktikum'}
             </Text>
             <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
-              Buka, tutup, ubah, dan pantau setiap sesi.
+              {isEn
+                ? 'Open, close, edit, and monitor every session.'
+                : 'Buka, tutup, ubah, dan pantau setiap sesi.'}
             </Text>
           </View>
           <Tombol
@@ -73,16 +76,23 @@ export default function SesiAsistenScreen() {
             onPress={bukaTambah}
             style={styles.addBtn}
           >
-            Tambah
+            {isEn ? 'Add' : 'Tambah'}
           </Tombol>
         </View>
 
         <SinkronGuard adaData={sesiSaya.length > 0}>
         {sesiSaya.length === 0 ? (
           <EmptyState
-            judul="Belum ada sesi"
-            pesan="Sesi yang kamu kelola akan tampil di sini."
-            aksi={{ label: 'Tambah Sesi Baru', onPress: bukaTambah }}
+            judul={isEn ? 'No sessions yet' : 'Belum ada sesi'}
+            pesan={
+              isEn
+                ? 'Sessions you manage will appear here.'
+                : 'Sesi yang kamu kelola akan tampil di sini.'
+            }
+            aksi={{
+              label: isEn ? 'Add New Session' : 'Tambah Sesi Baru',
+              onPress: bukaTambah,
+            }}
           />
         ) : (
           <View style={styles.list}>
@@ -115,7 +125,7 @@ export default function SesiAsistenScreen() {
                         disabled={!aksi.aktif}
                         onPress={() => mulai(s.id, 'buka')}
                       >
-                        Buka
+                        {isEn ? 'Open' : 'Buka'}
                       </Tombol>
                     )}
                     {aksi.jenis === 'tutup' && (
@@ -124,7 +134,7 @@ export default function SesiAsistenScreen() {
                         style={styles.smallBtn}
                         onPress={() => mulai(s.id, 'tutup')}
                       >
-                        Tutup
+                        {isEn ? 'Close' : 'Tutup'}
                       </Tombol>
                     )}
                     <Tombol
@@ -132,7 +142,7 @@ export default function SesiAsistenScreen() {
                       style={styles.smallBtn}
                       onPress={() => bukaEdit(s)}
                     >
-                      Ubah
+                      {isEn ? 'Edit' : 'Ubah'}
                     </Tombol>
                     <Tombol
                       variant="sekunder"

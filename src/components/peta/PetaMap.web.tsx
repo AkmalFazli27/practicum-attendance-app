@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Map as MapIcon, Navigation } from 'lucide-react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 import { hitungJarak } from '@/utils/geo';
 import { getLabMarkerStyle } from './labMarkerStyle';
@@ -18,20 +19,40 @@ export function PetaMap({
   onPilihLab,
   pengguna,
 }: PetaMapProps) {
+  const { themeColors } = usePreferences();
+
   return (
-    <View style={styles.root}>
-      <View style={styles.notice}>
-        <MapIcon size={18} color={colors.textMuted} />
-        <Text style={styles.noticeText}>
+    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
+      <View
+        style={[
+          styles.notice,
+          {
+            borderColor: themeColors.border,
+            backgroundColor: themeColors.surface,
+          },
+        ]}
+      >
+        <MapIcon size={18} color={themeColors.textMuted} />
+        <Text style={[styles.noticeText, { color: themeColors.textSecondary }]}>
           Peta interaktif tersedia di aplikasi mobile. Pilih lab dari daftar
           berikut.
         </Text>
       </View>
 
       {pengguna ? (
-        <View style={styles.lokasiRow}>
-          <Navigation size={16} color={colors.textPrimary} />
-          <Text style={styles.lokasiText}>
+        <View
+          style={[
+            styles.lokasiRow,
+            {
+              borderColor: themeColors.border,
+              backgroundColor: themeColors.primarySoft,
+            },
+          ]}
+        >
+          <Navigation size={16} color={themeColors.textPrimary} />
+          <Text
+            style={[styles.lokasiText, { color: themeColors.textPrimary }]}
+          >
             Posisi kamu: {pengguna.lat.toFixed(5)}, {pengguna.lng.toFixed(5)}
             {typeof pengguna.akurasi === 'number' && pengguna.akurasi > 0
               ? ` (±${Math.round(pengguna.akurasi)} m)`
@@ -59,18 +80,32 @@ export function PetaMap({
               onPress={() => onPilihLab(lab)}
               style={({ pressed }) => [
                 styles.row,
-                aktif && styles.rowAktif,
-                pressed && styles.rowPressed,
+                {
+                  borderColor: aktif ? themeColors.primary : themeColors.border,
+                  backgroundColor: pressed
+                    ? themeColors.surfaceMuted
+                    : themeColors.surface,
+                },
               ]}
             >
               <View style={[styles.iconTile, { backgroundColor: bg }]}>
                 <Icon size={18} color={fg} />
               </View>
               <View style={styles.copy}>
-                <Text style={styles.nama}>{lab.nama}</Text>
-                <Text style={styles.alamat}>{lab.alamat}</Text>
+                <Text
+                  style={[styles.nama, { color: themeColors.textPrimary }]}
+                >
+                  {lab.nama}
+                </Text>
+                <Text
+                  style={[styles.alamat, { color: themeColors.textMuted }]}
+                >
+                  {lab.alamat}
+                </Text>
                 {jarak !== null ? (
-                  <Text style={styles.jarak}>
+                  <Text
+                    style={[styles.jarak, { color: themeColors.textSecondary }]}
+                  >
                     {jarak < 1000
                       ? `${Math.round(jarak)} m dari posisimu`
                       : `${(jarak / 1000).toFixed(1)} km dari posisimu`}

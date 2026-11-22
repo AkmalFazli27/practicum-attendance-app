@@ -68,41 +68,103 @@ export default function ScanQrScreen() {
     if (scannedLock.current) return;
     scannedLock.current = true;
 
+    const unlockLater = () => {
+      setTimeout(() => {
+        scannedLock.current = false;
+      }, 2200);
+    };
+
     const raw = (result.data ?? '').trim();
+    const normKelas = (k?: string) => (k ?? '').trim().toUpperCase();
+    const kelasSaya = normKelas(currentUser?.kelas);
+    const isEn = t('qr_title') === 'Scan QR Code' && t('tab_home') === 'Home';
 
-    // Coba cocokkan ID sesi langsung atau format tapin://presensi/<id>
-    let targetSesiId: string | undefined;
+    // 1. Cari sesi yang dirujuk langsung oleh QR (format tapin://presensi/<id> atau ID sesi langsung)
     const matchPath = raw.match(/presensi\/([^/?#\s]+)/i);
-    if (matchPath?.[1]) {
-      targetSesiId = matchPath[1];
-    } else {
-      const cocokLangsung = sesi.find((s) => s.id === raw);
-      if (cocokLangsung) {
-        targetSesiId = cocokLangsung.id;
-      } else if (currentUser) {
-        // Fallback: cari sesi kelas yang sedang dibuka berdasarkan waktu efektif (PB-06)
-        const kelasSaya = (currentUser.kelas ?? '').trim().toUpperCase();
-        const sesiDibuka = sesi.find(
-          (s) =>
-            getStatusEfektif(s) === 'DIBUKA' &&
-            (!kelasSaya || s.kelas.trim().toUpperCase() === kelasSaya),
-        );
-        targetSesiId = sesiDibuka?.id;
-      }
-    }
+    const kandidatId = matchPath?.[1] ?? raw;
+    const sesiDitemukan = sesi.find((s) => s.id === kandidatId);
 
-    if (targetSesiId) {
+    if (sesiDitemukan) {
+      // Validasi kelas praktikan: tolak jika QR milik kelas lain
+      if (kelasSaya && normKelas(sesiDitemukan.kelas) !== kelasSaya) {
+        showToast(
+          isEn
+            ? `This QR code is for class ${sesiDitemukan.kelas}, not your class (${currentUser?.kelas}).`
+            : `Kode QR ini untuk kelas ${sesiDitemukan.kelas}, bukan kelasmu (${currentUser?.kelas}).`,
+        );
+        unlockLater();
+        return;
+      }
+
+      // Validasi waktu efektif sesi (PB-06)
+      const statusEfektif = getStatusEfektif(sesiDitemukan);
+      if (statusEfektif === 'SELESAI') {
+        showToast(
+          isEn
+            ? 'Attendance time for this session has ended.'
+            : 'Waktu presensi untuk sesi ini telah berakhir.',
+        );
+        unlockLater();
+        return;
+      }
+      if (statusEfektif !== 'DIBUKA') {
+        showToast(
+          isEn
+            ? 'This practicum session has not been opened yet.'
+            : 'Sesi praktikum ini belum dibuka oleh asisten.',
+        );
+        unlockLater();
+        return;
+      }
+
       router.replace({
         pathname: '/(praktikan)/presensi/[id]',
-        params: { id: targetSesiId },
+        params: { id: sesiDitemukan.id },
       } as any);
       return;
     }
 
-    showToast(t('qr_no_active_session'));
-    setTimeout(() => {
-      scannedLock.current = false;
-    }, 2000);
+    // 2. Jika QR memuat info kelas lain (misal "IF-2B") yang bukan kelas praktikan, tolak eksplisit
+    const sesiKelasLain = sesi.find(
+      (s) =>
+        kelasSaya &&
+        normKelas(s.kelas) !== kelasSaya &&
+        (raw.toUpperCase().includes(normKelas(s.kelas)) ||
+          raw.toLowerCase().includes(s.namaPraktikum.toLowerCase())),
+    );
+    if (sesiKelasLain) {
+      showToast(
+        isEn
+          ? `This QR code belongs to ${sesiKelasLain.namaPraktikum} (${sesiKelasLain.kelas}), not your class.`
+          : `Kode QR ini milik ${sesiKelasLain.namaPraktikum} kelas ${sesiKelasLain.kelas}, bukan kelasmu.`,
+      );
+      unlockLater();
+      return;
+    }
+
+    // 3. Fallback aman hanya untuk QR berformat TapIn yang cocok dengan sesi aktif kelas sendiri (PB-06)
+    const isTapInQr = /^tapin:\/\//i.test(raw);
+    if (isTapInQr && currentUser) {
+      const sesiDibuka = sesi.find(
+        (s) =>
+          getStatusEfektif(s) === 'DIBUKA' &&
+          (!kelasSaya || normKelas(s.kelas) === kelasSaya),
+      );
+      if (sesiDibuka) {
+        router.replace({
+          pathname: '/(praktikan)/presensi/[id]',
+          params: { id: sesiDibuka.id },
+        } as any);
+        return;
+      }
+    }
+
+    showToast(
+      isEn
+        ? 'QR code is not recognized or not for your active class.'
+        : 'Kode QR tidak dikenali atau bukan untuk sesi aktif kelasmu.',
+    );
+    unlockLater();
   };
 
   const handleRequestOrSettings = async () => {

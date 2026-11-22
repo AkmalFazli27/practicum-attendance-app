@@ -46,7 +46,8 @@ export default function RekapScreen() {
   const params = useLocalSearchParams<{ sesiId?: string; t?: string }>();
   const { currentUser, users, sesi, kehadiran, izin, loading, error, retrySync } =
     useSession();
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
 
   // Level 1 = daftar praktikum (null). Level 2 = daftar praktikan per sesi.
   const [praktikum, setPraktikum] = useState<string | null>(null);
@@ -428,8 +429,10 @@ export default function RekapScreen() {
           style={[styles.recapMeta, { color: themeColors.textMuted }]}
           numberOfLines={1}
         >
-          {p.sesi.length} sesi
-          {p.menunggu > 0 ? ` · ${p.menunggu} izin menunggu` : ''}
+          {p.sesi.length} {isEn ? 'sessions' : 'sesi'}
+          {p.menunggu > 0
+            ? ` · ${p.menunggu} ${isEn ? 'pending leave' : 'izin menunggu'}`
+            : ''}
         </Text>
       </View>
       <View style={styles.recapTotal}>
@@ -439,7 +442,7 @@ export default function RekapScreen() {
         <Text
           style={[styles.recapCountLabel, { color: themeColors.textMuted }]}
         >
-          hadir
+          {isEn ? 'attended' : 'hadir'}
         </Text>
       </View>
       <ChevronRight size={18} color={themeColors.textSecondary} />
@@ -500,7 +503,7 @@ export default function RekapScreen() {
               <Text
                 style={[styles.backText, { color: themeColors.textPrimary }]}
               >
-                Semua praktikum
+                {isEn ? 'All practicums' : 'Semua praktikum'}
               </Text>
             </Pressable>
           )}
@@ -508,12 +511,16 @@ export default function RekapScreen() {
             MONITOR
           </Text>
           <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
-            {praktikum ?? 'Rekap kehadiran'}
+            {praktikum ?? (isEn ? 'Attendance recap' : 'Rekap kehadiran')}
           </Text>
           <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
             {praktikum
-              ? 'Daftar praktikan dan jarak presensi per sesi.'
-              : 'Pilih praktikum untuk melihat rekap kehadiran dan izin.'}
+              ? isEn
+                ? 'Student list and check-in distances per session.'
+                : 'Daftar praktikan dan jarak presensi per sesi.'
+              : isEn
+                ? 'Select a practicum to view attendance and leave recaps.'
+                : 'Pilih praktikum untuk melihat rekap kehadiran dan izin.'}
           </Text>
         </View>
 

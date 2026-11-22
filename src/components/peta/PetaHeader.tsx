@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, RefreshCw } from 'lucide-react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, layout, radius, spacing, type } from '@/theme/tokens';
 
 export interface PetaHeaderProps {
@@ -28,6 +29,7 @@ export function PetaHeader({
 }: PetaHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { themeColors } = usePreferences();
 
   const handleKembali = () => {
     if (router.canGoBack()) {
@@ -38,7 +40,16 @@ export function PetaHeader({
   };
 
   return (
-    <View style={[styles.wrapper, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.wrapper,
+        {
+          backgroundColor: themeColors.background,
+          borderBottomColor: themeColors.border,
+          paddingTop: insets.top,
+        },
+      ]}
+    >
       <View style={styles.inner}>
         <Pressable
           accessibilityRole="button"
@@ -46,15 +57,25 @@ export function PetaHeader({
           onPress={handleKembali}
           style={({ pressed }) => [
             styles.iconBtn,
-            pressed && styles.iconBtnPressed,
+            {
+              borderColor: themeColors.border,
+              backgroundColor: pressed
+                ? themeColors.surfaceMuted
+                : themeColors.surface,
+            },
           ]}
         >
-          <ArrowLeft size={20} color={colors.textPrimary} />
+          <ArrowLeft size={20} color={themeColors.textPrimary} />
         </Pressable>
 
         <View style={styles.center}>
-          <Text style={styles.kicker}>{kicker}</Text>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+            {kicker}
+          </Text>
+          <Text
+            style={[styles.title, { color: themeColors.textPrimary }]}
+            numberOfLines={1}
+          >
             {judul}
           </Text>
         </View>
@@ -68,14 +89,19 @@ export function PetaHeader({
             onPress={onRefresh}
             style={({ pressed }) => [
               styles.iconBtn,
-              pressed && styles.iconBtnPressed,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: pressed
+                  ? themeColors.surfaceMuted
+                  : themeColors.surface,
+              },
               sedangMemuat && styles.iconBtnDisabled,
             ]}
           >
             {sedangMemuat ? (
-              <ActivityIndicator size="small" color={colors.textPrimary} />
+              <ActivityIndicator size="small" color={themeColors.textPrimary} />
             ) : (
-              <RefreshCw size={18} color={colors.textPrimary} />
+              <RefreshCw size={18} color={themeColors.textPrimary} />
             )}
           </Pressable>
         ) : (

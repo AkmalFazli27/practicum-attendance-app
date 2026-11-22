@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 
 export type JenisPermissionBanner =
@@ -110,26 +111,27 @@ export function PermissionBanner({
   onTutup,
   style,
 }: PermissionBannerProps) {
+  const { themeColors } = usePreferences();
   const copy = DEFAULT_COPY[jenis];
   const isDanger = jenis === 'jaringan' || jenis === 'error';
   const isNeutral = jenis === 'koordinat-belum-ada';
 
   const tone = isDanger
     ? {
-        bg: colors.radiusOutsideBg,
-        fg: colors.radiusOutsideFg,
-        border: colors.radiusOutsideBorder,
+        bg: themeColors.radiusOutsideBg,
+        fg: themeColors.radiusOutsideFg,
+        border: themeColors.radiusOutsideBorder,
       }
     : isNeutral
       ? {
-          bg: colors.lokasiMemuatBg,
-          fg: colors.lokasiMemuatFg,
-          border: colors.border,
+          bg: themeColors.lokasiMemuatBg,
+          fg: themeColors.lokasiMemuatFg,
+          border: themeColors.border,
         }
       : {
-          bg: colors.gpsOffBg,
-          fg: colors.gpsOffFg,
-          border: colors.gpsOffBorder,
+          bg: themeColors.gpsOffBg,
+          fg: themeColors.gpsOffFg,
+          border: themeColors.gpsOffBorder,
         };
 
   return (

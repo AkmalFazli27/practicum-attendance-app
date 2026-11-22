@@ -26,6 +26,7 @@ import {
   type DrafLab,
 } from '@/components/peta/validasiLab';
 import { EmptyState, FilterChip, Tombol, useToast } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import type { Lab } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
@@ -63,6 +64,7 @@ export default function KelolaLabScreen() {
 
 function KelolaLabContent() {
   const { labs, error, retrySync, updateLab } = useSession();
+  const { themeColors } = usePreferences();
   const { status: statusLokasi, koordinat, pesanError, mintaIzin, coba } =
     useLocation();
   const { showToast } = useToast();
@@ -173,7 +175,7 @@ function KelolaLabContent() {
   );
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <PetaHeader
         judul="Kelola Lab"
         kicker="LABORATORIUM"
@@ -219,7 +221,9 @@ function KelolaLabContent() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.section}>
-            <Text style={styles.label}>Pilih laboratorium</Text>
+            <Text style={[styles.label, { color: themeColors.textPrimary }]}>
+              Pilih laboratorium
+            </Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -244,9 +248,28 @@ function KelolaLabContent() {
 
           {labTerpilih ? (
             <>
-              <View style={styles.infoCard}>
-                <Text style={styles.infoNama}>{labTerpilih.nama}</Text>
-                <Text style={styles.infoAlamat}>{labTerpilih.alamat}</Text>
+              <View
+                style={[
+                  styles.infoCard,
+                  {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.infoNama, { color: themeColors.textPrimary }]}
+                >
+                  {labTerpilih.nama}
+                </Text>
+                <Text
+                  style={[
+                    styles.infoAlamat,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  {labTerpilih.alamat}
+                </Text>
               </View>
 
               <LokasiPicker

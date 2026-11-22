@@ -17,6 +17,7 @@ import {
 
 import { IzinSheet } from '@/components/praktikan/IzinSheet';
 import { EmptyState, StatusBadge, Tombol } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { KATEGORI_FALLBACK } from '@/services/ai';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
@@ -29,6 +30,8 @@ export default function DetailSesiPraktikan() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
   const {
     currentUser,
     labs,
@@ -57,15 +60,31 @@ export default function DetailSesiPraktikan() {
       s.kelas.trim().toUpperCase() !== currentUser.kelas.trim().toUpperCase())
   ) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top }]}>
-        <View style={styles.topHeader}>
+      <View
+        style={[
+          styles.root,
+          { backgroundColor: themeColors.background, paddingTop: insets.top },
+        ]}
+      >
+        <View
+          style={[
+            styles.topHeader,
+            { borderBottomColor: themeColors.border },
+          ]}
+        >
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Kembali"
             onPress={() => router.back()}
-            style={styles.iconBtn}
+            style={[
+              styles.iconBtn,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: themeColors.surface,
+              },
+            ]}
           >
-            <ArrowLeft size={20} color={colors.textPrimary} />
+            <ArrowLeft size={20} color={themeColors.textPrimary} />
           </Pressable>
         </View>
         <View style={styles.emptyWrap}>
@@ -130,24 +149,41 @@ export default function DetailSesiPraktikan() {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.root,
+        { backgroundColor: themeColors.background, paddingTop: insets.top },
+      ]}
+    >
       {/* Sheet-style Header */}
-      <View style={styles.topHeader}>
+      <View
+        style={[styles.topHeader, { borderBottomColor: themeColors.border }]}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Kembali"
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.iconBtn,
-            pressed && styles.iconBtnPressed,
+            {
+              borderColor: themeColors.border,
+              backgroundColor: pressed
+                ? themeColors.surfaceMuted
+                : themeColors.surface,
+            },
           ]}
         >
-          <ArrowLeft size={20} color={colors.textPrimary} />
+          <ArrowLeft size={20} color={themeColors.textPrimary} />
         </Pressable>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.kicker}>DETAIL SESI</Text>
-          <Text style={styles.headerTitle} numberOfLines={1}>
+          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+            {isEn ? 'SESSION DETAIL' : 'DETAIL SESI'}
+          </Text>
+          <Text
+            style={[styles.headerTitle, { color: themeColors.textPrimary }]}
+            numberOfLines={1}
+          >
             {s.namaPraktikum}
           </Text>
         </View>
@@ -165,65 +201,152 @@ export default function DetailSesiPraktikan() {
         {/* Status & Topik (PB-06: menggunakan statusEfektif) */}
         <View style={styles.statusRow}>
           <StatusBadge status={statusEfektif} />
-          {s.topik ? <Text style={styles.topikText}>{s.topik}</Text> : null}
+          {s.topik ? (
+            <Text
+              style={[styles.topikText, { color: themeColors.textSecondary }]}
+            >
+              {s.topik}
+            </Text>
+          ) : null}
         </View>
 
-        <Text style={styles.description}>{s.deskripsi}</Text>
+        <Text
+          style={[styles.description, { color: themeColors.textSecondary }]}
+        >
+          {s.deskripsi}
+        </Text>
 
         {/* Grid 2x2 */}
         <View style={styles.detailGrid}>
-          <View style={styles.gridCell}>
-            <CalendarDays size={18} color={colors.textMuted} />
+          <View
+            style={[
+              styles.gridCell,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: themeColors.surface,
+              },
+            ]}
+          >
+            <CalendarDays size={18} color={themeColors.textMuted} />
             <View style={styles.gridCopy}>
-              <Text style={styles.gridLabel}>Tanggal</Text>
-              <Text style={styles.gridValue}>
+              <Text
+                style={[styles.gridLabel, { color: themeColors.textMuted }]}
+              >
+                {isEn ? 'Date' : 'Tanggal'}
+              </Text>
+              <Text
+                style={[styles.gridValue, { color: themeColors.textPrimary }]}
+              >
                 {formatHariTanggalSingkat(s.tanggal)}
               </Text>
             </View>
           </View>
 
-          <View style={styles.gridCell}>
-            <Clock3 size={18} color={colors.textMuted} />
+          <View
+            style={[
+              styles.gridCell,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: themeColors.surface,
+              },
+            ]}
+          >
+            <Clock3 size={18} color={themeColors.textMuted} />
             <View style={styles.gridCopy}>
-              <Text style={styles.gridLabel}>Waktu</Text>
-              <Text style={styles.gridValue}>
+              <Text
+                style={[styles.gridLabel, { color: themeColors.textMuted }]}
+              >
+                {isEn ? 'Time' : 'Waktu'}
+              </Text>
+              <Text
+                style={[styles.gridValue, { color: themeColors.textPrimary }]}
+              >
                 {titikJam(s.jamMulai)}–{titikJam(s.jamSelesai)}
               </Text>
             </View>
           </View>
 
-          <View style={styles.gridCell}>
-            <MapPin size={18} color={colors.textMuted} />
+          <View
+            style={[
+              styles.gridCell,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: themeColors.surface,
+              },
+            ]}
+          >
+            <MapPin size={18} color={themeColors.textMuted} />
             <View style={styles.gridCopy}>
-              <Text style={styles.gridLabel}>Lokasi</Text>
-              <Text style={styles.gridValue} numberOfLines={1}>
+              <Text
+                style={[styles.gridLabel, { color: themeColors.textMuted }]}
+              >
+                {isEn ? 'Location' : 'Lokasi'}
+              </Text>
+              <Text
+                style={[styles.gridValue, { color: themeColors.textPrimary }]}
+                numberOfLines={1}
+              >
                 {namaLabTampil}
               </Text>
             </View>
           </View>
 
-          <View style={styles.gridCell}>
-            <Users size={18} color={colors.textMuted} />
+          <View
+            style={[
+              styles.gridCell,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: themeColors.surface,
+              },
+            ]}
+          >
+            <Users size={18} color={themeColors.textMuted} />
             <View style={styles.gridCopy}>
-              <Text style={styles.gridLabel}>Kelas</Text>
-              <Text style={styles.gridValue}>{s.kelas}</Text>
+              <Text
+                style={[styles.gridLabel, { color: themeColors.textMuted }]}
+              >
+                {isEn ? 'Class' : 'Kelas'}
+              </Text>
+              <Text
+                style={[styles.gridValue, { color: themeColors.textPrimary }]}
+              >
+                {s.kelas}
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Kartu Bukti Presensi & Jarak ke Lab (FR-20) */}
         {hadir ? (
-          <View style={styles.hadirCard}>
+          <View
+            style={[
+              styles.hadirCard,
+              {
+                backgroundColor: themeColors.radiusInsideBg,
+                borderColor: themeColors.radiusInsideBorder,
+              },
+            ]}
+          >
             <View style={styles.hadirTopRow}>
-              <CheckCircle2 size={18} color={colors.radiusInsideFg} />
-              <Text style={styles.hadirTitle}>
+              <CheckCircle2 size={18} color={themeColors.radiusInsideFg} />
+              <Text
+                style={[
+                  styles.hadirTitle,
+                  { color: themeColors.radiusInsideFg },
+                ]}
+              >
                 Presensi tercatat pukul {waktuHadir} WIB
               </Text>
             </View>
             {typeof hadir.jarak === 'number' ? (
               <View style={styles.hadirDistanceRow}>
-                <Compass size={14} color={colors.radiusInsideFg} />
-                <Text style={styles.hadirDistanceText}>
+                <Compass size={14} color={themeColors.radiusInsideFg} />
+                <Text
+                  style={[
+                    styles.hadirDistanceText,
+                    { color: themeColors.radiusInsideFg },
+                  ]}
+                >
                   Jarak ke laboratorium saat presensi: {Math.round(hadir.jarak)} m
                 </Text>
               </View>
@@ -233,36 +356,62 @@ export default function DetailSesiPraktikan() {
 
         {/* Status Pengajuan Izin & Badge Klasifikasi AI (FR-15, FR-16, PB-02) */}
         {izinSaya ? (
-          <View style={styles.izinStatusCard}>
+          <View
+            style={[
+              styles.izinStatusCard,
+              {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
             <View style={styles.izinHeaderRow}>
               <View>
-                <Text style={styles.kicker}>STATUS PENGAJUAN IZIN</Text>
-                <Text style={styles.izinTitle}>
+                <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+                  STATUS PENGAJUAN IZIN
+                </Text>
+                <Text
+                  style={[styles.izinTitle, { color: themeColors.textPrimary }]}
+                >
                   Diajukan pukul {titikJam(formatJam(izinSaya.waktuPengajuan))}
                 </Text>
               </View>
               <StatusBadge status={izinSaya.status} />
             </View>
 
-            <Text style={styles.izinAlasan}>"{izinSaya.alasan}"</Text>
+            <Text
+              style={[styles.izinAlasan, { color: themeColors.textSecondary }]}
+            >
+              "{izinSaya.alasan}"
+            </Text>
 
             <View
               style={[
                 styles.aiBadgeBox,
-                aiTidakTersedia && styles.aiBadgeBoxMuted,
+                {
+                  backgroundColor: aiTidakTersedia
+                    ? themeColors.gpsOffBg
+                    : themeColors.primarySoft,
+                },
               ]}
             >
               <View style={styles.aiBadgeHeader}>
                 <Sparkles
                   size={14}
                   color={
-                    aiTidakTersedia ? colors.gpsOffFg : colors.sesiDibukaFg
+                    aiTidakTersedia
+                      ? themeColors.gpsOffFg
+                      : themeColors.sesiDibukaFg
                   }
                 />
                 <Text
                   style={[
                     styles.aiBadgeText,
-                    aiTidakTersedia && styles.aiBadgeTextMuted,
+                    {
+                      color: aiTidakTersedia
+                        ? themeColors.gpsOffFg
+                        : themeColors.sesiDibukaFg,
+                    },
                   ]}
                 >
                   {aiTidakTersedia
@@ -274,7 +423,12 @@ export default function DetailSesiPraktikan() {
                 </Text>
               </View>
               {izinSaya.ringkasanAi ? (
-                <Text style={styles.aiSummaryText}>
+                <Text
+                  style={[
+                    styles.aiSummaryText,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
                   {izinSaya.ringkasanAi}
                 </Text>
               ) : null}
@@ -289,12 +443,12 @@ export default function DetailSesiPraktikan() {
             disabled={!bisaPresensi}
             icon={
               hadir ? (
-                <CheckCircle2 size={19} color={colors.disabledText} />
+                <CheckCircle2 size={19} color={themeColors.disabledText} />
               ) : undefined
             }
             rightIcon={
               bisaPresensi ? (
-                <ArrowRight size={19} color={colors.onPrimary} />
+                <ArrowRight size={19} color={themeColors.onPrimary} />
               ) : undefined
             }
             onPress={bukaHalamanPresensi}
@@ -306,7 +460,7 @@ export default function DetailSesiPraktikan() {
             <Tombol
               variant="sekunder"
               onPress={bukaHalamanPresensi}
-              icon={<MapPin size={17} color={colors.textPrimary} />}
+              icon={<MapPin size={17} color={themeColors.textPrimary} />}
             >
               Periksa halaman lokasi & presensi
             </Tombol>
@@ -315,7 +469,7 @@ export default function DetailSesiPraktikan() {
           {bisaAjukanIzin && (
             <Tombol
               variant="sekunder"
-              icon={<FileText size={17} color={colors.textPrimary} />}
+              icon={<FileText size={17} color={themeColors.textPrimary} />}
               onPress={() => setIzinBuka(true)}
             >
               Berhalangan hadir? Ajukan izin

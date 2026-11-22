@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -31,6 +32,7 @@ function Kolom({
   langkah: number;
   onUbah: (n: number) => void;
 }) {
+  const { themeColors } = usePreferences();
   const [teks, setTeks] = useState(pad(nilai));
   const [fokus, setFokus] = useState(false);
 
@@ -49,9 +51,11 @@ function Kolom({
       <Pressable
         accessibilityLabel={`${nama} tambah`}
         onPress={() => onUbah((nilai + langkah) % total)}
-        style={styles.btn}
+        style={[styles.btn, { backgroundColor: themeColors.surfaceMuted }]}
       >
-        <Text style={styles.btnText}>+</Text>
+        <Text style={[styles.btnText, { color: themeColors.textPrimary }]}>
+          +
+        </Text>
       </Pressable>
       <TextInput
         accessibilityLabel={nama}
@@ -70,30 +74,46 @@ function Kolom({
           komit(teks);
           setTeks(pad(Math.min(maks, Number(teks) || 0)));
         }}
-        style={styles.angka}
+        style={[styles.angka, { color: themeColors.textPrimary }]}
       />
       <Pressable
         accessibilityLabel={`${nama} kurang`}
         onPress={() => onUbah((nilai - langkah + total) % total)}
-        style={styles.btn}
+        style={[styles.btn, { backgroundColor: themeColors.surfaceMuted }]}
       >
-        <Text style={styles.btnText}>−</Text>
+        <Text style={[styles.btnText, { color: themeColors.textPrimary }]}>
+          −
+        </Text>
       </Pressable>
     </View>
   );
 }
 
 export function PickerJam({ label, value, onChange, disabled = false }: PickerJamProps) {
+  const { themeColors } = usePreferences();
   const { j, m } = parse(value);
   const set = (jj: number, mm: number) => onChange(`${pad(jj)}:${pad(mm)}`);
 
   return (
     <View style={styles.group} pointerEvents={disabled ? 'none' : 'auto'}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.box, disabled && { opacity: 0.5 }]}>
+      <Text style={[styles.label, { color: themeColors.textPrimary }]}>
+        {label}
+      </Text>
+      <View
+        style={[
+          styles.box,
+          {
+            borderColor: themeColors.border,
+            backgroundColor: themeColors.surface,
+          },
+          disabled && { opacity: 0.5 },
+        ]}
+      >
         <View style={styles.atas}>
           <Kolom nama={`${label} jam`} nilai={j} maks={23} langkah={1} onUbah={(n) => set(n, m)} />
-          <Text style={styles.titikDua}>:</Text>
+          <Text style={[styles.titikDua, { color: themeColors.textPrimary }]}>
+            :
+          </Text>
           <Kolom nama={`${label} menit`} nilai={m} maks={59} langkah={5} onUbah={(n) => set(j, n)} />
         </View>
       </View>

@@ -30,6 +30,7 @@ import {
   statusTungguLabs,
 } from '@/components/peta/region';
 import { EmptyState, FilterChip } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import type { Lab } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
@@ -68,6 +69,7 @@ export default function PetaScreen() {
 
 function PetaContent() {
   const { labs, error, retrySync } = useSession();
+  const { themeColors } = usePreferences();
   const { status: statusLokasi, koordinat, pesanError, mintaIzin, coba } =
     useLocation();
   const insets = useSafeAreaInsets();
@@ -132,14 +134,20 @@ function PetaContent() {
   }, []);
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <PetaHeader onRefresh={retrySync} />
 
       {labs.length > 0 ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.chipScroll}
+          style={[
+            styles.chipScroll,
+            {
+              backgroundColor: themeColors.background,
+              borderBottomColor: themeColors.border,
+            },
+          ]}
           contentContainerStyle={styles.chipRow}
         >
           {labs.map((lab) => (

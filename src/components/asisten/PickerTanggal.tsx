@@ -1,13 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 
-const NAMA_BULAN = [
+const NAMA_BULAN_ID = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
-const HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+const NAMA_BULAN_EN = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const HARI_ID = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+const HARI_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const keStr = (t: number, b: number, h: number) => `${t}-${pad(b + 1)}-${pad(h)}`;
@@ -39,6 +45,10 @@ export function PickerTanggal({
   minTanggal,
   disabled = false,
 }: PickerTanggalProps) {
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
+  const NAMA_BULAN = isEn ? NAMA_BULAN_EN : NAMA_BULAN_ID;
+  const HARI = isEn ? HARI_EN : HARI_ID;
   const [terbuka, setTerbuka] = useState(false);
   const awal = parse(value) ?? parse(hariIni())!;
   const [tahun, setTahun] = useState(awal.t);
@@ -74,48 +84,91 @@ export function PickerTanggal({
 
   const tampil = (() => {
     const p = parse(value);
-    return p ? `${p.h} ${NAMA_BULAN[p.b]} ${p.t}` : 'Pilih tanggal';
+    return p
+      ? `${p.h} ${NAMA_BULAN[p.b]} ${p.t}`
+      : isEn
+        ? 'Select date'
+        : 'Pilih tanggal';
   })();
 
   return (
     <View style={styles.group}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: themeColors.textPrimary }]}>
+        {label}
+      </Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${tampil}`}
         disabled={disabled}
         onPress={() => setTerbuka((v) => !v)}
-        style={[styles.field, terbuka && styles.fieldAktif]}
+        style={[
+          styles.field,
+          {
+            borderColor: terbuka
+              ? themeColors.primaryPressed
+              : themeColors.border,
+            backgroundColor: themeColors.surface,
+          },
+        ]}
       >
-        <Text style={styles.fieldText}>{tampil}</Text>
+        <Text style={[styles.fieldText, { color: themeColors.textPrimary }]}>
+          {tampil}
+        </Text>
       </Pressable>
 
       {terbuka && (
-        <View style={styles.panel}>
+        <View
+          style={[
+            styles.panel,
+            {
+              borderColor: themeColors.border,
+              backgroundColor: themeColors.surface,
+            },
+          ]}
+        >
           <View style={styles.nav}>
             <Pressable
               accessibilityLabel="Bulan sebelumnya"
               disabled={!bulanSebelumnyaBoleh}
               onPress={() => geser(-1)}
-              style={styles.navBtn}
+              style={[
+                styles.navBtn,
+                { backgroundColor: themeColors.surfaceMuted },
+              ]}
             >
-              <Text style={[styles.navText, !bulanSebelumnyaBoleh && styles.off]}>‹</Text>
+              <Text
+                style={[
+                  styles.navText,
+                  { color: themeColors.textPrimary },
+                  !bulanSebelumnyaBoleh && styles.off,
+                ]}
+              >
+                ‹
+              </Text>
             </Pressable>
-            <Text style={styles.bulan}>
+            <Text style={[styles.bulan, { color: themeColors.textPrimary }]}>
               {NAMA_BULAN[bulan]} {tahun}
             </Text>
             <Pressable
               accessibilityLabel="Bulan berikutnya"
               onPress={() => geser(1)}
-              style={styles.navBtn}
+              style={[
+                styles.navBtn,
+                { backgroundColor: themeColors.surfaceMuted },
+              ]}
             >
-              <Text style={styles.navText}>›</Text>
+              <Text style={[styles.navText, { color: themeColors.textPrimary }]}>
+                ›
+              </Text>
             </Pressable>
           </View>
 
           <View style={styles.baris}>
             {HARI.map((h) => (
-              <Text key={h} style={styles.hariHead}>
+              <Text
+                key={h}
+                style={[styles.hariHead, { color: themeColors.textMuted }]}
+              >
                 {h}
               </Text>
             ))}
@@ -139,12 +192,21 @@ export function PickerTanggal({
                   }}
                   style={styles.sel}
                 >
-                  <View style={[styles.hari, aktif && styles.hariAktif]}>
+                  <View
+                    style={[
+                      styles.hari,
+                      aktif && { backgroundColor: themeColors.primary },
+                    ]}
+                  >
                     <Text
                       style={[
                         styles.hariText,
+                        { color: themeColors.textPrimary },
                         mati && styles.off,
-                        aktif && styles.hariTextAktif,
+                        aktif && {
+                          color: themeColors.onPrimary,
+                          fontFamily: fontFamily.bold,
+                        },
                       ]}
                     >
                       {h}

@@ -28,10 +28,24 @@ const EMPTY_COPY: Record<Filter, { judul: string; pesan: string }> = {
 export default function JadwalScreen() {
   const router = useRouter();
   const { currentUser, getStatusEfektif } = useSession();
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
   const { daftarKelas, hadirMap, izinMap, loading, error, retrySync } = useJadwalPraktikan();
 
   const [filter, setFilter] = useState<Filter>('SEMUA');
+
+  const filterLabels: Record<Filter, string> = isEn
+    ? { SEMUA: 'All', DIBUKA: 'Open', HADIR: 'Attended', IZIN: 'Leave' }
+    : { SEMUA: 'Semua', DIBUKA: 'Dibuka', HADIR: 'Dihadiri', IZIN: 'Izin' };
+
+  const emptyCopy: Record<Filter, { judul: string; pesan: string }> = isEn
+    ? {
+        SEMUA: { judul: 'No schedule yet', pesan: 'Practicum schedules will appear here.' },
+        DIBUKA: { judul: 'No open sessions', pesan: 'No sessions are currently open.' },
+        HADIR: { judul: 'No attended sessions', pesan: 'You have not attended any sessions yet.' },
+        IZIN: { judul: 'No leave requests', pesan: 'You have not submitted any leave requests yet.' },
+      }
+    : EMPTY_COPY;
 
   const data = useMemo(
     () =>
@@ -53,9 +67,17 @@ export default function JadwalScreen() {
     <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.pageTitle}>
-          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>JADWAL</Text>
-          <Text style={[styles.h1, { color: themeColors.textPrimary }]}>Jadwal praktikum</Text>
-          <Text style={[styles.sub, { color: themeColors.textSecondary }]}>Temukan sesi dan status presensimu.</Text>
+          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+            {isEn ? 'SCHEDULE' : 'JADWAL'}
+          </Text>
+          <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
+            {isEn ? 'Practicum schedule' : 'Jadwal praktikum'}
+          </Text>
+          <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
+            {isEn
+              ? 'Find your sessions and attendance status.'
+              : 'Temukan sesi dan status presensimu.'}
+          </Text>
         </View>
 
         <ScrollView
@@ -66,7 +88,7 @@ export default function JadwalScreen() {
           {FILTERS.map((f) => (
             <FilterChip
               key={f.key}
-              label={f.label}
+              label={filterLabels[f.key]}
               aktif={filter === f.key}
               onPress={() => setFilter(f.key)}
             />
@@ -75,19 +97,28 @@ export default function JadwalScreen() {
 
         {error ? (
           <EmptyState
-            judul="Gagal memuat jadwal"
+            judul={isEn ? 'Failed to load schedule' : 'Gagal memuat jadwal'}
             pesan={error}
-            aksi={{ label: 'Coba lagi', onPress: retrySync }}
+            aksi={{
+              label: isEn ? 'Try again' : 'Coba lagi',
+              onPress: retrySync,
+            }}
           />
         ) : loading ? (
-          <EmptyState judul="Memuat jadwal…" pesan="Mohon tunggu sebentar." />
+          <EmptyState
+            judul={isEn ? 'Loading schedule…' : 'Memuat jadwal…'}
+            pesan={isEn ? 'Please wait a moment.' : 'Mohon tunggu sebentar.'}
+          />
         ) : data.length === 0 ? (
           <EmptyState
-            judul={EMPTY_COPY[filter].judul}
-            pesan={EMPTY_COPY[filter].pesan}
+            judul={emptyCopy[filter].judul}
+            pesan={emptyCopy[filter].pesan}
             aksi={
               filter !== 'SEMUA'
-                ? { label: 'Tampilkan semua', onPress: () => setFilter('SEMUA') }
+                ? {
+                    label: isEn ? 'Show all' : 'Tampilkan semua',
+                    onPress: () => setFilter('SEMUA'),
+                  }
                 : undefined
             }
           />

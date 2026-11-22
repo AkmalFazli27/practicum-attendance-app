@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { CalendarClock, MapPin } from 'lucide-react-native';
 
 import { SheetModal, StatusBadge, Tombol } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import type { Lab, Sesi, StatusSesi } from '@/data/dummy';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
@@ -23,20 +24,36 @@ function BarisSesi({
   status: StatusSesi;
   denganTanggal: boolean;
 }) {
+  const { themeColors } = usePreferences();
   const waktu = denganTanggal
     ? `${formatHariTanggalSingkat(sesi.tanggal)}, ${titikJam(sesi.jamMulai)}–${titikJam(sesi.jamSelesai)}`
     : `${titikJam(sesi.jamMulai)}–${titikJam(sesi.jamSelesai)}`;
 
   return (
-    <View style={styles.sesiRow}>
+    <View
+      style={[
+        styles.sesiRow,
+        {
+          borderColor: themeColors.border,
+          backgroundColor: themeColors.surface,
+        },
+      ]}
+    >
       <View style={styles.sesiCopy}>
-        <Text style={styles.sesiNama} numberOfLines={2}>
+        <Text
+          style={[styles.sesiNama, { color: themeColors.textPrimary }]}
+          numberOfLines={2}
+        >
           {sesi.namaPraktikum}
         </Text>
-        <Text style={styles.sesiKelas}>Kelas {sesi.kelas || '-'}</Text>
+        <Text style={[styles.sesiKelas, { color: themeColors.textSecondary }]}>
+          Kelas {sesi.kelas || '-'}
+        </Text>
         <View style={styles.waktuRow}>
-          <CalendarClock size={13} color={colors.textMuted} />
-          <Text style={styles.sesiWaktu}>{waktu}</Text>
+          <CalendarClock size={13} color={themeColors.textMuted} />
+          <Text style={[styles.sesiWaktu, { color: themeColors.textMuted }]}>
+            {waktu}
+          </Text>
         </View>
       </View>
       <StatusBadge status={status} />
@@ -46,6 +63,7 @@ function BarisSesi({
 
 export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
   const { sesi, getStatusEfektif, loading, error, retrySync } = useSession();
+  const { themeColors } = usePreferences();
 
   const sesiLab = lab
     ? sesi.filter(
@@ -74,10 +92,19 @@ export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
       {lab ? (
         <>
           <View style={styles.lokasiRow}>
-            <MapPin size={16} color={colors.textMuted} />
+            <MapPin size={16} color={themeColors.textMuted} />
             <View style={styles.lokasiCopy}>
-              <Text style={styles.lokasiAlamat}>{lab.alamat}</Text>
-              <Text style={styles.lokasiRadius}>
+              <Text
+                style={[
+                  styles.lokasiAlamat,
+                  { color: themeColors.textPrimary },
+                ]}
+              >
+                {lab.alamat}
+              </Text>
+              <Text
+                style={[styles.lokasiRadius, { color: themeColors.textMuted }]}
+              >
                 {Number.isFinite(lab.radius)
                   ? `Radius presensi ${lab.radius} meter`
                   : 'Radius presensi belum diatur'}
@@ -87,14 +114,30 @@ export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
 
           {loading && sesi.length === 0 ? (
             <View style={styles.statusRow}>
-              <ActivityIndicator size="small" color={colors.graphite} />
-              <Text style={styles.statusText}>Memuat aktivitas lab…</Text>
+              <ActivityIndicator size="small" color={themeColors.primary} />
+              <Text
+                style={[styles.statusText, { color: themeColors.textMuted }]}
+              >
+                Memuat aktivitas lab…
+              </Text>
             </View>
           ) : null}
 
           {error ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+            <View
+              style={[
+                styles.errorBox,
+                {
+                  borderColor: themeColors.dangerBorder,
+                  backgroundColor: themeColors.errorBg,
+                },
+              ]}
+            >
+              <Text
+                style={[styles.errorText, { color: themeColors.errorFg }]}
+              >
+                {error}
+              </Text>
               <Tombol variant="sekunder" onPress={retrySync}>
                 Coba lagi
               </Tombol>
@@ -102,9 +145,15 @@ export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
           ) : null}
 
           <View style={styles.section}>
-            <Text style={styles.sectionKicker}>SEDANG BERLANGSUNG</Text>
+            <Text
+              style={[styles.sectionKicker, { color: themeColors.textMuted }]}
+            >
+              SEDANG BERLANGSUNG
+            </Text>
             {berlangsung.length === 0 ? (
-              <Text style={styles.emptyText}>
+              <Text
+                style={[styles.emptyText, { color: themeColors.textSecondary }]}
+              >
                 Tidak ada praktikum yang sedang berlangsung.
               </Text>
             ) : (
@@ -120,9 +169,15 @@ export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionKicker}>BERIKUTNYA</Text>
+            <Text
+              style={[styles.sectionKicker, { color: themeColors.textMuted }]}
+            >
+              BERIKUTNYA
+            </Text>
             {berikutnya.length === 0 ? (
-              <Text style={styles.emptyText}>
+              <Text
+                style={[styles.emptyText, { color: themeColors.textSecondary }]}
+              >
                 Belum ada jadwal berikutnya.
               </Text>
             ) : (

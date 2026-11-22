@@ -15,42 +15,43 @@ export interface StatusBadgeProps {
 function getBadgeConfig(
   status: BadgeStatusType,
   tc: ThemeColors,
+  isEn: boolean,
 ): { label: string; bg: string; fg: string } {
   switch (status) {
     case 'DIBUKA':
       return {
-        label: 'Sedang dibuka',
+        label: isEn ? 'Open now' : 'Sedang dibuka',
         bg: tc.sesiDibukaBg,
         fg: tc.sesiDibukaFg,
       };
     case 'SELESAI':
       return {
-        label: 'Selesai',
+        label: isEn ? 'Completed' : 'Selesai',
         bg: tc.sesiSelesaiBg,
         fg: tc.sesiSelesaiFg,
       };
     case 'MENUNGGU':
       return {
-        label: 'Menunggu',
+        label: isEn ? 'Pending' : 'Menunggu',
         bg: tc.izinBg,
         fg: tc.izinFg,
       };
     case 'DITERIMA':
       return {
-        label: 'Izin Diterima',
+        label: isEn ? 'Leave Approved' : 'Izin Diterima',
         bg: tc.sesiDibukaBg,
         fg: tc.sesiDibukaFg,
       };
     case 'DITOLAK':
       return {
-        label: 'Izin Ditolak',
+        label: isEn ? 'Leave Rejected' : 'Izin Ditolak',
         bg: tc.errorBg,
         fg: tc.errorFg,
       };
     case 'TERJADWAL':
     default:
       return {
-        label: 'Terjadwal',
+        label: isEn ? 'Scheduled' : 'Terjadwal',
         bg: tc.sesiTerjadwalBg,
         fg: tc.sesiTerjadwalFg,
       };
@@ -58,8 +59,8 @@ function getBadgeConfig(
 }
 
 export function StatusBadge({ status, style }: StatusBadgeProps) {
-  const { themeColors } = usePreferences();
-  const config = getBadgeConfig(status, themeColors);
+  const { themeColors, language } = usePreferences();
+  const config = getBadgeConfig(status, themeColors, language === 'en');
 
   return (
     <View
