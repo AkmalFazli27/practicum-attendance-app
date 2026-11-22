@@ -54,9 +54,7 @@ export function PetaHeader({
 
         <View style={styles.center}>
           <Text style={styles.kicker}>{kicker}</Text>
-          <Text style={styles.title} numberOfLines={1}>
-            {judul}
-          </Text>
+          <Text style={styles.title}>{judul}</Text>
         </View>
 
         {onRefresh ? (
@@ -102,16 +100,24 @@ const styles = StyleSheet.create({
   },
   center: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
+    gap: 2,
   },
   kicker: {
     ...type.micro,
     color: colors.textMuted,
     letterSpacing: 1.1,
+    textAlign: 'center',
+    // `alignItems: 'center'` pada `center` tidak melebarkan anak, sehingga teks
+    // bisa melebar melewati kotaknya dan menimpa tombol saat font diperbesar.
+    width: '100%',
   },
   title: {
     ...type.h2,
     color: colors.textPrimary,
+    textAlign: 'center',
+    width: '100%',
   },
   iconBtn: {
     width: 42,
