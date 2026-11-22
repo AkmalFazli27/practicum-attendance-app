@@ -1,17 +1,29 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Check, Sparkles, X } from 'lucide-react-native';
 
 import { ConfirmSheet, StatusBadge, Tombol, useToast } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type Izin } from '@/data/dummy';
-import { formatLabelKategoriAi } from '@/services/ai';
+import {
+  formatLabelKategoriAi,
+  KATEGORI_FALLBACK,
+  KATEGORI_IZIN_RESMI,
+} from '@/services/ai';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 import { formatJam, titikJam } from '@/utils/format';
 
 type Keputusan = 'DITERIMA' | 'DITOLAK';
 type Target = { izinId: string; keputusan: Keputusan };
+
+const SEMUA = 'SEMUA';
+
+/** Kategori untuk filter; izin tanpa hasil AI dianggap "Belum Terklasifikasi". */
+const kategoriIzin = (i: Izin): string =>
+  !i.kategoriAi || i.kategoriAi === KATEGORI_FALLBACK
+    ? KATEGORI_FALLBACK
+    : i.kategoriAi;
 
 const COPY: Record<Keputusan, { judul: string; isi: string; ya: string; toast: string }> = {
   DITERIMA: {
@@ -93,6 +105,7 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
 
   const [target, setTarget] = useState<Target | null>(null);
   const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState<string>(SEMUA);
 
   // Pesan error terbaru dari context (mis. 'Akses ditolak oleh server').
   const errorRef = useRef<string | null>(null);
@@ -105,6 +118,20 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
   const daftarIzin = getIzinSesi(sesiId)
     .slice()
     .sort((a, b) => b.waktuPengajuan.localeCompare(a.waktuPengajuan));
+
+  const jumlahPerKategori = new Map<string, number>();
+  for (const i of daftarIzin) {
+    const k = kategoriIzin(i);
+    jumlahPerKategori.set(k, (jumlahPerKategori.get(k) ?? 0) + 1);
+  }
+  const opsiFilter: string[] = [...KATEGORI_IZIN_RESMI, KATEGORI_FALLBACK].filter(
+    (k) => (jumlahPerKategori.get(k) ?? 0) > 0,
+  );
+  const filterAktif = opsiFilter.some((k) => k === filter) ? filter : SEMUA;
+  const daftarTampil =
+    filterAktif === SEMUA
+      ? daftarIzin
+      : daftarIzin.filter((i) => kategoriIzin(i) === filterAktif);
 
   const infoPraktikan = useMemo(() => {
     const peta = new Map(users.map((u) => [u.id, u]));
@@ -157,7 +184,7 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
     await new Promise((r) => setTimeout(r, 60));
     showToast(
       errorRef.current ??
-        'Keputusan belum tersimpan. Muat ulang halaman lalu coba lagi.',
+      'Keputusan belum tersimpan. Muat ulang halaman lalu coba lagi.',
     );
   };
 
@@ -187,6 +214,57 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
         </Text>
       </View>
 
+      {opsiFilter.length >= 2 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          style={styles.chipScroll}
+          contentContainerStyle={styles.chipRow}
+        >
+          {[SEMUA, ...opsiFilter].map((k) => {
+            const aktif = k === filterAktif;
+            const jumlah =
+              k === SEMUA ? daftarIzin.length : jumlahPerKategori.get(k) ?? 0;
+            const label =
+              k === SEMUA
+                ? isEn ? 'All' : 'Semua'
+                : k === KATEGORI_FALLBACK
+                  ? isEn ? 'Unclassified' : 'Belum terklasifikasi'
+                  : k;
+            return (
+              <Pressable
+                key={k}
+                accessibilityRole="button"
+                accessibilityState={{ selected: aktif }}
+                onPress={() => setFilter(k)}
+                style={[
+                  styles.chip,
+                  {
+                    borderColor: themeColors.border,
+                    backgroundColor: themeColors.surface,
+                  },
+                  aktif && {
+                    borderColor: themeColors.primary,
+                    backgroundColor: themeColors.primary,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    { color: themeColors.textSecondary },
+                    aktif && { color: themeColors.onPrimary },
+                  ]}
+                >
+                  {label} · {jumlah}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+
       {daftarIzin.length === 0 ? (
         <Text
           style={[
@@ -203,7 +281,7 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
         </Text>
       ) : (
         <View style={styles.list}>
-          {daftarIzin.map((item) => {
+          {daftarTampil.map((item) => {
             const mhs = infoPraktikan(item);
             return (
               <View
@@ -326,6 +404,23 @@ const styles = StyleSheet.create({
     paddingTop: spacing.s3,
     ...type.caption,
     color: colors.textMuted,
+  },
+  chipScroll: {
+    flexGrow: 0,
+    marginBottom: spacing.s3,
+  },
+  chipRow: {
+    gap: spacing.s2,
+  },
+  chip: {
+    paddingHorizontal: spacing.s3,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  chipText: {
+    ...type.micro,
+    fontFamily: fontFamily.semibold,
   },
   list: {
     gap: spacing.s3,
