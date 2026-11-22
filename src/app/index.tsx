@@ -25,11 +25,11 @@ import {
 } from 'lucide-react-native';
 
 import { Brand, Tombol } from '@/components/ui';
+import { teksOnboarding } from '@/components/onboarding/teksOnboarding';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type Peran } from '@/data/dummy';
 import {
-  colors,
   fontFamily,
   layout,
   radius,
@@ -42,13 +42,21 @@ function berandaUntuk(peran: Peran): '/beranda-asisten' | '/beranda-praktikan' {
   return peran === 'asisten' ? '/beranda-asisten' : '/beranda-praktikan';
 }
 
-function SplashLayar() {
+function SplashLayar({
+  caption,
+  warna,
+}: {
+  caption: string;
+  warna: { graphite: string; primary: string; textOnDarkMuted: string };
+}) {
   return (
-    <View style={styles.splash}>
+    <View style={[styles.splash, { backgroundColor: warna.graphite }]}>
       <StatusBar style="light" />
       <Brand large onDark />
-      <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={styles.splashCaption}>Memeriksa sesi...</Text>
+      <ActivityIndicator size="large" color={warna.primary} />
+      <Text style={[styles.splashCaption, { color: warna.textOnDarkMuted }]}>
+        {caption}
+      </Text>
     </View>
   );
 }
@@ -116,7 +124,12 @@ export default function OnboardingScreen() {
   }, [loading, currentUser, router]);
 
   if (loading) {
-    return <SplashLayar />;
+    return (
+      <SplashLayar
+        caption={teksOnboarding(language).memeriksaSesi}
+        warna={themeColors}
+      />
+    );
   }
 
   const handleGetStarted = () => {
@@ -370,14 +383,12 @@ const styles = StyleSheet.create({
   },
   splash: {
     flex: 1,
-    backgroundColor: colors.graphite,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.s4,
   },
   splashCaption: {
     ...type.caption,
-    color: colors.textOnDarkMuted,
   },
   topBar: {
     height: 58,
