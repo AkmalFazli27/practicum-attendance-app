@@ -42,11 +42,15 @@ const TINGGI_ACUAN_PX = 700;
  * (sumbu y ke bawah). Mengikuti sketsa: B di kiri-atas, C di bawah dekat B,
  * dan D di kanan. Slot ditentukan urutan `id`, jadi stabil terhadap urutan
  * dokumen dari Firestore.
+ *
+ * Angka ini hasil penyesuaian arah panah: B digeser kanan-bawah, C digeser
+ * ke kanan, dan D digeser ke atas, sehingga ketiganya lebih mengumpul.
+ * Jarak terdekat 41 px masih menyisakan celah ~3 px dari bubble 38 px.
  */
 const FORMASI_TIGA_PX: ReadonlyArray<{ x: number; y: number }> = [
-  { x: -24, y: -30 },
-  { x: -8, y: 12 },
-  { x: 38, y: -8 },
+  { x: -18, y: -25 },
+  { x: 0, y: 12 },
+  { x: 38, y: -18 },
 ];
 
 /** Panjang 1 derajat lintang dalam meter (radius bumi rata-rata). */
