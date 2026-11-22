@@ -22,7 +22,8 @@ type Catatan = {
 };
 
 export default function RiwayatScreen() {
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
   const { currentUser, sesi, kehadiran, izin, loading, error, retrySync } =
     useSession();
 
@@ -69,28 +70,40 @@ export default function RiwayatScreen() {
       >
         <View style={styles.pageTitle}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            CATATANMU
+            {isEn ? 'YOUR RECORDS' : 'CATATANMU'}
           </Text>
           <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
-            Riwayat kehadiran
+            {isEn ? 'Attendance history' : 'Riwayat kehadiran'}
           </Text>
           <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
-            Semua presensi dan status pengajuan izinmu.
+            {isEn
+              ? 'All your check-ins and leave requests.'
+              : 'Semua presensi dan status pengajuan izinmu.'}
           </Text>
         </View>
 
         {error ? (
           <EmptyState
-            judul="Gagal memuat riwayat"
+            judul={isEn ? 'Failed to load history' : 'Gagal memuat riwayat'}
             pesan={error}
-            aksi={{ label: 'Coba lagi', onPress: retrySync }}
+            aksi={{
+              label: isEn ? 'Try again' : 'Coba lagi',
+              onPress: retrySync,
+            }}
           />
         ) : loading ? (
-          <EmptyState judul="Memuat riwayat…" pesan="Mohon tunggu sebentar." />
+          <EmptyState
+            judul={isEn ? 'Loading history…' : 'Memuat riwayat…'}
+            pesan={isEn ? 'Please wait a moment.' : 'Mohon tunggu sebentar.'}
+          />
         ) : daftarCatatan.length === 0 ? (
           <EmptyState
-            judul="Belum ada riwayat"
-            pesan="Presensi berhasil dan pengajuan izin akan muncul di halaman ini."
+            judul={isEn ? 'No history yet' : 'Belum ada riwayat'}
+            pesan={
+              isEn
+                ? 'Completed check-ins and leave requests will appear here.'
+                : 'Presensi berhasil dan pengajuan izin akan muncul di halaman ini.'
+            }
           />
         ) : (
           <View style={styles.historyList}>
@@ -186,7 +199,9 @@ export default function RiwayatScreen() {
                           numberOfLines={1}
                         >
                           {aiTidakTersedia
-                            ? 'AI tidak tersedia · Belum terklasifikasi'
+                            ? isEn
+                              ? 'AI unavailable · Unclassified'
+                              : 'AI tidak tersedia · Belum terklasifikasi'
                             : `AI: ${item.kategoriAi}`}
                         </Text>
                       </View>
@@ -206,7 +221,7 @@ export default function RiwayatScreen() {
                           { color: themeColors.sesiDibukaFg },
                         ]}
                       >
-                        Hadir
+                        {isEn ? 'Present' : 'Hadir'}
                       </Text>
                     </View>
                   ) : item.statusIzin ? (

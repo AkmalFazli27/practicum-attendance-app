@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Check, Sparkles, X } from 'lucide-react-native';
 
 import { ConfirmSheet, StatusBadge, Tombol, useToast } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type Izin } from '@/data/dummy';
 import { KATEGORI_FALLBACK } from '@/services/ai';
@@ -29,25 +30,55 @@ const COPY: Record<Keputusan, { judul: string; isi: string; ya: string; toast: s
 
 /** Penanda hasil klasifikasi AI; AI hanya informasi pendukung, bukan keputusan. */
 function AiInfo({ item }: { item: Izin }) {
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
   const tidakTersedia = !item.kategoriAi || item.kategoriAi === KATEGORI_FALLBACK;
   return (
-    <View style={[styles.aiBox, tidakTersedia && styles.aiBoxMuted]}>
+    <View
+      style={[
+        styles.aiBox,
+        {
+          backgroundColor: tidakTersedia
+            ? themeColors.surfaceMuted
+            : themeColors.primarySoft,
+        },
+      ]}
+    >
       <View style={styles.aiRow}>
         <Sparkles
           size={14}
-          color={tidakTersedia ? colors.textMuted : colors.sesiDibukaFg}
+          color={
+            tidakTersedia ? themeColors.textMuted : themeColors.sesiDibukaFg
+          }
         />
-        <Text style={[styles.aiTitle, tidakTersedia && styles.aiTitleMuted]}>
+        <Text
+          style={[
+            styles.aiTitle,
+            {
+              color: tidakTersedia
+                ? themeColors.textMuted
+                : themeColors.sesiDibukaFg,
+            },
+          ]}
+        >
           {tidakTersedia
-            ? 'AI tidak tersedia · Belum terklasifikasi'
+            ? isEn
+              ? 'AI unavailable · Unclassified'
+              : 'AI tidak tersedia · Belum terklasifikasi'
             : `AI: ${item.kategoriAi}`}
         </Text>
       </View>
       {item.ringkasanAi ? (
-        <Text style={styles.aiSummary}>{item.ringkasanAi}</Text>
+        <Text
+          style={[styles.aiSummary, { color: themeColors.textSecondary }]}
+        >
+          {item.ringkasanAi}
+        </Text>
       ) : null}
-      <Text style={styles.aiFootnote}>
-        Informasi pendukung — keputusan ditetapkan oleh asisten.
+      <Text style={[styles.aiFootnote, { color: themeColors.textMuted }]}>
+        {isEn
+          ? 'Supporting information — decision is made by the assistant.'
+          : 'Informasi pendukung — keputusan ditetapkan oleh asisten.'}
       </Text>
     </View>
   );
@@ -56,6 +87,8 @@ function AiInfo({ item }: { item: Izin }) {
 export function IzinPanel({ sesiId }: { sesiId: string }) {
   const { users, error, clearError, getIzinSesi, reviewIzin } = useSession();
   const { showToast } = useToast();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
 
   const [target, setTarget] = useState<Target | null>(null);
   const [loading, setLoading] = useState(false);
@@ -130,36 +163,74 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
   const menunggu = daftarIzin.filter((i) => i.status === 'MENUNGGU').length;
 
   return (
-    <View style={styles.panel}>
+    <View
+      style={[
+        styles.panel,
+        {
+          borderColor: themeColors.border,
+          backgroundColor: themeColors.surface,
+        },
+      ]}
+    >
       <View style={styles.header}>
-        <Text style={styles.kicker}>PEMERIKSAAN IZIN & AI</Text>
-        <Text style={styles.title}>
-          Pengajuan izin ({daftarIzin.length})
-          {menunggu > 0 ? ` · ${menunggu} menunggu` : ''}
+        <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+          {isEn ? 'LEAVE & AI REVIEW' : 'PEMERIKSAAN IZIN & AI'}
+        </Text>
+        <Text style={[styles.title, { color: themeColors.textPrimary }]}>
+          {isEn
+            ? `Leave requests (${daftarIzin.length})`
+            : `Pengajuan izin (${daftarIzin.length})`}
+          {menunggu > 0
+            ? ` · ${menunggu} ${isEn ? 'pending' : 'menunggu'}`
+            : ''}
         </Text>
       </View>
 
       {daftarIzin.length === 0 ? (
-        <Text style={styles.empty}>
-          Belum ada pengajuan izin dari praktikan pada sesi ini.
+        <Text
+          style={[
+            styles.empty,
+            {
+              borderTopColor: themeColors.border,
+              color: themeColors.textMuted,
+            },
+          ]}
+        >
+          {isEn
+            ? 'No leave requests from students for this session yet.'
+            : 'Belum ada pengajuan izin dari praktikan pada sesi ini.'}
         </Text>
       ) : (
         <View style={styles.list}>
           {daftarIzin.map((item) => {
             const mhs = infoPraktikan(item);
             return (
-              <View key={item.id} style={styles.card}>
+              <View
+                key={item.id}
+                style={[styles.card, { borderTopColor: themeColors.border }]}
+              >
                 <View style={styles.topRow}>
                   <View style={styles.userInfo}>
-                    <Text style={styles.name}>{mhs.nama}</Text>
-                    <Text style={styles.nim}>
-                      {mhs.nim} · Diajukan {titikJam(formatJam(item.waktuPengajuan))}
+                    <Text
+                      style={[styles.name, { color: themeColors.textPrimary }]}
+                    >
+                      {mhs.nama}
+                    </Text>
+                    <Text
+                      style={[styles.nim, { color: themeColors.textMuted }]}
+                    >
+                      {mhs.nim} · {isEn ? 'Submitted' : 'Diajukan'}{' '}
+                      {titikJam(formatJam(item.waktuPengajuan))}
                     </Text>
                   </View>
                   <StatusBadge status={item.status} />
                 </View>
 
-                <Text style={styles.alasan}>"{item.alasan}"</Text>
+                <Text
+                  style={[styles.alasan, { color: themeColors.textSecondary }]}
+                >
+                  "{item.alasan}"
+                </Text>
 
                 <AiInfo item={item} />
 
@@ -167,23 +238,23 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
                   <View style={styles.actions}>
                     <Tombol
                       variant="danger"
-                      icon={<X size={16} color={colors.errorFg} />}
+                      icon={<X size={16} color={themeColors.errorFg} />}
                       style={styles.btn}
                       onPress={() =>
                         setTarget({ izinId: item.id, keputusan: 'DITOLAK' })
                       }
                     >
-                      Tolak
+                      {isEn ? 'Reject' : 'Tolak'}
                     </Tombol>
                     <Tombol
                       variant="primer"
-                      icon={<Check size={16} color={colors.onPrimary} />}
+                      icon={<Check size={16} color={themeColors.onPrimary} />}
                       style={styles.btn}
                       onPress={() =>
                         setTarget({ izinId: item.id, keputusan: 'DITERIMA' })
                       }
                     >
-                      Terima izin
+                      {isEn ? 'Approve leave' : 'Terima izin'}
                     </Tombol>
                   </View>
                 )}

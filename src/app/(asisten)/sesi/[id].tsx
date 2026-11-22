@@ -30,6 +30,7 @@ import {
   Tombol,
   useToast,
 } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
 import {
@@ -43,6 +44,8 @@ export default function DetailSesiAsisten() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
   const {
     currentUser,
     users,
@@ -126,24 +129,41 @@ export default function DetailSesiAsisten() {
     } as any);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.root,
+        { backgroundColor: themeColors.background, paddingTop: insets.top },
+      ]}
+    >
       {/* Sheet-style Header */}
-      <View style={styles.topHeader}>
+      <View
+        style={[styles.topHeader, { borderBottomColor: themeColors.border }]}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Kembali"
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.iconBtn,
-            pressed && styles.iconBtnPressed,
+            {
+              borderColor: themeColors.border,
+              backgroundColor: pressed
+                ? themeColors.surfaceMuted
+                : themeColors.surface,
+            },
           ]}
         >
-          <ArrowLeft size={20} color={colors.textPrimary} />
+          <ArrowLeft size={20} color={themeColors.textPrimary} />
         </Pressable>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.kicker}>DETAIL SESI</Text>
-          <Text style={styles.headerTitle} numberOfLines={1}>
+          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+            {isEn ? 'SESSION DETAIL' : 'DETAIL SESI'}
+          </Text>
+          <Text
+            style={[styles.headerTitle, { color: themeColors.textPrimary }]}
+            numberOfLines={1}
+          >
             {s.namaPraktikum}
           </Text>
         </View>
@@ -155,10 +175,15 @@ export default function DetailSesiAsisten() {
             onPress={() => setEditVisible(true)}
             style={({ pressed }) => [
               styles.iconBtn,
-              pressed && styles.iconBtnPressed,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: pressed
+                  ? themeColors.surfaceMuted
+                  : themeColors.surface,
+              },
             ]}
           >
-            <Edit3 size={18} color={colors.textPrimary} />
+            <Edit3 size={18} color={themeColors.textPrimary} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -166,10 +191,15 @@ export default function DetailSesiAsisten() {
             onPress={() => setHapusVisible(true)}
             style={({ pressed }) => [
               styles.iconBtnDanger,
-              pressed && styles.iconBtnPressed,
+              {
+                borderColor: themeColors.dangerBorder,
+                backgroundColor: pressed
+                  ? themeColors.surfaceMuted
+                  : themeColors.errorBg,
+              },
             ]}
           >
-            <Trash2 size={18} color={colors.errorFg} />
+            <Trash2 size={18} color={themeColors.errorFg} />
           </Pressable>
         </View>
       </View>
@@ -184,48 +214,117 @@ export default function DetailSesiAsisten() {
         {/* Status & Deskripsi */}
         <View style={styles.statusRow}>
           <StatusBadge status={statusEfektif(s)} />
-          {s.topik && <Text style={styles.topikText}>{s.topik}</Text>}
+          {s.topik && (
+            <Text
+              style={[styles.topikText, { color: themeColors.textSecondary }]}
+            >
+              {s.topik}
+            </Text>
+          )}
         </View>
 
-        <Text style={styles.description}>{s.deskripsi}</Text>
+        <Text
+          style={[styles.description, { color: themeColors.textSecondary }]}
+        >
+          {s.deskripsi}
+        </Text>
 
         {/* Grid 2x2 Info */}
         <View style={styles.detailGrid}>
-          <View style={styles.gridCell}>
-            <CalendarDays size={18} color={colors.textMuted} />
+          <View
+            style={[
+              styles.gridCell,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: themeColors.surface,
+              },
+            ]}
+          >
+            <CalendarDays size={18} color={themeColors.textMuted} />
             <View style={styles.gridCopy}>
-              <Text style={styles.gridLabel}>Tanggal</Text>
-              <Text style={styles.gridValue}>
+              <Text
+                style={[styles.gridLabel, { color: themeColors.textMuted }]}
+              >
+                {isEn ? 'Date' : 'Tanggal'}
+              </Text>
+              <Text
+                style={[styles.gridValue, { color: themeColors.textPrimary }]}
+              >
                 {formatHariTanggalSingkat(s.tanggal)}
               </Text>
             </View>
           </View>
 
-          <View style={styles.gridCell}>
-            <Clock3 size={18} color={colors.textMuted} />
+          <View
+            style={[
+              styles.gridCell,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: themeColors.surface,
+              },
+            ]}
+          >
+            <Clock3 size={18} color={themeColors.textMuted} />
             <View style={styles.gridCopy}>
-              <Text style={styles.gridLabel}>Waktu</Text>
-              <Text style={styles.gridValue}>
+              <Text
+                style={[styles.gridLabel, { color: themeColors.textMuted }]}
+              >
+                {isEn ? 'Time' : 'Waktu'}
+              </Text>
+              <Text
+                style={[styles.gridValue, { color: themeColors.textPrimary }]}
+              >
                 {titikJam(s.jamMulai)}–{titikJam(s.jamSelesai)}
               </Text>
             </View>
           </View>
 
-          <View style={styles.gridCell}>
-            <MapPin size={18} color={colors.textMuted} />
+          <View
+            style={[
+              styles.gridCell,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: themeColors.surface,
+              },
+            ]}
+          >
+            <MapPin size={18} color={themeColors.textMuted} />
             <View style={styles.gridCopy}>
-              <Text style={styles.gridLabel}>Lokasi</Text>
-              <Text style={styles.gridValue} numberOfLines={1}>
+              <Text
+                style={[styles.gridLabel, { color: themeColors.textMuted }]}
+              >
+                {isEn ? 'Location' : 'Lokasi'}
+              </Text>
+              <Text
+                style={[styles.gridValue, { color: themeColors.textPrimary }]}
+                numberOfLines={1}
+              >
                 {s.lab}
               </Text>
             </View>
           </View>
 
-          <View style={styles.gridCell}>
-            <Users size={18} color={colors.textMuted} />
+          <View
+            style={[
+              styles.gridCell,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: themeColors.surface,
+              },
+            ]}
+          >
+            <Users size={18} color={themeColors.textMuted} />
             <View style={styles.gridCopy}>
-              <Text style={styles.gridLabel}>Kelas</Text>
-              <Text style={styles.gridValue}>{s.kelas}</Text>
+              <Text
+                style={[styles.gridLabel, { color: themeColors.textMuted }]}
+              >
+                {isEn ? 'Class' : 'Kelas'}
+              </Text>
+              <Text
+                style={[styles.gridValue, { color: themeColors.textPrimary }]}
+              >
+                {s.kelas}
+              </Text>
             </View>
           </View>
         </View>
@@ -240,7 +339,7 @@ export default function DetailSesiAsisten() {
                 disabled={!aksi.aktif}
                 onPress={() => mulai(s.id, 'buka')}
               >
-                Buka sesi
+                {isEn ? 'Open session' : 'Buka sesi'}
               </Tombol>
               {!aksi.aktif && <Text style={styles.actionHint}>{aksi.keterangan}</Text>}
             </>
@@ -251,28 +350,44 @@ export default function DetailSesiAsisten() {
               icon={<ArrowRight size={19} color={colors.errorFg} />}
               onPress={() => mulai(s.id, 'tutup')}
             >
-              Tutup sesi
+              {isEn ? 'Close session' : 'Tutup sesi'}
             </Tombol>
           )}
           {aksi.jenis === 'selesai' && (
             <Text style={styles.actionHint}>
-              Sesi sudah selesai dan tidak dapat dibuka lagi.
+              {isEn
+                ? 'Session has ended and cannot be reopened.'
+                : 'Sesi sudah selesai dan tidak dapat dibuka lagi.'}
             </Text>
           )}
         </View>
 
-        {aksi.jenis === 'tutup' && <QrPresensi sesiId={s.id} />}
+        {aksi.jenis === 'tutup' && <QrPresensi sesi={s} />}
 
         {/* Panel Pemeriksaan Izin & Klasifikasi AI (FR-16 & FR-17) */}
         <IzinPanel sesiId={s.id} />
 
         {/* Panel Kehadiran (FR-04) */}
-        <View style={styles.panel}>
+        <View
+          style={[
+            styles.panel,
+            {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
           <View style={styles.panelHeader}>
             <View>
-              <Text style={styles.kicker}>KEHADIRAN</Text>
-              <Text style={styles.panelTitle}>
-                {daftarHadir.length} dari {kapasitas} praktikan
+              <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+                {isEn ? 'ATTENDANCE' : 'KEHADIRAN'}
+              </Text>
+              <Text
+                style={[styles.panelTitle, { color: themeColors.textPrimary }]}
+              >
+                {isEn
+                  ? `${daftarHadir.length} of ${kapasitas} students`
+                  : `${daftarHadir.length} dari ${kapasitas} praktikan`}
               </Text>
             </View>
 
@@ -284,6 +399,10 @@ export default function DetailSesiAsisten() {
                     key={item.id}
                     style={[
                       styles.miniAvatar,
+                      {
+                        borderColor: themeColors.surface,
+                        backgroundColor: themeColors.graphite,
+                      },
                       idx > 0 && { marginLeft: -8 },
                     ]}
                   >
@@ -297,27 +416,59 @@ export default function DetailSesiAsisten() {
           </View>
 
           {daftarHadir.length === 0 ? (
-            <Text style={styles.smallEmpty}>
-              Belum ada praktikan yang melakukan presensi.
+            <Text
+              style={[styles.smallEmpty, { color: themeColors.textMuted }]}
+            >
+              {isEn
+                ? 'No students have checked in yet.'
+                : 'Belum ada praktikan yang melakukan presensi.'}
             </Text>
           ) : (
             <View>
               {daftarHadir.map((item) => {
                 const mhs = getPraktikan(item.praktikanId, item.namaPraktikan, item.nimPraktikan);
                 return (
-                  <View key={item.id} style={styles.attendeeRow}>
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.attendeeRow,
+                      { borderTopColor: themeColors.border },
+                    ]}
+                  >
                     <View>
-                      <Text style={styles.attendeeName}>
+                      <Text
+                        style={[
+                          styles.attendeeName,
+                          { color: themeColors.textPrimary },
+                        ]}
+                      >
                         {mhs.nama}
                       </Text>
-                      <Text style={styles.attendeeNim}>{mhs.nim}</Text>
+                      <Text
+                        style={[
+                          styles.attendeeNim,
+                          { color: themeColors.textMuted },
+                        ]}
+                      >
+                        {mhs.nim}
+                      </Text>
                     </View>
                     <View style={styles.attendeeRight}>
-                      <Text style={styles.attendeeTime}>
+                      <Text
+                        style={[
+                          styles.attendeeTime,
+                          { color: themeColors.sesiDibukaFg },
+                        ]}
+                      >
                         {titikJam(formatJam(item.waktuHadir))}
                       </Text>
                       {item.jarak !== undefined && (
-                        <Text style={styles.attendeeJarak}>
+                        <Text
+                          style={[
+                            styles.attendeeJarak,
+                            { color: themeColors.textMuted },
+                          ]}
+                        >
                           {formatJarak(item.jarak)}
                         </Text>
                       )}
@@ -331,9 +482,16 @@ export default function DetailSesiAsisten() {
           <Pressable
             accessibilityRole="button"
             onPress={bukaRekap}
-            style={styles.rekapLink}
+            style={[styles.rekapLink, { borderTopColor: themeColors.border }]}
           >
-            <Text style={styles.rekapLinkText}>Lihat di tab Rekap ›</Text>
+            <Text
+              style={[
+                styles.rekapLinkText,
+                { color: themeColors.textPrimary },
+              ]}
+            >
+              {isEn ? 'View in Recap tab ›' : 'Lihat di tab Rekap ›'}
+            </Text>
           </Pressable>
         </View>
       </ScrollView>

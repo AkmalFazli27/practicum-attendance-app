@@ -18,6 +18,7 @@ import {
   XCircle,
 } from 'lucide-react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 import { Tombol } from './Tombol';
 
@@ -44,15 +45,14 @@ export interface LokasiStatusCardProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const KONFIG_STATUS: Record<
-  StatusPemeriksaanLokasi,
-  {
-    labelBadge: string;
-    judul: string;
-    deskripsi: string;
-    tone: 'inside' | 'outside' | 'warning' | 'neutral';
-  }
-> = {
+type StatusConfig = {
+  labelBadge: string;
+  judul: string;
+  deskripsi: string;
+  tone: 'inside' | 'outside' | 'warning' | 'neutral';
+};
+
+const KONFIG_STATUS_ID: Record<StatusPemeriksaanLokasi, StatusConfig> = {
   memuat: {
     labelBadge: 'Memeriksa GPS…',
     judul: 'Mendeteksi lokasi perangkat',
@@ -110,6 +110,64 @@ const KONFIG_STATUS: Record<
   },
 };
 
+const KONFIG_STATUS_EN: Record<StatusPemeriksaanLokasi, StatusConfig> = {
+  memuat: {
+    labelBadge: 'Checking GPS…',
+    judul: 'Detecting device location',
+    deskripsi: 'Please wait while the app reads your GPS coordinates.',
+    tone: 'neutral',
+  },
+  'dalam-radius': {
+    labelBadge: 'Within Radius',
+    judul: 'Location eligible for attendance',
+    deskripsi:
+      'You are within the laboratory range. You may now confirm your attendance.',
+    tone: 'inside',
+  },
+  'luar-radius': {
+    labelBadge: 'Outside Radius',
+    judul: 'Location outside laboratory range',
+    deskripsi:
+      'Move closer to the laboratory until your distance is within the attendance radius.',
+    tone: 'outside',
+  },
+  'izin-ditolak': {
+    labelBadge: 'Permission Denied',
+    judul: 'Location access not granted',
+    deskripsi:
+      'Allow location access on your device so the app can verify your attendance position.',
+    tone: 'warning',
+  },
+  'gps-mati': {
+    labelBadge: 'GPS Disabled',
+    judul: 'Device location service (GPS) is off',
+    deskripsi:
+      'Enable GPS in your device settings, then tap refresh location.',
+    tone: 'warning',
+  },
+  'koordinat-belum-ada': {
+    labelBadge: 'Weak GPS Signal',
+    judul: 'Coordinates not yet available',
+    deskripsi:
+      'GPS coordinates could not be acquired yet. Make sure GPS is on and try refreshing.',
+    tone: 'warning',
+  },
+  'lab-belum-diatur': {
+    labelBadge: 'Lab Not Configured',
+    judul: 'Lab coordinates are not set',
+    deskripsi:
+      'The assistant has not linked this session to a laboratory location yet.',
+    tone: 'warning',
+  },
+  error: {
+    labelBadge: 'GPS Read Failed',
+    judul: 'Unable to read location',
+    deskripsi:
+      'The device failed to get the current GPS position. Please refresh your location.',
+    tone: 'outside',
+  },
+};
+
 function formatJarak(meter?: number | null): string {
   if (meter === null || meter === undefined || !Number.isFinite(meter)) {
     return '—';
@@ -133,38 +191,51 @@ export function LokasiStatusCard({
   onMintaIzin,
   style,
 }: LokasiStatusCardProps) {
-  const cfg = KONFIG_STATUS[status];
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
+  const cfg = (isEn ? KONFIG_STATUS_EN : KONFIG_STATUS_ID)[status];
 
   const palette =
     cfg.tone === 'inside'
       ? {
-          bg: colors.radiusInsideBg,
-          fg: colors.radiusInsideFg,
-          border: colors.radiusInsideBorder,
+          bg: themeColors.radiusInsideBg,
+          fg: themeColors.radiusInsideFg,
+          border: themeColors.radiusInsideBorder,
         }
       : cfg.tone === 'outside'
         ? {
-            bg: colors.radiusOutsideBg,
-            fg: colors.radiusOutsideFg,
-            border: colors.radiusOutsideBorder,
+            bg: themeColors.radiusOutsideBg,
+            fg: themeColors.radiusOutsideFg,
+            border: themeColors.radiusOutsideBorder,
           }
         : cfg.tone === 'warning'
           ? {
-              bg: colors.gpsOffBg,
-              fg: colors.gpsOffFg,
-              border: colors.gpsOffBorder,
+              bg: themeColors.gpsOffBg,
+              fg: themeColors.gpsOffFg,
+              border: themeColors.gpsOffBorder,
             }
           : {
-              bg: colors.lokasiMemuatBg,
-              fg: colors.lokasiMemuatFg,
-              border: colors.border,
+              bg: themeColors.lokasiMemuatBg,
+              fg: themeColors.lokasiMemuatFg,
+              border: themeColors.border,
             };
 
   return (
-    <View style={[styles.card, style]}>
+    <View
+      style={[
+        styles.card,
+        {
+          borderColor: themeColors.border,
+          backgroundColor: themeColors.surface,
+        },
+        style,
+      ]}
+    >
       {/* Baris Header Status */}
       <View style={styles.topRow}>
-        <Text style={styles.kicker}>VERIFIKASI LOKASI LAB</Text>
+        <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+          {isEn ? 'LAB LOCATION VERIFICATION' : 'VERIFIKASI LOKASI LAB'}
+        </Text>
         <View
           style={[
             styles.statusBadge,
@@ -191,52 +262,97 @@ export function LokasiStatusCard({
       </View>
 
       {/* Judul & Deskripsi Status */}
-      <Text style={styles.title}>{cfg.judul}</Text>
-      <Text style={styles.desc}>{pesanTambahan || cfg.deskripsi}</Text>
+      <Text style={[styles.title, { color: themeColors.textPrimary }]}>
+        {cfg.judul}
+      </Text>
+      <Text style={[styles.desc, { color: themeColors.textSecondary }]}>
+        {pesanTambahan || cfg.deskripsi}
+      </Text>
 
       {/* Metrik Jarak & Radius */}
       <View style={styles.metricsRow}>
-        <View style={styles.metricBox}>
+        <View
+          style={[
+            styles.metricBox,
+            {
+              backgroundColor: themeColors.background,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
           <View style={styles.metricHeader}>
-            <Compass size={14} color={colors.textMuted} />
-            <Text style={styles.metricLabel}>Jarakmu ke Lab</Text>
+            <Compass size={14} color={themeColors.textMuted} />
+            <Text
+              style={[styles.metricLabel, { color: themeColors.textMuted }]}
+            >
+              {isEn ? 'Distance to Lab' : 'Jarakmu ke Lab'}
+            </Text>
           </View>
           <Text
             style={[
               styles.metricValue,
-              status === 'dalam-radius' && { color: colors.radiusInsideFg },
-              status === 'luar-radius' && { color: colors.radiusOutsideFg },
+              { color: themeColors.textPrimary },
+              status === 'dalam-radius' && {
+                color: themeColors.radiusInsideFg,
+              },
+              status === 'luar-radius' && {
+                color: themeColors.radiusOutsideFg,
+              },
             ]}
           >
             {formatJarak(jarakMeter)}
           </Text>
           {typeof akurasiMeter === 'number' && Number.isFinite(akurasiMeter) ? (
-            <Text style={styles.metricSub}>
-              Akurasi GPS ±{Math.round(akurasiMeter)} m
+            <Text style={[styles.metricSub, { color: themeColors.textMuted }]}>
+              {isEn ? 'GPS Accuracy' : 'Akurasi GPS'} ±{Math.round(akurasiMeter)} m
             </Text>
           ) : null}
         </View>
 
-        <View style={styles.metricBox}>
+        <View
+          style={[
+            styles.metricBox,
+            {
+              backgroundColor: themeColors.background,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
           <View style={styles.metricHeader}>
-            <MapPin size={14} color={colors.textMuted} />
-            <Text style={styles.metricLabel}>Batas Radius Lab</Text>
+            <MapPin size={14} color={themeColors.textMuted} />
+            <Text
+              style={[styles.metricLabel, { color: themeColors.textMuted }]}
+            >
+              {isEn ? 'Lab Radius Limit' : 'Batas Radius Lab'}
+            </Text>
           </View>
-          <Text style={styles.metricValue}>
+          <Text
+            style={[styles.metricValue, { color: themeColors.textPrimary }]}
+          >
             {typeof radiusMeter === 'number' && Number.isFinite(radiusMeter)
               ? `≤ ${radiusMeter} m`
-              : 'Belum diatur'}
+              : isEn
+                ? 'Not set'
+                : 'Belum diatur'}
           </Text>
-          <Text style={styles.metricSub} numberOfLines={1}>
-            {namaLab || 'Laboratorium'}
+          <Text
+            style={[styles.metricSub, { color: themeColors.textMuted }]}
+            numberOfLines={1}
+          >
+            {namaLab || (isEn ? 'Laboratory' : 'Laboratorium')}
           </Text>
         </View>
       </View>
 
       {alamatLab ? (
-        <View style={styles.addressRow}>
-          <MapPin size={14} color={colors.textMuted} />
-          <Text style={styles.addressText} numberOfLines={2}>
+        <View
+          style={[styles.addressRow, { borderTopColor: themeColors.border }]}
+        >
+          <MapPin size={14} color={themeColors.textMuted} />
+          <Text
+            style={[styles.addressText, { color: themeColors.textSecondary }]}
+            numberOfLines={2}
+          >
             {namaLab} · {alamatLab}
           </Text>
         </View>
@@ -247,19 +363,19 @@ export function LokasiStatusCard({
         <Tombol
           variant="sekunder"
           onPress={onMintaIzin}
-          icon={<MapPin size={16} color={colors.textPrimary} />}
+          icon={<MapPin size={16} color={themeColors.textPrimary} />}
           style={styles.actionBtn}
         >
-          Izinkan akses lokasi
+          {isEn ? 'Allow location access' : 'Izinkan akses lokasi'}
         </Tombol>
       ) : onRefresh && status !== 'memuat' ? (
         <Tombol
           variant="sekunder"
           onPress={onRefresh}
-          icon={<RefreshCw size={16} color={colors.textPrimary} />}
+          icon={<RefreshCw size={16} color={themeColors.textPrimary} />}
           style={styles.actionBtn}
         >
-          Perbarui titik lokasi
+          {isEn ? 'Refresh location' : 'Perbarui titik lokasi'}
         </Tombol>
       ) : null}
     </View>

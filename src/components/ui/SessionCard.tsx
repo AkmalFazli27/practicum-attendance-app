@@ -40,7 +40,8 @@ export function SessionCard({
   onPress,
   style,
 }: SessionCardProps) {
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
   const kapasitas = attendanceTotal ?? session.kapasitas ?? 32;
   const topik = session.topik ?? session.deskripsi;
 
@@ -126,7 +127,7 @@ export function SessionCard({
                 <Text
                   style={[styles.izinAlertText, { color: themeColors.izinFg }]}
                 >
-                  {pendingIzinCount} izin
+                  {pendingIzinCount} {isEn ? 'leave' : 'izin'}
                 </Text>
               </View>
             )}
@@ -163,7 +164,7 @@ export function SessionCard({
                 { color: themeColors.sesiDibukaFg },
               ]}
             >
-              Hadir {attendedTime}
+              {isEn ? 'Present' : 'Hadir'} {attendedTime}
             </Text>
           </View>
         )}
@@ -203,10 +204,16 @@ export function SessionCard({
               ]}
             >
               {izinStatus === 'DITERIMA'
-                ? 'Izin Diterima'
+                ? isEn
+                  ? 'Leave Approved'
+                  : 'Izin Diterima'
                 : izinStatus === 'DITOLAK'
-                  ? 'Izin Ditolak'
-                  : 'Izin Menunggu'}
+                  ? isEn
+                    ? 'Leave Rejected'
+                    : 'Izin Ditolak'
+                  : isEn
+                    ? 'Leave Pending'
+                    : 'Izin Menunggu'}
             </Text>
           </View>
         )}

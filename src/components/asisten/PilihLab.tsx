@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import type { Lab } from '@/data/dummy';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 
@@ -13,32 +14,66 @@ export interface PilihLabProps {
 }
 
 export function PilihLab({ labs, value, onChange, disabled = false }: PilihLabProps) {
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
   const [terbuka, setTerbuka] = useState(false);
   const terpilih = labs.find((l) => l.id === value);
 
   return (
     <View style={styles.group}>
-      <Text style={styles.label}>Laboratorium</Text>
+      <Text style={[styles.label, { color: themeColors.textPrimary }]}>
+        {isEn ? 'Laboratory' : 'Laboratorium'}
+      </Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Laboratorium: ${terpilih?.nama ?? 'belum dipilih'}`}
+        accessibilityLabel={`${isEn ? 'Laboratory' : 'Laboratorium'}: ${terpilih?.nama ?? (isEn ? 'not selected' : 'belum dipilih')}`}
         disabled={disabled}
         onPress={() => setTerbuka((v) => !v)}
-        style={[styles.field, terbuka && styles.fieldAktif]}
+        style={[
+          styles.field,
+          {
+            borderColor: terbuka
+              ? themeColors.primaryPressed
+              : themeColors.border,
+            backgroundColor: themeColors.surface,
+          },
+        ]}
       >
         <Text
           numberOfLines={1}
-          style={[styles.fieldText, !terpilih && { color: colors.textMuted }]}
+          style={[
+            styles.fieldText,
+            {
+              color: terpilih
+                ? themeColors.textPrimary
+                : themeColors.textMuted,
+            },
+          ]}
         >
-          {terpilih?.nama ?? 'Pilih laboratorium'}
+          {terpilih?.nama ??
+            (isEn ? 'Select laboratory' : 'Pilih laboratorium')}
         </Text>
-        <Text style={styles.caret}>{terbuka ? '▴' : '▾'}</Text>
+        <Text style={[styles.caret, { color: themeColors.textMuted }]}>
+          {terbuka ? '▴' : '▾'}
+        </Text>
       </Pressable>
 
       {terbuka && (
-        <View style={styles.panel}>
+        <View
+          style={[
+            styles.panel,
+            {
+              borderColor: themeColors.border,
+              backgroundColor: themeColors.surface,
+            },
+          ]}
+        >
           {labs.length === 0 ? (
-            <Text style={styles.kosong}>Data laboratorium belum tersedia.</Text>
+            <Text style={[styles.kosong, { color: themeColors.textMuted }]}>
+              {isEn
+                ? 'No laboratory data available.'
+                : 'Data laboratorium belum tersedia.'}
+            </Text>
           ) : (
             labs.map((l, i) => {
               const aktif = l.id === value;
@@ -51,11 +86,32 @@ export function PilihLab({ labs, value, onChange, disabled = false }: PilihLabPr
                     onChange(l);
                     setTerbuka(false);
                   }}
-                  style={[styles.item, i > 0 && styles.itemGaris, aktif && styles.itemAktif]}
+                  style={[
+                    styles.item,
+                    i > 0 && {
+                      borderTopWidth: 1,
+                      borderTopColor: themeColors.border,
+                    },
+                    aktif && { backgroundColor: themeColors.primarySoft },
+                  ]}
                 >
-                  <Text style={[styles.itemNama, aktif && styles.itemNamaAktif]}>{l.nama}</Text>
+                  <Text
+                    style={[
+                      styles.itemNama,
+                      { color: themeColors.textPrimary },
+                      aktif && styles.itemNamaAktif,
+                    ]}
+                  >
+                    {l.nama}
+                  </Text>
                   {!!l.alamat && (
-                    <Text numberOfLines={1} style={styles.itemAlamat}>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.itemAlamat,
+                        { color: themeColors.textMuted },
+                      ]}
+                    >
                       {l.alamat}
                     </Text>
                   )}

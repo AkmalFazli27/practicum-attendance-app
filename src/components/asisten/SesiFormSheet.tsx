@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { SheetModal, Tombol, useToast } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
@@ -27,6 +28,8 @@ export function SesiFormSheet({
 }: SesiFormSheetProps) {
   const { createSession, updateSession, labs } = useSession();
   const { showToast } = useToast();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
 
   const isEdit = Boolean(initialSesi);
 
@@ -147,18 +150,52 @@ export function SesiFormSheet({
     }
   };
 
+  const inputDynamicStyle = {
+    borderColor: themeColors.border,
+    backgroundColor: themeColors.surface,
+    color: themeColors.textPrimary,
+  };
+  const labelDynamicStyle = { color: themeColors.textPrimary };
+
   return (
     <SheetModal
       visible={visible}
-      kicker={isEdit ? 'UBAH DATA SESI' : 'KELOLA PRAKTIKUM'}
-      judul={isEdit ? 'Edit Sesi Praktikum' : 'Tambah Sesi Baru'}
+      kicker={
+        isEdit
+          ? isEn
+            ? 'EDIT SESSION'
+            : 'UBAH DATA SESI'
+          : isEn
+            ? 'MANAGE PRACTICUM'
+            : 'KELOLA PRAKTIKUM'
+      }
+      judul={
+        isEdit
+          ? isEn
+            ? 'Edit Practicum Session'
+            : 'Edit Sesi Praktikum'
+          : isEn
+            ? 'Add New Session'
+            : 'Tambah Sesi Baru'
+      }
       dismissible={!menyimpan}
       onClose={onClose}
       footer={
         <View style={styles.footerWrap}>
           {galat && (
-            <View accessibilityLiveRegion="polite" style={styles.errorBox}>
-              <Text style={styles.errorText}>{galat}</Text>
+            <View
+              accessibilityLiveRegion="polite"
+              style={[
+                styles.errorBox,
+                {
+                  backgroundColor: themeColors.errorBg,
+                  borderColor: themeColors.dangerBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.errorText, { color: themeColors.errorFg }]}>
+                {galat}
+              </Text>
             </View>
           )}
           <View style={styles.footerRow}>
@@ -168,7 +205,7 @@ export function SesiFormSheet({
               onPress={onClose}
               style={styles.cancelBtn}
             >
-              Batal
+              {isEn ? 'Cancel' : 'Batal'}
             </Tombol>
             <Tombol
               variant="primer"
@@ -176,43 +213,61 @@ export function SesiFormSheet({
               onPress={handleSimpan}
               style={styles.submitBtn}
             >
-              {isEdit ? 'Simpan Perubahan' : 'Tambah Sesi'}
+              {isEdit
+                ? isEn
+                  ? 'Save Changes'
+                  : 'Simpan Perubahan'
+                : isEn
+                  ? 'Add Session'
+                  : 'Tambah Sesi'}
             </Tombol>
           </View>
         </View>
       }
     >
       <View style={styles.fieldGroup}>
-        <Text style={styles.label}>Nama praktikum</Text>
+        <Text style={[styles.label, labelDynamicStyle]}>
+          {isEn ? 'Practicum name' : 'Nama praktikum'}
+        </Text>
         <TextInput
           value={namaPraktikum}
           onChangeText={setNamaPraktikum}
-          placeholder="Contoh: Pemrograman Web"
-          placeholderTextColor={colors.textMuted}
-          style={styles.input}
+          placeholder={
+            isEn ? 'Example: Web Programming' : 'Contoh: Pemrograman Web'
+          }
+          placeholderTextColor={themeColors.textMuted}
+          style={[styles.input, inputDynamicStyle]}
         />
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.label}>Topik pertemuan</Text>
+        <Text style={[styles.label, labelDynamicStyle]}>
+          {isEn ? 'Meeting topic' : 'Topik pertemuan'}
+        </Text>
         <TextInput
           value={topik}
           onChangeText={setTopik}
-          placeholder="Contoh: Firebase Auth & Cloud Firestore"
-          placeholderTextColor={colors.textMuted}
-          style={styles.input}
+          placeholder={
+            isEn
+              ? 'Example: Firebase Auth & Cloud Firestore'
+              : 'Contoh: Firebase Auth & Cloud Firestore'
+          }
+          placeholderTextColor={themeColors.textMuted}
+          style={[styles.input, inputDynamicStyle]}
         />
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.label}>Kelas</Text>
+        <Text style={[styles.label, labelDynamicStyle]}>
+          {isEn ? 'Class' : 'Kelas'}
+        </Text>
         <TextInput
           value={kelas}
           onChangeText={setKelas}
           placeholder="IF-2A"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={themeColors.textMuted}
           autoCapitalize="characters"
-          style={styles.input}
+          style={[styles.input, inputDynamicStyle]}
         />
       </View>
 
@@ -227,7 +282,7 @@ export function SesiFormSheet({
       />
 
       <PickerTanggal
-        label="Tanggal"
+        label={isEn ? 'Date' : 'Tanggal'}
         value={tanggal}
         onChange={(t) => {
           setTanggal(t);
@@ -243,7 +298,7 @@ export function SesiFormSheet({
 
       <View style={styles.row}>
         <PickerJam
-          label="Jam mulai"
+          label={isEn ? 'Start time' : 'Jam mulai'}
           value={jamMulai}
           onChange={(j) => {
             setJamMulai(j);
@@ -252,7 +307,7 @@ export function SesiFormSheet({
           disabled={menyimpan}
         />
         <PickerJam
-          label="Jam selesai"
+          label={isEn ? 'End time' : 'Jam selesai'}
           value={jamSelesai}
           onChange={(j) => {
             setJamSelesai(j);
@@ -263,28 +318,36 @@ export function SesiFormSheet({
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.label}>Kapasitas</Text>
+        <Text style={[styles.label, labelDynamicStyle]}>
+          {isEn ? 'Capacity' : 'Kapasitas'}
+        </Text>
         <TextInput
           value={kapasitas}
           onChangeText={setKapasitas}
           placeholder="32"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={themeColors.textMuted}
           keyboardType="number-pad"
-          style={styles.input}
+          style={[styles.input, inputDynamicStyle]}
         />
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.label}>Deskripsi materi</Text>
+        <Text style={[styles.label, labelDynamicStyle]}>
+          {isEn ? 'Session description' : 'Deskripsi materi'}
+        </Text>
         <TextInput
           value={deskripsi}
           onChangeText={setDeskripsi}
-          placeholder="Ringkasan kegiatan dan capaian praktikum pada sesi ini..."
-          placeholderTextColor={colors.textMuted}
+          placeholder={
+            isEn
+              ? 'Summary of activities and learning goals for this session...'
+              : 'Ringkasan kegiatan dan capaian praktikum pada sesi ini...'
+          }
+          placeholderTextColor={themeColors.textMuted}
           multiline
           numberOfLines={3}
           textAlignVertical="top"
-          style={[styles.input, styles.textArea]}
+          style={[styles.input, styles.textArea, inputDynamicStyle]}
         />
       </View>
     </SheetModal>

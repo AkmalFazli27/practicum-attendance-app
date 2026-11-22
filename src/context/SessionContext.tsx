@@ -63,7 +63,10 @@ import { cariBentrokJadwal } from '@/utils/bentrokJadwal';
 import { evaluasiPresensi } from '@/utils/presensi';
 import {
   alasanTidakBisaDibuka,
+  buatQrToken,
   getStatusEfektif as hitungStatusEfektif,
+  hitungQrExpiresAt,
+  sudahLewat,
   validasiJadwal,
 } from '@/utils/statusSesi';
 
@@ -121,6 +124,7 @@ export type SessionContextValue = {
   openSession: (sesiId: string) => Promise<HasilAksi>;
   closeSession: (sesiId: string) => Promise<boolean>;
   reopenSession: (sesiId: string) => Promise<HasilAksi>;
+  renewSessionQr: (sesiId: string) => Promise<HasilAksi>;
   createSession: (input: SesiInput) => Promise<HasilSimpan>;
   updateSession: (
     sesiId: string,
@@ -204,6 +208,8 @@ function mapSesi(id: string, d: Record<string, any>): Sesi {
     asistenId: d.asistenId || '',
     status: d.status || 'TERJADWAL',
     deskripsi: d.deskripsi || '',
+    qrToken: typeof d.qrToken === 'string' ? d.qrToken : undefined,
+    qrExpiresAt: typeof d.qrExpiresAt === 'number' ? d.qrExpiresAt : undefined,
   };
 }
 
@@ -935,19 +941,67 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       const target = await bacaSesi(sesiId);
       if (!target) return { ok: false, alasan: 'SESI_TIDAK_DIBUKA' };
-      const alasan = alasanTidakBisaDibuka(target, sekarang());
+      const now = sekarang();
+      const alasan = alasanTidakBisaDibuka(target, now);
       if (alasan) return { ok: false, alasan };
+      const qrToken = buatQrToken();
+      const qrExpiresAt = hitungQrExpiresAt(target, now);
       if (isFirebaseConfigured) {
-        await updateDoc(doc(db, 'sesi', sesiId), { status: 'DIBUKA' });
+        await updateDoc(doc(db, 'sesi', sesiId), {
+          status: 'DIBUKA',
+          qrToken,
+          qrExpiresAt,
+        });
       } else {
         setSesi((prev) =>
-          prev.map((s) => (s.id === sesiId ? { ...s, status: 'DIBUKA' } : s)),
+          prev.map((s) =>
+            s.id === sesiId
+              ? { ...s, status: 'DIBUKA', qrToken, qrExpiresAt }
+              : s,
+          ),
         );
       }
-      const notifOk = target.status === 'DIBUKA'? true : await aman(() => notifySesiDibuka({ ...target, status: 'DIBUKA' }));
+      const notifOk = target.status === 'DIBUKA'? true : await aman(() => notifySesiDibuka({ ...target, status: 'DIBUKA', qrToken, qrExpiresAt }));
       return { ok: true, notifGagal: !notifOk };
     } catch (err: any) {
       setError(terjemahkanErrorFirestore(err, 'Gagal membuka sesi praktikum.'));
+      return { ok: false, alasan: 'JARINGAN' };
+    }
+  };
+
+  const renewSessionQr = async (sesiId: string): Promise<HasilAksi> => {
+    if (!currentUser || currentUser.peran !== 'asisten') {
+      return { ok: false, alasan: 'TIDAK_BERHAK' };
+    }
+    try {
+      const target = await bacaSesi(sesiId);
+      if (!target) return { ok: false, alasan: 'SESI_TIDAK_DIBUKA' };
+      const now = sekarang();
+      if (target.status === 'SELESAI') {
+        return { ok: false, alasan: 'SESI_SUDAH_DITUTUP' };
+      }
+      if (sudahLewat(target, now)) {
+        return { ok: false, alasan: 'WAKTU_HABIS' };
+      }
+      if (hitungStatusEfektif(target, now) !== 'DIBUKA') {
+        return { ok: false, alasan: 'SESI_TIDAK_DIBUKA' };
+      }
+      const qrToken = buatQrToken();
+      const qrExpiresAt = hitungQrExpiresAt(target, now);
+      if (isFirebaseConfigured) {
+        await updateDoc(doc(db, 'sesi', sesiId), { qrToken, qrExpiresAt });
+      } else {
+        setSesi((prev) =>
+          prev.map((s) =>
+            s.id === sesiId ? { ...s, qrToken, qrExpiresAt } : s,
+          ),
+        );
+      }
+      return { ok: true };
+    } catch (err: any) {
+      setError(
+        terjemahkanErrorFirestore(err, 'Gagal memperbarui QR presensi.'),
+      );
       return { ok: false, alasan: 'JARINGAN' };
     }
   };
@@ -1500,6 +1554,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       openSession,
       closeSession,
       reopenSession,
+      renewSessionQr,
       createSession,
       updateSession,
       deleteSession,
