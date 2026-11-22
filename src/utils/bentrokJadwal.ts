@@ -48,22 +48,6 @@ export function cariBentrokJadwal(
         alasan: `${s.lab || 'Lab'} sudah dipakai "${s.namaPraktikum}" pada ${waktu} di tanggal yang sama.`,
       };
     }
-
-    if (norm(baru.kelas) === norm(s.kelas)) {
-      return {
-        ok: false,
-        sesi: s,
-        alasan: `Kelas ${s.kelas} sudah punya sesi "${s.namaPraktikum}" pada ${waktu} di tanggal yang sama.`,
-      };
-    }
-
-    if (baru.asistenId && baru.asistenId === s.asistenId) {
-      return {
-        ok: false,
-        sesi: s,
-        alasan: `Kamu sudah mengelola sesi "${s.namaPraktikum}" pada ${waktu} di tanggal yang sama.`,
-      };
-    }
   }
   return { ok: true };
 }
