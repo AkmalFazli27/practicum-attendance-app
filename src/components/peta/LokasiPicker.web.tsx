@@ -18,6 +18,7 @@ import {
   type ThemeColors,
 } from '@/theme/tokens';
 import { bacaAngka, teksKoordinat, teksTersinkron } from './validasiLab';
+import { teksPeta } from './teks';
 import type { LokasiPickerProps } from './types';
 
 /**
@@ -40,7 +41,8 @@ export function LokasiPicker({
   // akan langsung dinormalisasi menjadi "-7" dan kursor melompat.
   const [latTeks, setLatTeks] = useState(teksKoordinat(titik?.lat));
   const [lngTeks, setLngTeks] = useState(teksKoordinat(titik?.lng));
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
   const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   // Sinkronkan saat titik berubah dari luar input (pilih lab / lokasi saat ini).
@@ -70,17 +72,14 @@ export function LokasiPicker({
     <View style={styles.root}>
       <View style={styles.notice}>
         <MapIcon size={18} color={themeColors.textMuted} />
-        <Text style={styles.noticeText}>
-          Peta interaktif hanya tersedia di aplikasi mobile. Isi titik lab
-          dengan koordinat di bawah.
-        </Text>
+        <Text style={styles.noticeText}>{teks.pickerWebNotice}</Text>
       </View>
 
       <View style={styles.koordRow}>
         <View style={styles.field}>
           <Text style={styles.label}>Latitude</Text>
           <TextInput
-            accessibilityLabel="Latitude laboratorium"
+            accessibilityLabel={teks.a11y.latitude}
             value={latTeks}
             onChangeText={(teks) => ubahKoord('lat', teks)}
             keyboardType="numeric"
@@ -94,7 +93,7 @@ export function LokasiPicker({
         <View style={styles.field}>
           <Text style={styles.label}>Longitude</Text>
           <TextInput
-            accessibilityLabel="Longitude laboratorium"
+            accessibilityLabel={teks.a11y.longitude}
             value={lngTeks}
             onChangeText={(teks) => ubahKoord('lng', teks)}
             keyboardType="numeric"
@@ -109,7 +108,7 @@ export function LokasiPicker({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Gunakan lokasi saat ini"
+        accessibilityLabel={teks.a11y.gunakanLokasi}
         accessibilityState={{
           disabled: disabled || !bisaGunakanLokasi || sedangMembacaLokasi,
         }}
@@ -126,7 +125,7 @@ export function LokasiPicker({
         ) : (
           <LocateFixed size={16} color={themeColors.textPrimary} />
         )}
-        <Text style={styles.tombolLokasiTeks}>Gunakan lokasi saat ini</Text>
+        <Text style={styles.tombolLokasiTeks}>{teks.gunakanLokasi}</Text>
       </Pressable>
 
       {pesanLokasi ? (
@@ -135,15 +134,12 @@ export function LokasiPicker({
 
       <View style={styles.radiusRow}>
         <View style={styles.radiusCopy}>
-          <Text style={styles.label}>Radius presensi</Text>
-          <Text style={styles.bantuan}>
-            Area yang dihitung sah saat praktikan presensi
-            {radius > 0 ? ` (${Math.round(radius)} m)` : ''}.
-          </Text>
+          <Text style={styles.label}>{teks.radiusPresensiLabel}</Text>
+          <Text style={styles.bantuan}>{teks.radiusBantuan(radius)}</Text>
         </View>
         <View style={styles.radiusInputWrap}>
           <TextInput
-            accessibilityLabel="Radius presensi dalam meter"
+            accessibilityLabel={teks.a11y.radiusInput}
             value={radiusTeks}
             onChangeText={onRadiusTeksChange}
             keyboardType="numeric"
@@ -154,7 +150,7 @@ export function LokasiPicker({
             style={[styles.radiusInput, disabled && styles.inputNonaktif]}
             returnKeyType="done"
           />
-          <Text style={styles.radiusSatuan}>m</Text>
+          <Text style={styles.radiusSatuan}>{teks.satuanMeter}</Text>
         </View>
       </View>
     </View>
@@ -272,6 +268,11 @@ const buatGaya = (w: ThemeColors) =>
       ...type.bodyStrong,
       fontFamily: fontFamily.semibold,
       color: w.textPrimary,
+      // `<input>` HTML punya lebar intrinsik ~200 px dari atribut `size`
+      // bawaan, sehingga kolom label di sebelahnya terjepit sampai 0 px di
+      // layar 320 dp. Lebar eksplisit mengembalikan ruang untuk label; input
+      // native tidak punya perilaku ini.
+      width: 72,
       minWidth: 48,
       textAlign: 'right',
       paddingVertical: 0,

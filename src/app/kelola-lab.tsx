@@ -54,16 +54,17 @@ const JEDA_TUNGGU_LABS_MS = 4000;
  */
 export default function KelolaLabScreen() {
   const { currentUser, loading } = useSession();
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
   const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   if (loading) {
     return (
       <View style={styles.root}>
-        <PetaHeader judul="Kelola Lab" kicker="LABORATORIUM" />
+        <PetaHeader judul={teks.judulKelolaLab} kicker={teks.kickerLab} />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={themeColors.graphite} />
-          <Text style={styles.centerText}>Memuat data laboratorium…</Text>
+          <Text style={styles.centerText}>{teks.memuatLabs}</Text>
         </View>
       </View>
     );
@@ -79,8 +80,9 @@ export default function KelolaLabScreen() {
 
 function KelolaLabContent() {
   const { labs, error, retrySync, updateLab } = useSession();
-  const { status: statusLokasi, koordinat, pesanError, mintaIzin, coba } =
-    useLocation();
+  const { status: statusLokasi, koordinat, mintaIzin, coba } = useLocation();
+  // `pesanError` dari hook selalu berbahasa Indonesia; copy banner dan pesan
+  // lokasi diambil dari kamus P2 agar ikut bahasa aplikasi.
   const { showToast } = useToast();
   const { language, themeColors } = usePreferences();
   const teks = teksPeta(language);
@@ -165,38 +167,33 @@ function KelolaLabContent() {
       });
       if (berhasil) {
         setSudahMencobaSimpan(false);
-        showToast('Data laboratorium tersimpan.');
+        showToast(teks.toastTersimpan);
         return;
       }
-      showToast(
-        'Gagal menyimpan data laboratorium. Periksa koneksi lalu coba lagi.',
-      );
+      showToast(teks.toastGagalSimpan);
     } finally {
       setMenyimpan(false);
     }
   }, [alasan.length, labId, radiusAngka, showToast, titik, updateLab]);
 
   // Pesan lokasi hanya relevan saat tombol "gunakan lokasi" belum bisa dipakai.
+  // Saat status gagal, banner di bawah sudah menjelaskan sebabnya, jadi pesan
+  // kecil cukup muncul selama lokasi masih dibaca.
   const pesanLokasi =
-    statusLokasi === 'siap'
-      ? null
-      : (pesanError ??
-        (statusLokasi === 'memuat' ? 'Membaca lokasi perangkat…' : null));
+    statusLokasi === 'memuat' ? teks.membacaLokasi : null;
 
   // Halaman ini memakai lokasi hanya untuk tombol "gunakan lokasi saat ini",
   // jadi status `memuat` cukup tampil sebagai pesan kecil, bukan banner.
   const banner = bannerPrioritas(
     error,
-    statusLokasi === 'memuat'
-      ? null
-      : bannerLokasiDari(statusLokasi, pesanError),
+    statusLokasi === 'memuat' ? null : bannerLokasiDari(statusLokasi, null),
   );
 
   return (
     <View style={styles.root}>
       <PetaHeader
-        judul="Kelola Lab"
-        kicker="LABORATORIUM"
+        judul={teks.judulKelolaLab}
+        kicker={teks.kickerLab}
         onRefresh={retrySync}
       />
 
@@ -204,7 +201,9 @@ function KelolaLabContent() {
         <View style={styles.bannerWrap}>
           <PermissionBanner
             jenis={banner.jenis}
-            pesan={banner.pesan}
+            judul={teks.banner[banner.jenis].judul}
+            pesan={banner.pesan ?? teks.banner[banner.jenis].pesan}
+            aksiLabel={teks.banner[banner.jenis].aksi}
             onAksi={handlerBanner(banner, { mintaIzin, coba, retrySync })}
           />
         </View>
@@ -214,18 +213,14 @@ function KelolaLabContent() {
         menungguLabs ? (
           <View style={styles.center}>
             <ActivityIndicator size="large" color={themeColors.graphite} />
-            <Text style={styles.centerText}>Memuat data laboratorium…</Text>
+            <Text style={styles.centerText}>{teks.memuatLabs}</Text>
           </View>
         ) : (
           <View style={styles.center}>
             <EmptyState
-              judul="Belum ada data laboratorium"
-              pesan={
-                error
-                  ? 'Data lab belum bisa dimuat. Periksa koneksi lalu coba lagi.'
-                  : 'Data lab belum tersedia. Hubungi pengelola laboratorium atau coba lagi nanti.'
-              }
-              aksi={{ label: 'Coba lagi', onPress: retrySync }}
+              judul={teks.petaKosongJudul}
+              pesan={error ? teks.labKosongPesanError : teks.labKosongPesan}
+              aksi={{ label: teks.coba, onPress: retrySync }}
             />
           </View>
         )
@@ -239,7 +234,7 @@ function KelolaLabContent() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.section}>
-            <Text style={styles.label}>Pilih laboratorium</Text>
+            <Text style={styles.label}>{teks.pilihLab}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -294,7 +289,7 @@ function KelolaLabContent() {
                   <View style={styles.validasiJudulRow}>
                     <AlertTriangle size={16} color={themeColors.errorFg} />
                     <Text style={styles.validasiJudul}>
-                      Periksa kembali data lab
+                      {teks.periksaData}
                     </Text>
                   </View>
                   {pesanValidasi.map((pesan) => (
@@ -307,8 +302,8 @@ function KelolaLabContent() {
 
               <Text style={styles.bantuanSimpan}>
                 {berubah
-                  ? 'Perubahan belum disimpan.'
-                  : 'Titik dan radius lab sesuai data tersimpan.'}
+                  ? teks.perubahanBelumDisimpan
+                  : teks.dataSesuai}
               </Text>
 
               <Tombol
@@ -317,7 +312,7 @@ function KelolaLabContent() {
                 disabled={!bisaMencoba}
                 onPress={simpan}
               >
-                Simpan perubahan
+                {teks.simpanPerubahan}
               </Tombol>
             </>
           ) : null}

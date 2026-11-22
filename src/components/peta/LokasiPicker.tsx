@@ -19,6 +19,7 @@ import {
   type ThemeColors,
 } from '@/theme/tokens';
 import { REGION_KAMPUS_FSM } from './region';
+import { teksPeta } from './teks';
 import type { LokasiPickerProps } from './types';
 /** Region awal hanya dipakai sekali; peta tidak boleh melompat saat data berubah. */
 const DELTA_AWAL = 0.004;
@@ -40,7 +41,8 @@ export function LokasiPicker({
   const mapRef = useRef<MapView>(null);
   const [siap, setSiap] = useState(false);
   const sudahDiposisikan = useRef(false);
-  const { isDark, themeColors } = usePreferences();
+  const { isDark, themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
   const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   const regionAwal = {
@@ -93,7 +95,7 @@ export function LokasiPicker({
           rotateEnabled={false}
           showsCompass
           userInterfaceStyle={isDark ? 'dark' : 'light'}
-          accessibilityLabel="Peta pengaturan lokasi laboratorium"
+          accessibilityLabel={teks.a11y.petaPicker}
         >
           {titik ? (
             <>
@@ -113,7 +115,7 @@ export function LokasiPicker({
                   onTitikChange({ lat: latitude, lng: longitude });
                 }}
                 anchor={{ x: 0.5, y: 0.5 }}
-                accessibilityLabel="Titik laboratorium"
+                accessibilityLabel={teks.a11y.titikLab}
               >
                 <View style={styles.titik}>
                   <MapPin size={14} color={themeColors.onPrimary} />
@@ -129,7 +131,7 @@ export function LokasiPicker({
       <View style={styles.aksiRow}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Gunakan lokasi saat ini"
+          accessibilityLabel={teks.a11y.gunakanLokasi}
           accessibilityState={{
             disabled: disabled || !bisaGunakanLokasi || sedangMembacaLokasi,
           }}
@@ -146,7 +148,7 @@ export function LokasiPicker({
           ) : (
             <LocateFixed size={16} color={themeColors.textPrimary} />
           )}
-          <Text style={styles.tombolLokasiTeks}>Gunakan lokasi saat ini</Text>
+          <Text style={styles.tombolLokasiTeks}>{teks.gunakanLokasi}</Text>
         </Pressable>
       </View>
 
@@ -156,14 +158,12 @@ export function LokasiPicker({
 
       <View style={styles.radiusRow}>
         <View style={styles.radiusCopy}>
-          <Text style={styles.label}>Radius presensi</Text>
-          <Text style={styles.bantuan}>
-            Area yang dihitung sah saat praktikan presensi.
-          </Text>
+          <Text style={styles.label}>{teks.radiusPresensiLabel}</Text>
+          <Text style={styles.bantuan}>{teks.radiusBantuan(radius)}</Text>
         </View>
         <View style={styles.radiusInputWrap}>
           <TextInput
-            accessibilityLabel="Radius presensi dalam meter"
+            accessibilityLabel={teks.a11y.radiusInput}
             value={radiusTeks}
             onChangeText={onRadiusTeksChange}
             keyboardType="numeric"
@@ -174,7 +174,7 @@ export function LokasiPicker({
             style={[styles.radiusInput, disabled && styles.radiusInputNonaktif]}
             returnKeyType="done"
           />
-          <Text style={styles.radiusSatuan}>m</Text>
+          <Text style={styles.radiusSatuan}>{teks.satuanMeter}</Text>
         </View>
       </View>
     </View>

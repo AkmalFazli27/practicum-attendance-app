@@ -6,6 +6,7 @@ import { usePreferences } from '@/context/PreferencesContext';
 import { radius, shadows, type ThemeColors } from '@/theme/tokens';
 import { getLabMarkerStyle } from './labMarkerStyle';
 import { labPunyaKoordinat } from './region';
+import { teksPeta } from './teks';
 import type { PetaMapProps } from './types';
 
 export function PetaMap({
@@ -18,7 +19,8 @@ export function PetaMap({
   const mapRef = useRef<MapView>(null);
   const [siap, setSiap] = useState(false);
   const sudahDiposisikan = useRef(false);
-  const { isDark, themeColors } = usePreferences();
+  const { isDark, themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
   const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
   const labTampil = labs.filter(labPunyaKoordinat);
 
@@ -46,7 +48,7 @@ export function PetaMap({
       showsMyLocationButton={false}
       showsCompass
       userInterfaceStyle={isDark ? 'dark' : 'light'}
-      accessibilityLabel="Peta laboratorium"
+      accessibilityLabel={teks.a11y.peta}
     >
       {labTampil.map((lab, idx) => {
         const dipilih = labDipilih?.id === lab.id;
@@ -102,7 +104,7 @@ export function PetaMap({
           <Marker
             coordinate={{ latitude: pengguna.lat, longitude: pengguna.lng }}
             anchor={{ x: 0.5, y: 0.5 }}
-            accessibilityLabel="Posisi kamu"
+            accessibilityLabel={teks.a11y.posisiKamu}
             zIndex={2}
           >
             <View style={styles.titikPengguna}>

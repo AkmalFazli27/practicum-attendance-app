@@ -31,6 +31,7 @@ import {
 import { EmptyState, FilterChip, PermissionBanner } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import { usePreferences } from '@/context/PreferencesContext';
+import { teksPeta } from '@/components/peta/teks';
 import type { Lab } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
 import { layout, radius, spacing, type, type ThemeColors } from '@/theme/tokens';
@@ -46,7 +47,8 @@ const JEDA_TUTUP_SHEET_MS = 280;
  */
 export default function PetaScreen() {
   const { currentUser, loading } = useSession();
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
   const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   if (loading) {
@@ -55,7 +57,7 @@ export default function PetaScreen() {
         <PetaHeader />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={themeColors.graphite} />
-          <Text style={styles.centerText}>Memuat peta laboratorium…</Text>
+          <Text style={styles.centerText}>{teks.memuatPeta}</Text>
         </View>
       </View>
     );
@@ -70,10 +72,12 @@ export default function PetaScreen() {
 
 function PetaContent() {
   const { labs, error, retrySync } = useSession();
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
   const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
-  const { status: statusLokasi, koordinat, pesanError, mintaIzin, coba } =
-    useLocation();
+  // `pesanError` dari hook selalu berbahasa Indonesia; copy banner diambil dari
+  // kamus P2 agar ikut bahasa aplikasi.
+  const { status: statusLokasi, koordinat, mintaIzin, coba } = useLocation();
   const insets = useSafeAreaInsets();
   const [labIdDipilih, setLabIdDipilih] = useState<string | null>(null);
   const [sheetTerbuka, setSheetTerbuka] = useState(false);
@@ -93,7 +97,7 @@ function PetaContent() {
 
   const region = useMemo(() => hitungRegion(labs, pengguna), [labs, pengguna]);
 
-  const bannerLokasi = bannerLokasiDari(statusLokasi, pesanError);
+  const bannerLokasi = bannerLokasiDari(statusLokasi, null);
   const banner = bannerPrioritas(error, bannerLokasi);
 
   // `loading` hanya mencakup auth + koleksi sesi. Koleksi labs punya listener
@@ -161,7 +165,9 @@ function PetaContent() {
         <View style={styles.bannerWrap}>
           <PermissionBanner
             jenis={banner.jenis}
-            pesan={banner.pesan}
+            judul={teks.banner[banner.jenis].judul}
+            pesan={banner.pesan ?? teks.banner[banner.jenis].pesan}
+            aksiLabel={teks.banner[banner.jenis].aksi}
             onAksi={handlerBanner(banner, { mintaIzin, coba, retrySync })}
           />
         </View>
@@ -186,19 +192,15 @@ function PetaContent() {
             {menungguLabs ? (
               <View style={styles.menungguCard}>
                 <ActivityIndicator size="small" color={themeColors.graphite} />
-                <Text style={styles.centerText}>
-                  Memuat data laboratorium…
-                </Text>
+                <Text style={styles.centerText}>{teks.memuatLabs}</Text>
               </View>
             ) : (
               <EmptyState
-                judul="Belum ada data laboratorium"
+                judul={teks.petaKosongJudul}
                 pesan={
-                  error
-                    ? 'Data lab belum bisa dimuat. Periksa koneksi internet lalu coba lagi.'
-                    : 'Data lab belum tersedia. Hubungi asisten praktikum atau coba lagi nanti.'
+                  error ? teks.petaKosongPesanError : teks.petaKosongPesan
                 }
-                aksi={{ label: 'Coba lagi', onPress: retrySync }}
+                aksi={{ label: teks.coba, onPress: retrySync }}
                 style={styles.emptyCard}
               />
             )}

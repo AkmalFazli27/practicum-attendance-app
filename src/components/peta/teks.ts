@@ -23,6 +23,8 @@ export type TeksPeta = {
   petaKosongJudul: string;
   petaKosongPesan: string;
   petaKosongPesanError: string;
+  labKosongPesan: string;
+  labKosongPesanError: string;
   pilihLab: string;
   periksaData: string;
   perubahanBelumDisimpan: string;
@@ -80,6 +82,10 @@ const ID: TeksPeta = {
     'Data lab belum tersedia. Hubungi asisten praktikum atau coba lagi nanti.',
   petaKosongPesanError:
     'Data lab belum bisa dimuat. Periksa koneksi internet lalu coba lagi.',
+  labKosongPesan:
+    'Data lab belum tersedia. Hubungi pengelola laboratorium atau coba lagi nanti.',
+  labKosongPesanError:
+    'Data lab belum bisa dimuat. Periksa koneksi lalu coba lagi.',
   pilihLab: 'Pilih laboratorium',
   periksaData: 'Periksa kembali data lab',
   perubahanBelumDisimpan: 'Perubahan belum disimpan.',
@@ -180,6 +186,10 @@ const EN: TeksPeta = {
     'Laboratory data is not available yet. Contact a lab assistant or try again later.',
   petaKosongPesanError:
     'Laboratory data could not be loaded. Check your internet connection and try again.',
+  labKosongPesan:
+    'Laboratory data is not available yet. Contact the lab manager or try again later.',
+  labKosongPesanError:
+    'Laboratory data could not be loaded. Check your connection and try again.',
   pilihLab: 'Choose laboratory',
   periksaData: 'Check laboratory data again',
   perubahanBelumDisimpan: 'Changes are not saved yet.',

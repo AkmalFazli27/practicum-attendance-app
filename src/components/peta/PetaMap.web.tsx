@@ -13,6 +13,7 @@ import {
 import { hitungJarak } from '@/utils/geo';
 import { getLabMarkerStyle } from './labMarkerStyle';
 import { labPunyaKoordinat } from './region';
+import { teksPeta } from './teks';
 import type { PetaMapProps } from './types';
 
 /**
@@ -25,27 +26,28 @@ export function PetaMap({
   onPilihLab,
   pengguna,
 }: PetaMapProps) {
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
   const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   return (
     <View style={styles.root}>
       <View style={styles.notice}>
         <MapIcon size={18} color={themeColors.textMuted} />
-        <Text style={styles.noticeText}>
-          Peta interaktif tersedia di aplikasi mobile. Pilih lab dari daftar
-          berikut.
-        </Text>
+        <Text style={styles.noticeText}>{teks.petaWebNotice}</Text>
       </View>
 
       {pengguna ? (
         <View style={styles.lokasiRow}>
           <Navigation size={16} color={themeColors.textPrimary} />
           <Text style={styles.lokasiText}>
-            Posisi kamu: {pengguna.lat.toFixed(5)}, {pengguna.lng.toFixed(5)}
-            {typeof pengguna.akurasi === 'number' && pengguna.akurasi > 0
-              ? ` (±${Math.round(pengguna.akurasi)} m)`
-              : ''}
+            {teks.posisiKamu(
+              pengguna.lat.toFixed(5),
+              pengguna.lng.toFixed(5),
+              typeof pengguna.akurasi === 'number' && pengguna.akurasi > 0
+                ? String(Math.round(pengguna.akurasi))
+                : '',
+            )}
           </Text>
         </View>
       ) : null}
@@ -82,8 +84,8 @@ export function PetaMap({
                 {jarak !== null ? (
                   <Text style={styles.jarak}>
                     {jarak < 1000
-                      ? `${Math.round(jarak)} m dari posisimu`
-                      : `${(jarak / 1000).toFixed(1)} km dari posisimu`}
+                      ? teks.jarakMeter(Math.round(jarak))
+                      : teks.jarakKm((jarak / 1000).toFixed(1))}
                   </Text>
                 ) : null}
               </View>

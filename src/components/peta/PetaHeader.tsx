@@ -18,11 +18,12 @@ import {
   type,
   type ThemeColors,
 } from '@/theme/tokens';
+import { teksPeta } from './teks';
 
 export interface PetaHeaderProps {
   onRefresh?: () => void;
   sedangMemuat?: boolean;
-  /** Default "Peta Laboratorium"; halaman lain memakai header yang sama. */
+  /** Default dari kamus teks P2; halaman lain memakai header yang sama. */
   judul?: string;
   kicker?: string;
 }
@@ -30,13 +31,16 @@ export interface PetaHeaderProps {
 export function PetaHeader({
   onRefresh,
   sedangMemuat = false,
-  judul = 'Peta Laboratorium',
-  kicker = 'PETA',
+  judul,
+  kicker,
 }: PetaHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
   const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
+  const judulFinal = judul ?? teks.judulPeta;
+  const kickerFinal = kicker ?? teks.kickerPeta;
 
   const handleKembali = () => {
     if (router.canGoBack()) {
@@ -51,7 +55,7 @@ export function PetaHeader({
       <View style={styles.inner}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Kembali"
+          accessibilityLabel={teks.a11y.kembali}
           onPress={handleKembali}
           style={({ pressed }) => [
             styles.iconBtn,
@@ -62,14 +66,14 @@ export function PetaHeader({
         </Pressable>
 
         <View style={styles.center}>
-          <Text style={styles.kicker}>{kicker}</Text>
-          <Text style={styles.title}>{judul}</Text>
+          <Text style={styles.kicker}>{kickerFinal}</Text>
+          <Text style={styles.title}>{judulFinal}</Text>
         </View>
 
         {onRefresh ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Muat ulang data laboratorium"
+            accessibilityLabel={teks.a11y.muatUlang}
             accessibilityState={{ busy: sedangMemuat }}
             disabled={sedangMemuat}
             onPress={onRefresh}
