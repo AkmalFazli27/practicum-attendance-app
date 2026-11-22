@@ -97,6 +97,7 @@ export default function DetailSesiAsisten() {
 
   const kapasitas = s.kapasitas ?? 32;
   const aksi = aksiUtama(s);
+  const sesiSelesai = statusEfektif(s) === 'SELESAI';
   const daftarHadir = getKehadiranSesi(s.id)
     .slice()
     .sort((a, b) => a.waktuHadir.localeCompare(b.waktuHadir));
@@ -169,22 +170,19 @@ export default function DetailSesiAsisten() {
         </View>
 
         <View style={styles.headerActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Edit sesi"
-            onPress={() => setEditVisible(true)}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              {
-                borderColor: themeColors.border,
-                backgroundColor: pressed
-                  ? themeColors.surfaceMuted
-                  : themeColors.surface,
-              },
-            ]}
-          >
-            <Edit3 size={18} color={themeColors.textPrimary} />
-          </Pressable>
+          {!sesiSelesai && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit sesi"
+              onPress={() => setEditVisible(true)}
+              style={({ pressed }) => [
+                styles.iconBtn,
+                pressed && styles.iconBtnPressed,
+              ]}
+            >
+              <Edit3 size={18} color={colors.textPrimary} />
+            </Pressable>
+          )}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Hapus sesi"
