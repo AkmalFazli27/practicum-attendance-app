@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
+  Animated,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -28,6 +32,9 @@ export interface SheetModalProps {
   style?: StyleProp<ViewStyle>;
 }
 
+const DISMISS_DISTANCE = 80;
+const DISMISS_VELOCITY = 0.65;
+
 export function SheetModal({
   visible,
   judul = '',
@@ -40,7 +47,105 @@ export function SheetModal({
   style,
 }: SheetModalProps) {
   const insets = useSafeAreaInsets();
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
+
+  const translateY = useRef(new Animated.Value(0)).current;
+  const scrollOffsetRef = useRef(0);
+  const dismissibleRef = useRef(dismissible);
+  const onCloseRef = useRef(onClose);
+
+  dismissibleRef.current = dismissible;
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (visible) {
+      translateY.setValue(0);
+      scrollOffsetRef.current = 0;
+    }
+  }, [visible, translateY]);
+
+  const tutupDenganAnimasi = () => {
+    Animated.timing(translateY, {
+      toValue: 420,
+      duration: 170,
+      useNativeDriver: true,
+    }).start(() => {
+      translateY.setValue(0);
+      onCloseRef.current();
+    });
+  };
+
+  const kembalikanPosisi = () => {
+    Animated.spring(translateY, {
+      toValue: 0,
+      useNativeDriver: true,
+      bounciness: 4,
+    }).start();
+  };
+
+  // Gestur geser ke bawah pada area grabber & header
+  const headerPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        dismissibleRef.current &&
+        gesture.dy > 8 &&
+        Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onPanResponderMove: (_, gesture) => {
+        if (gesture.dy > 0) {
+          translateY.setValue(gesture.dy);
+        }
+      },
+      onPanResponderRelease: (_, gesture) => {
+        if (
+          dismissibleRef.current &&
+          (gesture.dy > DISMISS_DISTANCE || gesture.vy > DISMISS_VELOCITY)
+        ) {
+          tutupDenganAnimasi();
+        } else {
+          kembalikanPosisi();
+        }
+      },
+      onPanResponderTerminate: () => {
+        kembalikanPosisi();
+      },
+    }),
+  ).current;
+
+  // Gestur geser ke bawah pada body sheet saat posisi scroll berada di paling atas
+  const sheetPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        dismissibleRef.current &&
+        scrollOffsetRef.current <= 0 &&
+        gesture.dy > 14 &&
+        Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.2,
+      onPanResponderMove: (_, gesture) => {
+        if (gesture.dy > 0) {
+          translateY.setValue(gesture.dy);
+        }
+      },
+      onPanResponderRelease: (_, gesture) => {
+        if (
+          dismissibleRef.current &&
+          (gesture.dy > DISMISS_DISTANCE || gesture.vy > DISMISS_VELOCITY)
+        ) {
+          tutupDenganAnimasi();
+        } else {
+          kembalikanPosisi();
+        }
+      },
+      onPanResponderTerminate: () => {
+        kembalikanPosisi();
+      },
+    }),
+  ).current;
+
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+  };
 
   const handleBackdropPress = () => {
     if (dismissible) {
@@ -65,76 +170,79 @@ export function SheetModal({
           style={styles.backdrop}
           onPress={handleBackdropPress}
           accessibilityRole="button"
-          accessibilityLabel="Tutup dialog"
+          accessibilityLabel={isEn ? 'Close dialog' : 'Tutup dialog'}
         />
 
-        <View
+        <Animated.View
+          {...sheetPanResponder.panHandlers}
           style={[
             styles.sheetContainer,
             {
               backgroundColor: themeColors.background,
               paddingBottom: Math.max(insets.bottom, spacing.s5),
+              transform: [{ translateY }],
             },
             style,
           ]}
         >
-          {/* Grabber bar */}
-          <View style={styles.grabberContainer}>
-            <View
-              style={[
-                styles.grabber,
-                { backgroundColor: themeColors.borderDashed },
-              ]}
-            />
-          </View>
-
-          {/* Header */}
-          {!hideHeader && (
-            <View style={styles.header}>
-              <View style={styles.headerTextWrap}>
-                {kicker && (
-                  <Text
-                    style={[styles.kicker, { color: themeColors.textMuted }]}
-                  >
-                    {kicker}
-                  </Text>
-                )}
-                <Text
-                  style={[styles.judul, { color: themeColors.textPrimary }]}
-                  numberOfLines={2}
-                >
-                  {judul}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Tutup"
-                disabled={!dismissible}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                onPress={onClose}
-                style={({ pressed }) => [
-                  styles.closeButton,
-                  {
-                    borderColor: themeColors.border,
-                    backgroundColor:
-                      pressed && dismissible
-                        ? themeColors.surfaceMuted
-                        : themeColors.surface,
-                  },
-                  !dismissible && styles.closeButtonDisabled,
+          {/* Grabber & Header (dapat ditarik ke bawah untuk menutup modal) */}
+          <View {...headerPanResponder.panHandlers}>
+            <View style={styles.grabberContainer}>
+              <View
+                style={[
+                  styles.grabber,
+                  { backgroundColor: themeColors.borderDashed },
                 ]}
-              >
-                <X
-                  size={20}
-                  color={
-                    dismissible
-                      ? themeColors.textPrimary
-                      : themeColors.disabledText
-                  }
-                />
-              </Pressable>
+              />
             </View>
-          )}
+
+            {!hideHeader && (
+              <View style={styles.header}>
+                <View style={styles.headerTextWrap}>
+                  {kicker && (
+                    <Text
+                      style={[styles.kicker, { color: themeColors.textMuted }]}
+                    >
+                      {kicker}
+                    </Text>
+                  )}
+                  <Text
+                    style={[styles.judul, { color: themeColors.textPrimary }]}
+                    numberOfLines={2}
+                  >
+                    {judul}
+                  </Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={isEn ? 'Close' : 'Tutup'}
+                  disabled={!dismissible}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  onPress={onClose}
+                  style={({ pressed }) => [
+                    styles.closeButton,
+                    {
+                      borderColor: themeColors.border,
+                      backgroundColor:
+                        pressed && dismissible
+                          ? themeColors.surfaceMuted
+                          : themeColors.surface,
+                    },
+                    !dismissible && styles.closeButtonDisabled,
+                  ]}
+                >
+                  <X
+                    size={20}
+                    color={
+                      dismissible
+                        ? themeColors.textPrimary
+                        : themeColors.disabledText
+                    }
+                  />
+                </Pressable>
+              </View>
+            )}
+          </View>
 
           {/* Body Content */}
           <ScrollView
@@ -143,13 +251,15 @@ export function SheetModal({
             bounces={false}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            scrollEventThrottle={16}
+            onScroll={handleScroll}
           >
             {children}
           </ScrollView>
 
           {/* Optional Footer */}
           {footer && <View style={styles.footer}>{footer}</View>}
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
+import { usePreferences, type BahasaApp } from '@/context/PreferencesContext';
 import type { Koordinat } from '@/data/dummy';
 import {
   cekIzinLokasi,
@@ -29,14 +30,34 @@ export type HasilLokasi = {
 const BATAS_TUNGGU_MS = 15000;
 const CEK_GPS_MS = 10000;
 
-const PESAN = {
-  gpsMati: 'Layanan lokasi di perangkat mati. Aktifkan GPS lalu coba lagi.',
-  izinDitolak:
-    'Izin lokasi ditolak. Izinkan akses lokasi di pengaturan aplikasi agar presensi dan peta dapat berfungsi.',
-  belumAda:
-    'Lokasi belum tersedia. Pastikan GPS aktif dan coba di tempat terbuka.',
-  error: 'Gagal membaca lokasi perangkat. Silakan coba lagi.',
-} as const;
+const PESAN: Record<
+  BahasaApp,
+  {
+    'gps-mati': string;
+    'izin-ditolak': string;
+    'koordinat-belum-ada': string;
+    error: string;
+  }
+> = {
+  id: {
+    'gps-mati':
+      'Layanan lokasi di perangkat mati. Aktifkan GPS lalu coba lagi.',
+    'izin-ditolak':
+      'Izin lokasi ditolak. Izinkan akses lokasi di pengaturan aplikasi agar presensi dan peta dapat berfungsi.',
+    'koordinat-belum-ada':
+      'Lokasi belum tersedia. Pastikan GPS aktif dan coba di tempat terbuka.',
+    error: 'Gagal membaca lokasi perangkat. Silakan coba lagi.',
+  },
+  en: {
+    'gps-mati':
+      'Device location services are off. Enable GPS and try again.',
+    'izin-ditolak':
+      'Location permission was denied. Allow location access in app settings so attendance and maps can work.',
+    'koordinat-belum-ada':
+      'Location is not available yet. Ensure GPS is enabled and try in an open area.',
+    error: 'Failed to read device location. Please try again.',
+  },
+};
 
 const STATUS_GAGAL: StatusLokasi[] = [
   'izin-ditolak',
@@ -46,9 +67,9 @@ const STATUS_GAGAL: StatusLokasi[] = [
 ];
 
 export function useLocation(): HasilLokasi {
+  const { language } = usePreferences();
   const [status, setStatus] = useState<StatusLokasi>('memuat');
   const [koordinat, setKoordinat] = useState<Koordinat | null>(null);
-  const [pesanError, setPesanError] = useState<string | null>(null);
 
   const statusRef = useRef<StatusLokasi>('memuat');
   const langgananRef = useRef<Langganan | null>(null);
@@ -57,10 +78,9 @@ export function useLocation(): HasilLokasi {
   const putaranRef = useRef<number>(0);
 
   const ubah = useCallback(
-    (baru: StatusLokasi, pesan: string | null, hapusKoordinat = false) => {
+    (baru: StatusLokasi, hapusKoordinat = false) => {
       statusRef.current = baru;
       setStatus(baru);
-      setPesanError(pesan);
       if (hapusKoordinat) setKoordinat(null);
     },
     [],
@@ -83,13 +103,13 @@ export function useLocation(): HasilLokasi {
       const basi = () => !aktifRef.current || putaran !== putaranRef.current;
 
       hentikan();
-      ubah('memuat', null);
+      ubah('memuat');
 
       try {
         const gpsAktif = await layananLokasiAktif();
         if (basi()) return;
         if (!gpsAktif) {
-          ubah('gps-mati', PESAN.gpsMati, true);
+          ubah('gps-mati', true);
           return;
         }
 
@@ -101,13 +121,13 @@ export function useLocation(): HasilLokasi {
         if (basi()) return;
 
         if (izin !== 'diberikan') {
-          ubah('izin-ditolak', PESAN.izinDitolak, true);
+          ubah('izin-ditolak', true);
           return;
         }
 
         timerRef.current = setTimeout(() => {
           if (!basi() && statusRef.current === 'memuat') {
-            ubah('koordinat-belum-ada', PESAN.belumAda);
+            ubah('koordinat-belum-ada');
           }
         }, BATAS_TUNGGU_MS);
 
@@ -115,11 +135,11 @@ export function useLocation(): HasilLokasi {
           (k) => {
             if (basi()) return;
             setKoordinat(k);
-            ubah('siap', null);
+            ubah('siap');
           },
           () => {
             if (basi()) return;
-            ubah('error', PESAN.error);
+            ubah('error');
           },
         );
 
@@ -130,7 +150,7 @@ export function useLocation(): HasilLokasi {
         langgananRef.current = langganan;
       } catch {
         if (basi()) return;
-        ubah('error', PESAN.error, true);
+        ubah('error', true);
       }
     },
     [hentikan, ubah],
@@ -156,7 +176,7 @@ export function useLocation(): HasilLokasi {
       if (!aktifRef.current || statusRef.current !== s) return;
       if (!aktif && s !== 'gps-mati') {
         hentikan();
-        ubah('gps-mati', PESAN.gpsMati, true);
+        ubah('gps-mati', true);
       } else if (aktif && s === 'gps-mati') {
         void mulai(false);
       }
@@ -170,6 +190,18 @@ export function useLocation(): HasilLokasi {
       clearInterval(pemeriksa);
     };
   }, [mulai, hentikan, ubah]);
+
+  const pesanError = useMemo(() => {
+    if (
+      status === 'gps-mati' ||
+      status === 'izin-ditolak' ||
+      status === 'koordinat-belum-ada' ||
+      status === 'error'
+    ) {
+      return PESAN[language][status];
+    }
+    return null;
+  }, [status, language]);
 
   const mintaIzin = useCallback(() => mulai(true), [mulai]);
   const coba = useCallback(() => mulai(false), [mulai]);
