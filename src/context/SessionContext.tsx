@@ -59,6 +59,7 @@ import {
 } from '@/services/notifications';
 import { nowLocalISO } from '@/utils/format';
 import { koordinatValid } from '@/utils/geo';
+import { cariBentrokJadwal } from '@/utils/bentrokJadwal';
 import { evaluasiPresensi } from '@/utils/presensi';
 import {
   alasanTidakBisaDibuka,
@@ -68,7 +69,9 @@ import {
 
 export type { SesiInput };
 
-export type HasilSimpan = { ok: boolean; notifGagal?: boolean };
+export type HasilSimpan =
+  | { ok: true; sesi?: Sesi; notifGagal?: boolean }
+  | { ok: false; alasan: string };
 
 export type AuthResult =
   | { ok: true; user: User }
@@ -96,6 +99,8 @@ export type SessionContextValue = {
   loading: boolean;
   error: string | null;
   clearError: () => void;
+  errorAksi: string | null;
+  clearErrorAksi: () => void;
   retrySync: () => void;
   users: User[];
   currentUser: User | null;
@@ -116,7 +121,7 @@ export type SessionContextValue = {
   openSession: (sesiId: string) => Promise<HasilAksi>;
   closeSession: (sesiId: string) => Promise<boolean>;
   reopenSession: (sesiId: string) => Promise<HasilAksi>;
-  createSession: (input: SesiInput) => Promise<Sesi | null>;
+  createSession: (input: SesiInput) => Promise<HasilSimpan>;
   updateSession: (
     sesiId: string,
     input: Partial<SesiInput>,
@@ -218,6 +223,7 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorAksi, setErrorAksi] = useState<string | null>(null);
   const [syncVersion, setSyncVersion] = useState<number>(0);
 
   const [users, setUsers] = useState<User[]>(
@@ -255,6 +261,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const clearError = useCallback(() => {
     setError(null);
+  }, []);
+
+  const clearErrorAksi = useCallback(() => {
+    setErrorAksi(null);
   }, []);
 
   const retrySync = useCallback(() => {
@@ -974,18 +984,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const createSession = async (input: SesiInput): Promise<Sesi | null> => {
+  const createSession = async (input: SesiInput): Promise<HasilSimpan> => {
     if (!currentUser || currentUser.peran !== 'asisten') {
-      return null;
+      return { ok: false, alasan: 'Hanya asisten yang dapat menambahkan sesi.' };
     }
+
+    setErrorAksi(null);
 
     const cek = validasiJadwal(input, sekarang());
     if (!cek.ok) {
-      setError(cek.alasan);
-      return null;
+      return { ok: false, alasan: cek.alasan };
     }
 
     const labDipilih = labs.find((l) => l.id === input.labId);
+
+    const bentrok = cariBentrokJadwal(
+      {
+        tanggal: input.tanggal.trim(),
+        jamMulai: input.jamMulai.trim(),
+        jamSelesai: input.jamSelesai.trim(),
+        kelas: input.kelas,
+        labId: input.labId,
+        lab: labDipilih?.nama ?? input.lab,
+        asistenId: currentUser.id,
+      },
+      sesi,
+    );
+    if (!bentrok.ok) {
+      return { ok: false, alasan: bentrok.alasan };
+    }
 
     const sesiBaruData = {
       namaPraktikum: input.namaPraktikum.trim(),
@@ -1005,15 +1032,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (isFirebaseConfigured) {
       try {
         const docRef = await addDoc(collection(db, 'sesi'), sesiBaruData);
-        return { id: docRef.id, ...sesiBaruData };
+        return { ok: true, sesi: { id: docRef.id, ...sesiBaruData } };
       } catch (err: any) {
-        setError(
-          terjemahkanErrorFirestore(
+        return {
+          ok: false,
+          alasan: terjemahkanErrorFirestore(
             err,
-            'Gagal menambahkan sesi praktikum baru.',
+            'Gagal menambahkan sesi praktikum baru. Periksa koneksi Anda.',
           ),
-        );
-        return null;
+        };
       }
     }
 
@@ -1022,13 +1049,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ...sesiBaruData,
     };
     setSesi((prev) => [sesiBaru, ...prev]);
-    return sesiBaru;
+    return { ok: true, sesi: sesiBaru };
   };
 
   const updateSession = async (
     sesiId: string,
     input: Partial<SesiInput>,
   ): Promise<HasilSimpan> => {
+    setErrorAksi(null);
     const target = sesi.find((s) => s.id === sesiId);
     const patch: Record<string, any> = {};
     if (typeof input.namaPraktikum === 'string') {
@@ -1062,8 +1090,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (target && jadwalBerubah) {
       const cek = validasiJadwal({ ...target, ...patch }, sekarang());
       if (!cek.ok) {
-        setError(cek.alasan);
-        return { ok: false };
+        return { ok: false, alasan: cek.alasan };
+      }
+    }
+
+    const kunciBentrok = ['tanggal', 'jamMulai', 'jamSelesai', 'kelas', 'lab', 'labId'] as const;
+    const bentrokBerubah =
+      !!target && kunciBentrok.some((k) => k in patch && patch[k] !== target[k]);
+    if (target && bentrokBerubah) {
+      const bentrok = cariBentrokJadwal({ ...target, ...patch }, sesi, sesiId);
+      if (!bentrok.ok) {
+        return { ok: false, alasan: bentrok.alasan };
       }
     }
 
@@ -1076,10 +1113,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         );
       }
     } catch (err: any) {
-      setError(
-        terjemahkanErrorFirestore(err, 'Gagal memperbarui data sesi praktikum.'),
-      );
-      return { ok: false };
+      return {
+        ok: false,
+        alasan: terjemahkanErrorFirestore(
+          err,
+          'Gagal memperbarui data sesi praktikum. Periksa koneksi Anda.',
+        ),
+      };
     }
 
     const notifOk =
@@ -1316,11 +1356,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     izinId: string,
     status: Exclude<StatusIzin, 'MENUNGGU'>,
   ): Promise<HasilSimpan> => {
-    if (!currentUser || currentUser.peran !== 'asisten') return { ok: false };
+    if (!currentUser || currentUser.peran !== 'asisten') {
+      return { ok: false, alasan: 'Hanya asisten yang dapat memeriksa izin.' };
+    }
 
     const izinTarget = izin.find((item) => item.id === izinId);
-    if (izinTarget && izinTarget.status !== 'MENUNGGU') return { ok: false };
-
+    if (izinTarget && izinTarget.status !== 'MENUNGGU') {
+      return { ok: false, alasan: 'Pengajuan izin ini sudah diputuskan.' };
+    }
     const waktuKeputusan = nowLocalISO();
     const patch = {
       status,
@@ -1339,13 +1382,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         );
       }
     } catch (err: any) {
-      setError(
-        terjemahkanErrorFirestore(
-          err,
-          'Gagal menyimpan keputusan pemeriksaan izin.',
-        ),
+      const pesan = terjemahkanErrorFirestore(
+        err,
+        'Gagal menyimpan keputusan pemeriksaan izin.',
       );
-      return { ok: false };
+      setError(pesan);
+      return { ok: false, alasan: pesan };
     }
 
     const notifOk = izinTarget
@@ -1439,6 +1481,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       clearError,
+      errorAksi,
+      clearErrorAksi,
       retrySync,
       users: mergedUsers,
       currentUser,
@@ -1474,6 +1518,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       clearError,
+      errorAksi,
+      clearErrorAksi,
       retrySync,
       mergedUsers,
       currentUser,
