@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -21,114 +21,31 @@ import {
   UserRound,
 } from 'lucide-react-native';
 
+import {
+  pesanUntukAlasan,
+  validateAuthForm,
+  type AuthField,
+  type AuthMode,
+  type FieldErrors,
+} from '@/components/auth/validasiLogin';
+import { teksLogin } from '@/components/auth/teksLogin';
 import { Brand, Tombol, useToast } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type Peran } from '@/data/dummy';
-import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
-
-type AuthMode = 'login' | 'register';
-type AuthField = 'nama' | 'nim' | 'kelas' | 'email' | 'password' | 'konfirmasi';
-type FieldErrors = Partial<Record<AuthField, string>>;
-
-const POLA_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const POLA_NIM = /^\d{6,20}$/;
-const POLA_KELAS = /^[A-Z]{2,4}-?\d[A-Z]?$/;
-
-const PESAN_ERROR_UMUM =
-  'Terjadi kesalahan saat memproses akun. Periksa koneksi internetmu dan coba lagi.';
+import { fontFamily, radius, spacing, type, type ThemeColors } from '@/theme/tokens';
 
 const berandaUntuk = (peran: Peran) =>
   peran === 'asisten' ? '/beranda-asisten' : '/beranda-praktikan';
-
-function mapAuthError(kode: string): string {
-  switch (kode) {
-    case 'auth/invalid-email':
-    case 'auth/missing-email':
-      return 'Format alamat email tidak valid.';
-    case 'auth/wrong-password':
-    case 'auth/invalid-credential':
-    case 'auth/invalid-login-credentials':
-      return 'Email atau kata sandi salah.';
-    case 'auth/email-already-in-use':
-      return 'Email ini sudah terdaftar. Silakan masuk.';
-    case 'auth/weak-password':
-      return 'Kata sandi terlalu lemah. Gunakan minimal 6 karakter.';
-    case 'auth/network-request-failed':
-      return 'Tidak dapat terhubung ke server. Periksa koneksi internetmu.';
-    case 'auth/too-many-requests':
-      return 'Terlalu banyak percobaan. Coba lagi beberapa saat lagi.';
-    case 'auth/user-disabled':
-      return 'Akun ini dinonaktifkan. Hubungi asisten atau admin.';
-    case 'auth/operation-not-allowed':
-      return 'Metode login ini belum diaktifkan. Hubungi pengelola aplikasi.';
-    case 'auth/internal-error':
-      return 'Terjadi gangguan pada layanan autentikasi. Coba lagi.';
-    default:
-      return PESAN_ERROR_UMUM;
-  }
-}
-
-function pesanUntukAlasan(alasan: string): string {
-  return alasan.startsWith('auth/') ? mapAuthError(alasan) : alasan;
-}
-
-type ValidasiAuthInput = {
-  authMode: AuthMode;
-  nama: string;
-  nim: string;
-  kelas: string;
-  email: string;
-  password: string;
-  konfirmasi: string;
-};
-
-function validateAuthForm({
-  authMode,
-  nama,
-  nim,
-  kelas,
-  email,
-  password,
-  konfirmasi,
-}: ValidasiAuthInput): FieldErrors {
-  const hasil: FieldErrors = {};
-
-  // Pendaftaran mandiri hanya untuk praktikan, sehingga NIM dan kelas selalu wajib
-  // pada mode register. Ubah bagian ini bila kelak asisten boleh mendaftar sendiri.
-  if (authMode === 'register') {
-    if (nama.trim().length < 3) {
-      hasil.nama = 'Nama lengkap minimal 3 karakter.';
-    }
-
-    if (!POLA_NIM.test(nim.trim())) {
-      hasil.nim = 'NIM/ID hanya boleh berisi angka (6–20 digit).';
-    }
-
-    if (!POLA_KELAS.test(kelas.trim().toUpperCase())) {
-      hasil.kelas = 'Format kelas tidak valid. Contoh: IF-2A.';
-    }
-  }
-
-  if (!POLA_EMAIL.test(email.trim().toLowerCase())) {
-    hasil.email = 'Masukkan alamat email yang valid.';
-  }
-
-  if (password.length < 6) {
-    hasil.password = 'Kata sandi minimal 6 karakter.';
-  }
-
-  if (authMode === 'register' && password !== konfirmasi) {
-    hasil.konfirmasi = 'Konfirmasi kata sandi tidak cocok.';
-  }
-
-  return hasil;
-}
 
 export default function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string }>();
   const { currentUser, loading, loginWithEmail, registerUser } = useSession();
   const { showToast } = useToast();
+  const { themeColors, language } = usePreferences();
+  const teks = teksLogin(language);
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   const [authMode, setAuthMode] = useState<AuthMode>(
     params.mode === 'register' ? 'register' : 'login',
@@ -191,8 +108,14 @@ export default function LoginScreen() {
     setTouched((prev) => ({ ...prev, [field]: true }));
   };
 
-  const errorField = (field: AuthField) =>
+  const kodeErrorField = (field: AuthField) =>
     touched[field] || submitted ? errors[field] : undefined;
+
+  /** Pesan inline siap tampil; kode dari validasi diterjemahkan di sini. */
+  const errorField = (field: AuthField) => {
+    const kode = kodeErrorField(field);
+    return kode ? teks.pesan[kode] : undefined;
+  };
 
   const handleGantiMode = (modeBaru: AuthMode) => {
     setAuthMode(modeBaru);
@@ -213,7 +136,7 @@ export default function LoginScreen() {
         konfirmasiPassword.length > 0;
 
   const tanganiKegagalanAuth = (alasan: string) => {
-    setPesanError(pesanUntukAlasan(alasan));
+    setPesanError(pesanUntukAlasan(alasan, teks));
   };
 
   const handleSubmit = async () => {
@@ -271,7 +194,7 @@ export default function LoginScreen() {
           return;
         }
 
-        showToast(`Selamat datang kembali, ${res.user.nama.split(' ')[0]}!`);
+        showToast(teks.toast.selamatDatang(res.user.nama.split(' ')[0]));
         router.replace(berandaUntuk(res.user.peran));
         return;
       }
@@ -290,11 +213,13 @@ export default function LoginScreen() {
         return;
       }
 
-      showToast(`Akun ${res.user.nama.split(' ')[0]} berhasil dibuat.`);
+      showToast(teks.toast.akunDibuat(res.user.nama.split(' ')[0]));
       router.replace(berandaUntuk(res.user.peran));
     } catch (err: any) {
       const kode = typeof err?.code === 'string' ? err.code : null;
-      setPesanError(kode ? mapAuthError(kode) : PESAN_ERROR_UMUM);
+      setPesanError(
+        kode ? pesanUntukAlasan(kode, teks) : teks.pesan['auth-umum'],
+      );
     } finally {
       setSedangMemproses(false);
     }
@@ -302,11 +227,9 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Panel atas selalu bernada graphite, jadi status bar tetap terang. */}
       <StatusBar style="light" />
-      <KeyboardAvoidingView
-        behavior="padding"
-        style={styles.flex}
-      >
+      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -316,14 +239,14 @@ export default function LoginScreen() {
           <View style={styles.topBar}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Kembali ke halaman awal"
+              accessibilityLabel={teks.a11y.kembali}
               onPress={() => router.replace('/')}
               style={({ pressed }) => [
                 styles.backIconBtn,
                 pressed && styles.backIconBtnPressed,
               ]}
             >
-              <ArrowLeft size={21} color={colors.onGraphite} />
+              <ArrowLeft size={21} color={themeColors.onGraphite} />
             </Pressable>
             <Brand compact onDark />
             <View style={styles.topSpacer} />
@@ -335,15 +258,13 @@ export default function LoginScreen() {
               <Brand large showWordmark={false} />
             </View>
             <Text style={styles.darkEyebrow}>
-              {authMode === 'login' ? 'SELAMAT DATANG' : 'REGISTRASI AKUN'}
+              {authMode === 'login' ? teks.selamatDatang : teks.registrasiAkun}
             </Text>
             <Text style={styles.introTitle}>
-              {authMode === 'login' ? 'Masuk ke TapIn' : 'Buat Akun TapIn'}
+              {authMode === 'login' ? teks.judulMasuk : teks.judulDaftar}
             </Text>
             <Text style={styles.introSub}>
-              {authMode === 'login'
-                ? 'Masuk dengan email dan kata sandi akunmu. Peran akun dikenali otomatis.'
-                : 'Daftarkan identitasmu untuk mengakses praktikum sebagai Praktikan.'}
+              {authMode === 'login' ? teks.subMasuk : teks.subDaftar}
             </Text>
           </View>
 
@@ -353,8 +274,8 @@ export default function LoginScreen() {
             <View style={styles.modeTabs}>
               <Pressable
                 accessibilityRole="tab"
-                accessibilityLabel="Tab Masuk"
-                accessibilityHint="Tampilkan formulir untuk masuk ke aplikasi."
+                accessibilityLabel={teks.a11y.tabMasuk}
+                accessibilityHint={teks.a11y.tabMasukHint}
                 accessibilityState={{
                   selected: authMode === 'login',
                   disabled: sedangMemproses,
@@ -372,13 +293,13 @@ export default function LoginScreen() {
                     authMode === 'login' && styles.modeTabTextActive,
                   ]}
                 >
-                  Masuk
+                  {teks.masuk}
                 </Text>
               </Pressable>
               <Pressable
                 accessibilityRole="tab"
-                accessibilityLabel="Tab Daftar Akun"
-                accessibilityHint="Tampilkan formulir untuk membuat akun baru."
+                accessibilityLabel={teks.a11y.tabDaftar}
+                accessibilityHint={teks.a11y.tabDaftarHint}
                 accessibilityState={{
                   selected: authMode === 'register',
                   disabled: sedangMemproses,
@@ -396,7 +317,7 @@ export default function LoginScreen() {
                     authMode === 'register' && styles.modeTabTextActive,
                   ]}
                 >
-                  Daftar Akun
+                  {teks.daftarAkun}
                 </Text>
               </Pressable>
             </View>
@@ -404,11 +325,8 @@ export default function LoginScreen() {
             {/* Info Registrasi */}
             {authMode === 'register' && (
               <View style={styles.registerInfo}>
-                <UserRound size={16} color={colors.textSecondary} />
-                <Text style={styles.registerInfoText}>
-                  Pendaftaran mandiri hanya untuk Praktikan. Akun Asisten
-                  didaftarkan oleh admin praktikum.
-                </Text>
+                <UserRound size={16} color={themeColors.textSecondary} />
+                <Text style={styles.registerInfoText}>{teks.infoDaftar}</Text>
               </View>
             )}
 
@@ -416,17 +334,17 @@ export default function LoginScreen() {
             {authMode === 'register' && (
               <>
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Nama lengkap</Text>
+                  <Text style={styles.fieldLabel}>{teks.namaLengkap}</Text>
                   <TextInput
                     ref={refNama}
                     value={nama}
                     onChangeText={ubahField('nama', setNama)}
                     onBlur={() => tandaiTouched('nama')}
-                    placeholder="Contoh: Alya Ramadhani"
-                    placeholderTextColor={colors.textMuted}
+                    placeholder={teks.placeholderNama}
+                    placeholderTextColor={themeColors.textMuted}
                     editable={!sedangMemproses}
-                    accessibilityLabel="Nama lengkap"
-                    accessibilityHint="Isi nama lengkap sesuai identitas praktikum."
+                    accessibilityLabel={teks.a11y.namaLengkap}
+                    accessibilityHint={teks.a11y.namaLengkapHint}
                     style={[styles.input, errorField('nama') && styles.inputError]}
                   />
                   {errorField('nama') && (
@@ -436,7 +354,7 @@ export default function LoginScreen() {
 
                 <View style={styles.rowFields}>
                   <View style={[styles.fieldGroup, { flex: 1.2 }]}>
-                    <Text style={styles.fieldLabel}>NIM / ID</Text>
+                    <Text style={styles.fieldLabel}>{teks.nimId}</Text>
                     <TextInput
                       ref={refNim}
                       value={nim}
@@ -445,14 +363,14 @@ export default function LoginScreen() {
                         bersihkanErrorField('nim');
                       }}
                       onBlur={() => tandaiTouched('nim')}
-                      placeholder="2310512001"
-                      placeholderTextColor={colors.textMuted}
+                      placeholder={teks.placeholderNim}
+                      placeholderTextColor={themeColors.textMuted}
                       keyboardType="number-pad"
                       maxLength={20}
                       importantForAutofill="yes"
                       editable={!sedangMemproses}
-                      accessibilityLabel="NIM atau ID"
-                      accessibilityHint="Hanya angka, 6 sampai 20 digit."
+                      accessibilityLabel={teks.a11y.nimId}
+                      accessibilityHint={teks.a11y.nimIdHint}
                       style={[styles.input, errorField('nim') && styles.inputError]}
                     />
                     {errorField('nim') && (
@@ -461,18 +379,18 @@ export default function LoginScreen() {
                   </View>
 
                   <View style={[styles.fieldGroup, { flex: 0.8 }]}>
-                    <Text style={styles.fieldLabel}>Kelas</Text>
+                    <Text style={styles.fieldLabel}>{teks.kelas}</Text>
                     <TextInput
                       ref={refKelas}
                       value={kelas}
                       onChangeText={ubahField('kelas', setKelas)}
                       onBlur={() => tandaiTouched('kelas')}
-                      placeholder="IF-2A"
-                      placeholderTextColor={colors.textMuted}
+                      placeholder={teks.placeholderKelas}
+                      placeholderTextColor={themeColors.textMuted}
                       autoCapitalize="characters"
                       editable={!sedangMemproses}
-                      accessibilityLabel="Kelas"
-                      accessibilityHint="Gunakan format seperti IF-2A."
+                      accessibilityLabel={teks.a11y.kelas}
+                      accessibilityHint={teks.a11y.kelasHint}
                       style={[
                         styles.input,
                         errorField('kelas') && styles.inputError,
@@ -490,22 +408,22 @@ export default function LoginScreen() {
 
             {/* Email & Password Fields */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Alamat email</Text>
+              <Text style={styles.fieldLabel}>{teks.alamatEmail}</Text>
               <TextInput
                 ref={refEmail}
                 value={email}
                 onChangeText={ubahField('email', setEmail)}
                 onBlur={() => tandaiTouched('email')}
-                placeholder="nama@tapin.ac.id"
-                placeholderTextColor={colors.textMuted}
+                placeholder={teks.placeholderEmail}
+                placeholderTextColor={themeColors.textMuted}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="email"
                 textContentType="emailAddress"
                 editable={!sedangMemproses}
-                accessibilityLabel="Alamat email"
-                accessibilityHint="Gunakan alamat email aktif yang valid."
+                accessibilityLabel={teks.a11y.alamatEmail}
+                accessibilityHint={teks.a11y.alamatEmailHint}
                 style={[styles.input, errorField('email') && styles.inputError]}
               />
               {errorField('email') && (
@@ -514,7 +432,7 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Kata sandi</Text>
+              <Text style={styles.fieldLabel}>{teks.kataSandi}</Text>
               <View
                 style={[
                   styles.passwordWrap,
@@ -526,8 +444,8 @@ export default function LoginScreen() {
                   value={password}
                   onChangeText={ubahField('password', setPassword)}
                   onBlur={() => tandaiTouched('password')}
-                  placeholder="Minimal 6 karakter"
-                  placeholderTextColor={colors.textMuted}
+                  placeholder={teks.placeholderSandi}
+                  placeholderTextColor={themeColors.textMuted}
                   secureTextEntry={!lihatPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -540,24 +458,24 @@ export default function LoginScreen() {
                   returnKeyType="done"
                   onSubmitEditing={handleSubmit}
                   editable={!sedangMemproses}
-                  accessibilityLabel="Kata sandi"
-                  accessibilityHint="Minimal 6 karakter."
+                  accessibilityLabel={teks.a11y.kataSandi}
+                  accessibilityHint={teks.a11y.kataSandiHint}
                   style={styles.passwordInput}
                 />
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={
                     lihatPassword
-                      ? 'Sembunyikan kata sandi'
-                      : 'Tampilkan kata sandi'
+                      ? teks.a11y.sembunyikanSandi
+                      : teks.a11y.tampilkanSandi
                   }
                   onPress={() => setLihatPassword((v) => !v)}
                   style={styles.eyeButton}
                 >
                   {lihatPassword ? (
-                    <EyeOff size={18} color={colors.textMuted} />
+                    <EyeOff size={18} color={themeColors.textMuted} />
                   ) : (
-                    <Eye size={18} color={colors.textMuted} />
+                    <Eye size={18} color={themeColors.textMuted} />
                   )}
                 </Pressable>
               </View>
@@ -570,7 +488,7 @@ export default function LoginScreen() {
                       styles.passwordHintError,
                   ]}
                 >
-                  Minimal 6 karakter.
+                  {teks.bantuanSandi}
                 </Text>
               ) : (
                 errorField('password') && (
@@ -583,7 +501,7 @@ export default function LoginScreen() {
 
             {authMode === 'register' && (
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Konfirmasi kata sandi</Text>
+                <Text style={styles.fieldLabel}>{teks.konfirmasiSandi}</Text>
                 <View
                   style={[
                     styles.passwordWrap,
@@ -598,8 +516,8 @@ export default function LoginScreen() {
                       setKonfirmasiPassword,
                     )}
                     onBlur={() => tandaiTouched('konfirmasi')}
-                    placeholder="Ulangi kata sandi"
-                    placeholderTextColor={colors.textMuted}
+                    placeholder={teks.placeholderKonfirmasi}
+                    placeholderTextColor={themeColors.textMuted}
                     secureTextEntry={!lihatPassword}
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -608,8 +526,8 @@ export default function LoginScreen() {
                     returnKeyType="done"
                     onSubmitEditing={handleSubmit}
                     editable={!sedangMemproses}
-                    accessibilityLabel="Konfirmasi kata sandi"
-                    accessibilityHint="Ulangi kata sandi yang sama."
+                    accessibilityLabel={teks.a11y.konfirmasiSandi}
+                    accessibilityHint={teks.a11y.konfirmasiSandiHint}
                     style={styles.passwordInput}
                   />
                 </View>
@@ -632,10 +550,10 @@ export default function LoginScreen() {
               disabled={!formTerisi}
               loading={sedangMemproses}
               onPress={handleSubmit}
-              rightIcon={<ArrowRight size={19} color={colors.onPrimary} />}
+              rightIcon={<ArrowRight size={19} color={themeColors.onPrimary} />}
               style={styles.submitButton}
             >
-              {authMode === 'login' ? 'Masuk ke aplikasi' : 'Buat akun sekarang'}
+              {authMode === 'login' ? teks.tombolMasuk : teks.tombolDaftar}
             </Tombol>
 
             <Pressable
@@ -649,18 +567,15 @@ export default function LoginScreen() {
             >
               <Text style={styles.switchAuthText}>
                 {authMode === 'login'
-                  ? 'Belum memiliki akun? '
-                  : 'Sudah memiliki akun? '}
+                  ? teks.belumPunyaAkun
+                  : teks.sudahPunyaAkun}
                 <Text style={styles.switchAuthHighlight}>
-                  {authMode === 'login' ? 'Daftar di sini' : 'Masuk di sini'}
+                  {authMode === 'login' ? teks.daftarDiSini : teks.masukDiSini}
                 </Text>
               </Text>
             </Pressable>
 
-            <Text style={styles.disclaimer}>
-              Hak akses layar dan tindakan disesuaikan secara otomatis berdasarkan
-              peran akun yang terautentikasi.
-            </Text>
+            <Text style={styles.disclaimer}>{teks.disclaimer}</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -668,224 +583,226 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.graphite,
-  },
-  flex: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    backgroundColor: colors.graphite,
-  },
-  topBar: {
-    minHeight: 76,
-    paddingHorizontal: spacing.s5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backIconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backIconBtnPressed: {
-    opacity: 0.75,
-  },
-  topSpacer: {
-    width: 42,
-  },
-  introSection: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.s6,
-    paddingTop: spacing.s3,
-    paddingBottom: spacing.s6,
-  },
-  orbit: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    borderWidth: 1,
-    borderColor: 'rgba(196, 241, 91, 0.16)',
-    backgroundColor: 'rgba(196, 241, 91, 0.04)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.s4,
-  },
-  darkEyebrow: {
-    ...type.micro,
-    color: colors.primary,
-    letterSpacing: 1.3,
-  },
-  introTitle: {
-    ...type.h1,
-    color: colors.onGraphite,
-    marginTop: spacing.s2,
-    textAlign: 'center',
-  },
-  introSub: {
-    ...type.caption,
-    color: colors.textOnDarkMuted,
-    marginTop: spacing.s2,
-    textAlign: 'center',
-  },
-  formSheet: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: spacing.s5,
-    paddingTop: spacing.s6,
-    paddingBottom: spacing.s8,
-  },
-  modeTabs: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    marginBottom: spacing.s5,
-  },
-  modeTab: {
-    flex: 1,
-    paddingBottom: spacing.s3,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  modeTabActive: {
-    borderBottomColor: colors.graphite,
-  },
-  modeTabText: {
-    ...type.bodyStrong,
-    color: colors.textMuted,
-  },
-  modeTabTextActive: {
-    color: colors.textPrimary,
-    fontFamily: fontFamily.bold,
-  },
-  fieldLabel: {
-    ...type.caption,
-    fontFamily: fontFamily.bold,
-    color: colors.textPrimary,
-    marginBottom: spacing.s2,
-    marginLeft: 2,
-  },
-  registerInfo: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.s2,
-    padding: spacing.s3,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceMuted,
-    marginBottom: spacing.s4,
-  },
-  registerInfoText: {
-    ...type.caption,
-    fontFamily: fontFamily.regular,
-    color: colors.textSecondary,
-    flex: 1,
-  },
-  rowFields: {
-    flexDirection: 'row',
-    gap: spacing.s3,
-  },
-  fieldGroup: {
-    marginBottom: spacing.s4,
-  },
-  input: {
-    height: 52,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.s4,
-    ...type.bodyStrong,
-    color: colors.textPrimary,
-  },
-  passwordWrap: {
-    height: 52,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: spacing.s4,
-    paddingRight: spacing.s2,
-  },
-  passwordInput: {
-    flex: 1,
-    height: '100%',
-    ...type.bodyStrong,
-    color: colors.textPrimary,
-  },
-  eyeButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorBanner: {
-    padding: spacing.s3,
-    borderRadius: radius.button,
-    backgroundColor: colors.errorBg,
-    borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    marginBottom: spacing.s3,
-  },
-  errorText: {
-    ...type.caption,
-    fontFamily: fontFamily.semibold,
-    color: colors.errorFg,
-  },
-  fieldError: {
-    ...type.micro,
-    color: colors.errorFg,
-    marginTop: 6,
-    marginLeft: 2,
-  },
-  passwordHint: {
-    ...type.micro,
-    fontFamily: fontFamily.regular,
-    color: colors.textMuted,
-    marginTop: 6,
-    marginLeft: 2,
-  },
-  passwordHintError: {
-    color: colors.errorFg,
-  },
-  inputError: {
-    borderColor: colors.dangerBorder,
-  },
-  submitButton: {
-    marginTop: spacing.s2,
-  },
-  switchAuthLink: {
-    marginTop: spacing.s4,
-    paddingVertical: spacing.s1,
-    alignItems: 'center',
-  },
-  switchAuthText: {
-    ...type.caption,
-    color: colors.textSecondary,
-  },
-  switchAuthHighlight: {
-    fontFamily: fontFamily.bold,
-    color: colors.textPrimary,
-  },
-  disclaimer: {
-    ...type.micro,
-    fontFamily: fontFamily.regular,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.s4,
-    lineHeight: 16,
-  },
-});
+const buatGaya = (w: ThemeColors) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: w.graphite,
+    },
+    flex: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      backgroundColor: w.graphite,
+    },
+    topBar: {
+      minHeight: 76,
+      paddingHorizontal: spacing.s5,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    backIconBtn: {
+      width: 42,
+      height: 42,
+      borderRadius: 13,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.15)',
+      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    backIconBtnPressed: {
+      opacity: 0.75,
+    },
+    topSpacer: {
+      width: 42,
+    },
+    introSection: {
+      alignItems: 'center',
+      paddingHorizontal: spacing.s6,
+      paddingTop: spacing.s3,
+      paddingBottom: spacing.s6,
+    },
+    orbit: {
+      width: 92,
+      height: 92,
+      borderRadius: 46,
+      borderWidth: 1,
+      borderColor: 'rgba(196, 241, 91, 0.16)',
+      backgroundColor: 'rgba(196, 241, 91, 0.04)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.s4,
+    },
+    darkEyebrow: {
+      ...type.micro,
+      color: w.primary,
+      letterSpacing: 1.3,
+    },
+    introTitle: {
+      ...type.h1,
+      color: w.onGraphite,
+      marginTop: spacing.s2,
+      textAlign: 'center',
+    },
+    introSub: {
+      ...type.caption,
+      color: w.textOnDarkMuted,
+      marginTop: spacing.s2,
+      textAlign: 'center',
+    },
+    formSheet: {
+      flex: 1,
+      backgroundColor: w.background,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: spacing.s5,
+      paddingTop: spacing.s6,
+      paddingBottom: spacing.s8,
+    },
+    modeTabs: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      borderBottomColor: w.border,
+      marginBottom: spacing.s5,
+    },
+    modeTab: {
+      flex: 1,
+      paddingBottom: spacing.s3,
+      alignItems: 'center',
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+    },
+    modeTabActive: {
+      // Garis bawah memakai warna teks agar tetap terbaca di mode gelap.
+      borderBottomColor: w.textPrimary,
+    },
+    modeTabText: {
+      ...type.bodyStrong,
+      color: w.textMuted,
+    },
+    modeTabTextActive: {
+      color: w.textPrimary,
+      fontFamily: fontFamily.bold,
+    },
+    fieldLabel: {
+      ...type.caption,
+      fontFamily: fontFamily.bold,
+      color: w.textPrimary,
+      marginBottom: spacing.s2,
+      marginLeft: 2,
+    },
+    registerInfo: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.s2,
+      padding: spacing.s3,
+      borderRadius: 12,
+      backgroundColor: w.surfaceMuted,
+      marginBottom: spacing.s4,
+    },
+    registerInfoText: {
+      ...type.caption,
+      fontFamily: fontFamily.regular,
+      color: w.textSecondary,
+      flex: 1,
+    },
+    rowFields: {
+      flexDirection: 'row',
+      gap: spacing.s3,
+    },
+    fieldGroup: {
+      marginBottom: spacing.s4,
+    },
+    input: {
+      height: 52,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+      paddingHorizontal: spacing.s4,
+      ...type.bodyStrong,
+      color: w.textPrimary,
+    },
+    passwordWrap: {
+      height: 52,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingLeft: spacing.s4,
+      paddingRight: spacing.s2,
+    },
+    passwordInput: {
+      flex: 1,
+      height: '100%',
+      ...type.bodyStrong,
+      color: w.textPrimary,
+    },
+    eyeButton: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    errorBanner: {
+      padding: spacing.s3,
+      borderRadius: radius.button,
+      backgroundColor: w.errorBg,
+      borderWidth: 1,
+      borderColor: w.dangerBorder,
+      marginBottom: spacing.s3,
+    },
+    errorText: {
+      ...type.caption,
+      fontFamily: fontFamily.semibold,
+      color: w.errorFg,
+    },
+    fieldError: {
+      ...type.micro,
+      color: w.errorFg,
+      marginTop: 6,
+      marginLeft: 2,
+    },
+    passwordHint: {
+      ...type.micro,
+      fontFamily: fontFamily.regular,
+      color: w.textMuted,
+      marginTop: 6,
+      marginLeft: 2,
+    },
+    passwordHintError: {
+      color: w.errorFg,
+    },
+    inputError: {
+      borderColor: w.dangerBorder,
+    },
+    submitButton: {
+      marginTop: spacing.s2,
+    },
+    switchAuthLink: {
+      marginTop: spacing.s4,
+      paddingVertical: spacing.s1,
+      alignItems: 'center',
+    },
+    switchAuthText: {
+      ...type.caption,
+      color: w.textSecondary,
+    },
+    switchAuthHighlight: {
+      fontFamily: fontFamily.bold,
+      color: w.textPrimary,
+    },
+    disclaimer: {
+      ...type.micro,
+      fontFamily: fontFamily.regular,
+      color: w.textMuted,
+      textAlign: 'center',
+      marginTop: spacing.s4,
+      lineHeight: 16,
+    },
+  });
