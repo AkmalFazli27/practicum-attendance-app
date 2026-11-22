@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Check, CheckCircle2, LockKeyhole } from 'lucide-react-native';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { colors, radius, spacing, type } from '@/theme/tokens';
 import { SheetModal } from './SheetModal';
 import { Tombol } from './Tombol';
@@ -37,12 +38,18 @@ export function ConfirmSheet({
   declarationLabel = 'Saya menyatakan hadir pada sesi ini.',
   loading = false,
   danger = false,
-  confirmLabel = 'Ya, lanjutkan',
-  cancelLabel = 'Batal',
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onClose,
 }: ConfirmSheetProps) {
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
   const [checked, setChecked] = useState(false);
+
+  const labelBatal = cancelLabel ?? (isEn ? 'Cancel' : 'Batal');
+  const labelKonfirm =
+    confirmLabel ?? (isEn ? 'Yes, continue' : 'Ya, lanjutkan');
 
   useEffect(() => {
     if (visible) {
@@ -66,7 +73,7 @@ export function ConfirmSheet({
             onPress={onClose}
             style={styles.cancelBtn}
           >
-            {cancelLabel}
+            {labelBatal}
           </Tombol>
           <Tombol
             variant={danger ? 'danger' : 'primer'}
@@ -75,7 +82,7 @@ export function ConfirmSheet({
             onPress={onConfirm}
             style={styles.confirmBtn}
           >
-            {loading ? 'Memproses' : confirmLabel}
+            {loading ? (isEn ? 'Processing' : 'Memproses') : labelKonfirm}
           </Tombol>
         </View>
       }
@@ -83,34 +90,63 @@ export function ConfirmSheet({
       <View
         style={[
           styles.iconBox,
-          danger ? styles.iconBoxDanger : styles.iconBoxPrimary,
+          {
+            backgroundColor: danger
+              ? themeColors.errorBg
+              : themeColors.primary,
+          },
         ]}
       >
         {icon ??
           (danger ? (
-            <LockKeyhole size={27} color={colors.errorFg} />
+            <LockKeyhole size={27} color={themeColors.errorFg} />
           ) : (
-            <CheckCircle2 size={28} color={colors.graphite} />
+            <CheckCircle2 size={28} color={themeColors.onPrimary} />
           ))}
       </View>
 
       <View style={styles.copyGroup}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.body}>{body}</Text>
+        <Text style={[styles.title, { color: themeColors.textPrimary }]}>
+          {title}
+        </Text>
+        <Text style={[styles.body, { color: themeColors.textSecondary }]}>
+          {body}
+        </Text>
       </View>
 
       {summary.length > 0 && (
-        <View style={styles.summaryCard}>
+        <View
+          style={[
+            styles.summaryCard,
+            {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
           {summary.map((item, idx) => (
             <View
               key={`${item.label}-${idx}`}
               style={[
                 styles.summaryRow,
-                idx > 0 && styles.summaryRowBorder,
+                idx > 0 && {
+                  borderTopWidth: 1,
+                  borderTopColor: themeColors.border,
+                },
               ]}
             >
-              <Text style={styles.summaryLabel}>{item.label}</Text>
-              <Text style={styles.summaryValue} numberOfLines={2}>
+              <Text
+                style={[styles.summaryLabel, { color: themeColors.textMuted }]}
+              >
+                {item.label}
+              </Text>
+              <Text
+                style={[
+                  styles.summaryValue,
+                  { color: themeColors.textPrimary },
+                ]}
+                numberOfLines={2}
+              >
                 {item.value}
               </Text>
             </View>
@@ -126,10 +162,29 @@ export function ConfirmSheet({
           onPress={() => setChecked((prev) => !prev)}
           style={styles.declarationRow}
         >
-          <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-            {checked && <Check size={14} color={colors.graphite} />}
+          <View
+            style={[
+              styles.checkbox,
+              {
+                borderColor: checked
+                  ? themeColors.primary
+                  : themeColors.borderDashed,
+                backgroundColor: checked
+                  ? themeColors.primary
+                  : themeColors.surface,
+              },
+            ]}
+          >
+            {checked && <Check size={14} color={themeColors.onPrimary} />}
           </View>
-          <Text style={styles.declarationText}>{declarationLabel}</Text>
+          <Text
+            style={[
+              styles.declarationText,
+              { color: themeColors.textPrimary },
+            ]}
+          >
+            {declarationLabel}
+          </Text>
         </Pressable>
       )}
     </SheetModal>

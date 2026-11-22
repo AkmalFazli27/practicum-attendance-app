@@ -35,6 +35,7 @@ import {
   spacing,
   type,
 } from '@/theme/tokens';
+import { cekValiditasQr } from '@/utils/statusSesi';
 
 export default function ScanQrScreen() {
   const insets = useSafeAreaInsets();
@@ -79,8 +80,10 @@ export default function ScanQrScreen() {
     const kelasSaya = normKelas(currentUser?.kelas);
     const isEn = t('qr_title') === 'Scan QR Code' && t('tab_home') === 'Home';
 
-    // 1. Cari sesi yang dirujuk langsung oleh QR (format tapin://presensi/<id> atau ID sesi langsung)
+    // 1. Cari sesi yang dirujuk langsung oleh QR (format tapin://presensi/<id>?token=<qrToken> atau ID sesi langsung)
     const matchPath = raw.match(/presensi\/([^/?#\s]+)/i);
+    const matchToken = raw.match(/[?&]token=([^&#\s]+)/i);
+    const tokenQr = matchToken ? decodeURIComponent(matchToken[1]) : null;
     const kandidatId = matchPath?.[1] ?? raw;
     const sesiDitemukan = sesi.find((s) => s.id === kandidatId);
 
@@ -117,9 +120,28 @@ export default function ScanQrScreen() {
         return;
       }
 
+      // Validasi masa berlaku QR (maks. 15 menit / batas jam selesai sesi)
+      const cekQr = cekValiditasQr(sesiDitemukan, tokenQr);
+      if (!cekQr.ok) {
+        showToast(
+          cekQr.alasan === 'WAKTU_HABIS'
+            ? isEn
+              ? 'Attendance time for this session has ended.'
+              : 'Waktu presensi untuk sesi ini telah berakhir.'
+            : isEn
+              ? 'QR code has expired. Ask your assistant to renew the attendance QR.'
+              : 'QR code sudah kedaluwarsa. Minta asisten memperbarui QR presensi.',
+        );
+        unlockLater();
+        return;
+      }
+
       router.replace({
         pathname: '/(praktikan)/presensi/[id]',
-        params: { id: sesiDitemukan.id },
+        params: {
+          id: sesiDitemukan.id,
+          qrToken: tokenQr ?? sesiDitemukan.qrToken ?? '',
+        },
       } as any);
       return;
     }
@@ -140,23 +162,6 @@ export default function ScanQrScreen() {
       );
       unlockLater();
       return;
-    }
-
-    // 3. Fallback aman hanya untuk QR berformat TapIn yang cocok dengan sesi aktif kelas sendiri (PB-06)
-    const isTapInQr = /^tapin:\/\//i.test(raw);
-    if (isTapInQr && currentUser) {
-      const sesiDibuka = sesi.find(
-        (s) =>
-          getStatusEfektif(s) === 'DIBUKA' &&
-          (!kelasSaya || normKelas(s.kelas) === kelasSaya),
-      );
-      if (sesiDibuka) {
-        router.replace({
-          pathname: '/(praktikan)/presensi/[id]',
-          params: { id: sesiDibuka.id },
-        } as any);
-        return;
-      }
     }
 
     showToast(

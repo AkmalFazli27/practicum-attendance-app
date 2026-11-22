@@ -29,6 +29,10 @@ export type Sesi = {
   status: StatusSesi;
   deskripsi: string;
   kapasitas?: number;
+  /** Token unik QR presensi yang berlaku terbatas (maks. 15 menit) */
+  qrToken?: string;
+  /** Epoch ms batas waktu berlaku QR (maks. 15 menit atau jam selesai sesi) */
+  qrExpiresAt?: number;
 };
 
 export type SesiInput = {

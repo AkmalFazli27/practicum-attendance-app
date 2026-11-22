@@ -45,15 +45,14 @@ export interface LokasiStatusCardProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const KONFIG_STATUS: Record<
-  StatusPemeriksaanLokasi,
-  {
-    labelBadge: string;
-    judul: string;
-    deskripsi: string;
-    tone: 'inside' | 'outside' | 'warning' | 'neutral';
-  }
-> = {
+type StatusConfig = {
+  labelBadge: string;
+  judul: string;
+  deskripsi: string;
+  tone: 'inside' | 'outside' | 'warning' | 'neutral';
+};
+
+const KONFIG_STATUS_ID: Record<StatusPemeriksaanLokasi, StatusConfig> = {
   memuat: {
     labelBadge: 'Memeriksa GPS…',
     judul: 'Mendeteksi lokasi perangkat',
@@ -111,6 +110,64 @@ const KONFIG_STATUS: Record<
   },
 };
 
+const KONFIG_STATUS_EN: Record<StatusPemeriksaanLokasi, StatusConfig> = {
+  memuat: {
+    labelBadge: 'Checking GPS…',
+    judul: 'Detecting device location',
+    deskripsi: 'Please wait while the app reads your GPS coordinates.',
+    tone: 'neutral',
+  },
+  'dalam-radius': {
+    labelBadge: 'Within Radius',
+    judul: 'Location eligible for attendance',
+    deskripsi:
+      'You are within the laboratory range. You may now confirm your attendance.',
+    tone: 'inside',
+  },
+  'luar-radius': {
+    labelBadge: 'Outside Radius',
+    judul: 'Location outside laboratory range',
+    deskripsi:
+      'Move closer to the laboratory until your distance is within the attendance radius.',
+    tone: 'outside',
+  },
+  'izin-ditolak': {
+    labelBadge: 'Permission Denied',
+    judul: 'Location access not granted',
+    deskripsi:
+      'Allow location access on your device so the app can verify your attendance position.',
+    tone: 'warning',
+  },
+  'gps-mati': {
+    labelBadge: 'GPS Disabled',
+    judul: 'Device location service (GPS) is off',
+    deskripsi:
+      'Enable GPS in your device settings, then tap refresh location.',
+    tone: 'warning',
+  },
+  'koordinat-belum-ada': {
+    labelBadge: 'Weak GPS Signal',
+    judul: 'Coordinates not yet available',
+    deskripsi:
+      'GPS coordinates could not be acquired yet. Make sure GPS is on and try refreshing.',
+    tone: 'warning',
+  },
+  'lab-belum-diatur': {
+    labelBadge: 'Lab Not Configured',
+    judul: 'Lab coordinates are not set',
+    deskripsi:
+      'The assistant has not linked this session to a laboratory location yet.',
+    tone: 'warning',
+  },
+  error: {
+    labelBadge: 'GPS Read Failed',
+    judul: 'Unable to read location',
+    deskripsi:
+      'The device failed to get the current GPS position. Please refresh your location.',
+    tone: 'outside',
+  },
+};
+
 function formatJarak(meter?: number | null): string {
   if (meter === null || meter === undefined || !Number.isFinite(meter)) {
     return '—';
@@ -134,8 +191,9 @@ export function LokasiStatusCard({
   onMintaIzin,
   style,
 }: LokasiStatusCardProps) {
-  const { themeColors } = usePreferences();
-  const cfg = KONFIG_STATUS[status];
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
+  const cfg = (isEn ? KONFIG_STATUS_EN : KONFIG_STATUS_ID)[status];
 
   const palette =
     cfg.tone === 'inside'
@@ -176,7 +234,7 @@ export function LokasiStatusCard({
       {/* Baris Header Status */}
       <View style={styles.topRow}>
         <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-          VERIFIKASI LOKASI LAB
+          {isEn ? 'LAB LOCATION VERIFICATION' : 'VERIFIKASI LOKASI LAB'}
         </Text>
         <View
           style={[
@@ -227,7 +285,7 @@ export function LokasiStatusCard({
             <Text
               style={[styles.metricLabel, { color: themeColors.textMuted }]}
             >
-              Jarakmu ke Lab
+              {isEn ? 'Distance to Lab' : 'Jarakmu ke Lab'}
             </Text>
           </View>
           <Text
@@ -246,7 +304,7 @@ export function LokasiStatusCard({
           </Text>
           {typeof akurasiMeter === 'number' && Number.isFinite(akurasiMeter) ? (
             <Text style={[styles.metricSub, { color: themeColors.textMuted }]}>
-              Akurasi GPS ±{Math.round(akurasiMeter)} m
+              {isEn ? 'GPS Accuracy' : 'Akurasi GPS'} ±{Math.round(akurasiMeter)} m
             </Text>
           ) : null}
         </View>
@@ -265,7 +323,7 @@ export function LokasiStatusCard({
             <Text
               style={[styles.metricLabel, { color: themeColors.textMuted }]}
             >
-              Batas Radius Lab
+              {isEn ? 'Lab Radius Limit' : 'Batas Radius Lab'}
             </Text>
           </View>
           <Text
@@ -273,13 +331,15 @@ export function LokasiStatusCard({
           >
             {typeof radiusMeter === 'number' && Number.isFinite(radiusMeter)
               ? `≤ ${radiusMeter} m`
-              : 'Belum diatur'}
+              : isEn
+                ? 'Not set'
+                : 'Belum diatur'}
           </Text>
           <Text
             style={[styles.metricSub, { color: themeColors.textMuted }]}
             numberOfLines={1}
           >
-            {namaLab || 'Laboratorium'}
+            {namaLab || (isEn ? 'Laboratory' : 'Laboratorium')}
           </Text>
         </View>
       </View>
@@ -306,16 +366,16 @@ export function LokasiStatusCard({
           icon={<MapPin size={16} color={themeColors.textPrimary} />}
           style={styles.actionBtn}
         >
-          Izinkan akses lokasi
+          {isEn ? 'Allow location access' : 'Izinkan akses lokasi'}
         </Tombol>
       ) : onRefresh && status !== 'memuat' ? (
         <Tombol
           variant="sekunder"
           onPress={onRefresh}
-          icon={<RefreshCw size={16} color={colors.textPrimary} />}
+          icon={<RefreshCw size={16} color={themeColors.textPrimary} />}
           style={styles.actionBtn}
         >
-          Perbarui titik lokasi
+          {isEn ? 'Refresh location' : 'Perbarui titik lokasi'}
         </Tombol>
       ) : null}
     </View>

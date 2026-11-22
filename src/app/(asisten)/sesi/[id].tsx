@@ -362,7 +362,7 @@ export default function DetailSesiAsisten() {
           )}
         </View>
 
-        {aksi.jenis === 'tutup' && <QrPresensi sesiId={s.id} />}
+        {aksi.jenis === 'tutup' && <QrPresensi sesi={s} />}
 
         {/* Panel Pemeriksaan Izin & Klasifikasi AI (FR-16 & FR-17) */}
         <IzinPanel sesiId={s.id} />
