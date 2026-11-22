@@ -121,7 +121,9 @@ Pengguna dapat masuk dengan memilih peran dan identitas pengguna.
 
 **Kriteria terima:**
 - Menampilkan daftar sesi beserta status.
-- Tersedia filter minimal: semua sesi, sesi dibuka, dan sesi yang sudah dihadiri.
+- Daftar diurutkan berdasarkan waktu: sesi yang belum selesai tampil dari yang paling dekat, sesi `SELESAI` dikelompokkan di bawah dengan yang paling baru selesai lebih dahulu.
+- Tersedia filter: semua sesi, sesi yang sudah dihadiri, dan sesi dengan pengajuan izin yang masih menunggu atau sudah diterima.
+- Filter `Dibuka` tidak dipakai karena paling banyak hanya satu sesi dapat berstatus `DIBUKA` pada satu waktu dan status tersebut sudah tampil sebagai badge pada kartu serta kartu sesi aktif di beranda.
 - Filter mengubah daftar secara langsung.
 - Daftar memiliki empty state.
 

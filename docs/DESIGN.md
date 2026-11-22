@@ -508,7 +508,7 @@ Aturan:
 │  │ └──────────────────────────────┘ │ │
 │  └─────────────────────────────────┘ │
 │                                      │
-│  [ Semua ] [ Dibuka ] [ Saya hadir ] │
+│  [ Semua ] [ Dihadiri ] [ Izin ]    │
 │    ▓ aktif graphite                  │
 │                                      │
 │  ┌────────────────────────────────┐  │
@@ -531,9 +531,12 @@ Aturan:
 - Hanya satu CTA lime: `Presensi Sekarang` pada sesi `DIBUKA` yang belum dipresensi.
 - Bila tidak ada sesi `DIBUKA`, kartu ringkasan diganti teks `Tidak ada sesi yang dibuka saat ini.` tanpa CTA.
 - Bila sudah presensi, CTA diganti banner hijau `Sudah presensi pukul 08.02` (nonaktif).
-- Filter: `Semua`, `Dibuka`, `Saya hadir`. Chip aktif graphite, nonaktif putih + border.
-- Filter `Saya hadir` memakai `getKehadiranPraktikan(currentUser.id)`.
-- Empty state per filter, misalnya `Tidak ada sesi yang dibuka.`
+- Urutan daftar: sesi yang belum `SELESAI` tampil paling atas dengan yang paling dekat lebih dahulu, diikuti sesi `SELESAI` dengan yang paling baru selesai lebih dahulu, dipisahkan label `Sudah selesai` bila kedua kelompok ada.
+- Filter: `Semua`, `Dihadiri`, `Izin`. Chip aktif graphite, nonaktif putih + border.
+- Filter `Dihadiri` memakai `getKehadiranPraktikan(currentUser.id)`.
+- Filter `Izin` hanya menampilkan sesi dengan pengajuan berstatus `MENUNGGU` atau `DITERIMA`; `DITOLAK` tidak ditampilkan.
+- Filter `Dibuka` dihapus: maksimal satu sesi berstatus `DIBUKA` dalam satu waktu dan statusnya sudah tampil sebagai badge pada kartu serta sebagai kartu sesi aktif di beranda.
+- Empty state per filter, misalnya `Kamu belum menghadiri sesi apa pun.`
 - Kartu tetap dapat diketuk untuk membuka detail.
 
 ### 4.7 Detail sesi praktikan + presensi (FR-06, FR-07)
@@ -745,7 +748,7 @@ Aturan:
 | Beranda asisten | `Belum ada sesi` | `Sesi yang kamu kelola akan tampil di sini.` | — |
 | Detail asisten tanpa hadir | `Belum ada yang presensi` | `Kehadiran praktikan akan muncul saat mereka presensi.` | — |
 | Rekap tanpa hadir | `Belum ada kehadiran` | `Belum ada praktikan yang tercatat pada sesi ini.` | — |
-| Filter praktikan kosong | `Tidak ada sesi` | Sesuaikan dengan filter: `Tidak ada sesi yang dibuka.` / `Kamu belum menghadiri sesi apa pun.` | `Tampilkan semua` |
+| Filter praktikan kosong | `Tidak ada sesi` | Sesuaikan dengan filter: `Kamu belum menghadiri sesi apa pun.` / `Kamu belum mengajukan izin untuk sesi apa pun.` | `Tampilkan semua` |
 | Riwayat kosong | `Belum ada catatan` | `Presensi yang berhasil akan muncul di sini.` | — |
 
 Anatomi `EmptyState`: garis/ikon dekoratif 40×40 dengan `primarySoft`, judul `bodyStrong`, pesan `body` `textSecondary` selebar maksimal 280, CTA opsional.
