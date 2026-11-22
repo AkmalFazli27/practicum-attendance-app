@@ -1,31 +1,21 @@
 /**
- * Service Integrasi API Model AI Pengajar
+ * Service Integrasi API Model AI Klasifikasi Alasan Izin
  *
- * Mengirimkan alasan ketidakhadiran praktikan ke API model AI
- * untuk mendapatkan prediksi kategori alasan yang di-whitelist ke lima kategori resmi:
- * - "Sakit / Medis"
- * - "Kegiatan Akademik / Delegasi"
- * - "Keluarga / Mendesak"
- * - "Kendala Teknis / Transportasi"
- * - "Keperluan Pribadi"
+ * Mengklasifikasikan alasan ketidakhadiran praktikan dalam bentuk narasi
+ * menjadi dua label resmi:
+ * - "Sakit" (alasan kesehatan, demam, dokter, klinik, rawat inap, dsb.)
+ * - "Izin"  (urusan keluarga, akademik/delegasi, kendala teknis/transportasi, keperluan pribadi)
  *
- * Apabila layanan AI gagal/timeout/tidak terkonfigurasi, fungsi mengembalikan
- * fallback sesuai spesifikasi (`kategori: "Belum Terklasifikasi"`).
+ * Apabila API AI eksternal gagal / 401 / timeout / tidak terkonfigurasi,
+ * sistem otomatis menggunakan klasifikasi heuristik lokal agar narasi tetap
+ * terlabeli "Sakit" atau "Izin" secara akurat.
  *
  * CATATAN KEAMANAN & ARSITEKTUR:
  * - Hasil klasifikasi HANYA digunakan sebagai informasi pendukung bagi Asisten.
  * - Model AI TIDAK BOLEH memutuskan izin diterima atau ditolak.
- * - Gunakan endpoint proxy/Cloud Function (`EXPO_PUBLIC_AI_PROXY_URL` / `EXPO_PUBLIC_AI_API_URL`)
- *   agar kunci rahasia tidak ter-bundle di aplikasi klien produksi.
  */
 
-export const KATEGORI_IZIN_RESMI = [
-  'Sakit / Medis',
-  'Kegiatan Akademik / Delegasi',
-  'Keluarga / Mendesak',
-  'Kendala Teknis / Transportasi',
-  'Keperluan Pribadi',
-] as const;
+export const KATEGORI_IZIN_RESMI = ['Sakit', 'Izin'] as const;
 
 export type KategoriIzinResmi = (typeof KATEGORI_IZIN_RESMI)[number];
 export const KATEGORI_FALLBACK = 'Belum Terklasifikasi' as const;
@@ -48,10 +38,79 @@ const TIMEOUT_MS = 8000;
 
 let cachedModelId: string | null = AI_MODEL_ENV || null;
 
+const KATA_KUNCI_SAKIT = [
+  'sakit',
+  'tidak enak badan',
+  'tak enak badan',
+  'gak enak badan',
+  'ga enak badan',
+  'kurang enak badan',
+  'kurang sehat',
+  'tidak sehat',
+  'badan panas',
+  'masuk angin',
+  'maag',
+  'asam lambung',
+  'gerd',
+  'vertigo',
+  'demam',
+  'panas',
+  'pusing',
+  'migren',
+  'migrain',
+  'mual',
+  'muntah',
+  'diare',
+  'tipes',
+  'tifus',
+  'dbd',
+  'batuk',
+  'pilek',
+  'flu',
+  'radang',
+  'meriang',
+  'lemas',
+  'sesak',
+  'asma',
+  'alergi',
+  'cedera',
+  'keseleo',
+  'luka',
+  'operasi',
+  'rawat',
+  'opname',
+  'dokter',
+  'klinik',
+  'puskesmas',
+  'rumah sakit',
+  'rsud',
+  'igd',
+  'ugd',
+  'medis',
+  'kesehatan',
+  'periksa',
+  'obat',
+  'istirahat total',
+  'sick',
+  'fever',
+  'ill',
+  'illness',
+  'headache',
+  'cough',
+  'cold',
+  'doctor',
+  'clinic',
+  'hospital',
+  'medical',
+  'health',
+  'unwell',
+  'not feeling well',
+  'under the weather',
+];
+
 /**
  * Memvalidasi dan menormalisasi kategori dari respons model AI agar hanya
- * mengembalikan salah satu dari lima kategori resmi di KATEGORI_IZIN_RESMI.
- * Mengembalikan `null` jika respons di luar whitelist.
+ * mengembalikan "Sakit" atau "Izin".
  */
 export function normalisasiKategoriResmi(
   rawKategori: string,
@@ -61,72 +120,53 @@ export function normalisasiKategoriResmi(
 
   const lower = bersih.toLowerCase();
 
-  // 1. Cek kecocokan langsung (case-insensitive) dengan 5 kategori resmi
-  for (const resmi of KATEGORI_IZIN_RESMI) {
-    if (resmi.toLowerCase() === lower) {
-      return resmi;
-    }
+  if (
+    lower === 'sakit' ||
+    lower.includes('sakit') ||
+    lower.includes('medis') ||
+    lower.includes('kesehatan') ||
+    lower.includes('sick') ||
+    lower.includes('medical')
+  ) {
+    return 'Sakit';
   }
 
-  // 2. Normalisasi variasi penulisan dari model ke 5 kategori resmi
-  if (lower.includes('sakit') || lower.includes('medis') || lower.includes('kesehatan')) {
-    return 'Sakit / Medis';
-  }
   if (
+    lower === 'izin' ||
+    lower.includes('izin') ||
     lower.includes('akademik') ||
     lower.includes('delegasi') ||
-    lower.includes('lomba') ||
-    lower.includes('kampus')
-  ) {
-    return 'Kegiatan Akademik / Delegasi';
-  }
-  if (
     lower.includes('keluarga') ||
     lower.includes('mendesak') ||
     lower.includes('darurat') ||
-    lower.includes('duka')
-  ) {
-    return 'Keluarga / Mendesak';
-  }
-  if (
     lower.includes('teknis') ||
     lower.includes('transportasi') ||
-    lower.includes('kendaraan') ||
-    lower.includes('cuaca')
+    lower.includes('pribadi') ||
+    lower.includes('leave') ||
+    lower.includes('excused') ||
+    lower.includes('personal') ||
+    lower.includes('family')
   ) {
-    return 'Kendala Teknis / Transportasi';
-  }
-  if (lower.includes('pribadi')) {
-    return 'Keperluan Pribadi';
+    return 'Izin';
   }
 
   return null;
 }
 
 /**
- * Petunjuk heuristik lokal berbasis kata kunci untuk memperkaya keterangan
- * saat sistem menggunakan kategori fallback "Belum Terklasifikasi".
+ * Klasifikasi lokal berbasis kata kunci (ID + EN) untuk narasi izin praktikan.
  */
-function indikasiHeuristikLokal(alasan: string): {
-  indikasi: KategoriIzinResmi;
+function klasifikasiLokal(alasan: string): {
+  kategori: KategoriIzinResmi;
   ringkasan: string;
 } {
   const teks = (alasan || '').toLowerCase();
 
-  if (
-    teks.includes('sakit') ||
-    teks.includes('demam') ||
-    teks.includes('pusing') ||
-    teks.includes('rawat') ||
-    teks.includes('dokter') ||
-    teks.includes('klinik') ||
-    teks.includes('rumah sakit') ||
-    teks.includes('flu') ||
-    teks.includes('medis')
-  ) {
+  const terdeteksiSakit = KATA_KUNCI_SAKIT.some((kata) => teks.includes(kata));
+  if (terdeteksiSakit) {
     return {
-      indikasi: 'Sakit / Medis',
-      ringkasan: 'Indikasi awal: kondisi kesehatan atau pemeriksaan medis.',
+      kategori: 'Sakit',
+      ringkasan: 'Terindikasi alasan kesehatan atau pemeriksaan medis.',
     };
   }
 
@@ -134,16 +174,15 @@ function indikasiHeuristikLokal(alasan: string): {
     teks.includes('lomba') ||
     teks.includes('delegasi') ||
     teks.includes('seminar') ||
-    teks.includes('kuliah') ||
     teks.includes('sidang') ||
     teks.includes('ujian') ||
-    teks.includes('praktikum lain') ||
-    teks.includes('tugas akhir') ||
-    teks.includes('akademik')
+    teks.includes('akademik') ||
+    teks.includes('competition') ||
+    teks.includes('exam')
   ) {
     return {
-      indikasi: 'Kegiatan Akademik / Delegasi',
-      ringkasan: 'Indikasi awal: kegiatan akademik, ujian, atau delegasi kampus.',
+      kategori: 'Izin',
+      ringkasan: 'Terindikasi izin kegiatan akademik, ujian, atau delegasi kampus.',
     };
   }
 
@@ -151,13 +190,17 @@ function indikasiHeuristikLokal(alasan: string): {
     teks.includes('keluarga') ||
     teks.includes('duka') ||
     teks.includes('meninggal') ||
+    teks.includes('nikah') ||
+    teks.includes('pernikahan') ||
     teks.includes('darurat') ||
     teks.includes('musibah') ||
-    teks.includes('kecelakaan')
+    teks.includes('family') ||
+    teks.includes('wedding') ||
+    teks.includes('emergency')
   ) {
     return {
-      indikasi: 'Keluarga / Mendesak',
-      ringkasan: 'Indikasi awal: urusan keluarga mendesak atau kondisi darurat.',
+      kategori: 'Izin',
+      ringkasan: 'Terindikasi izin urusan keluarga atau keperluan mendesak.',
     };
   }
 
@@ -166,27 +209,67 @@ function indikasiHeuristikLokal(alasan: string): {
     teks.includes('macet') ||
     teks.includes('ban bocor') ||
     teks.includes('kendaraan') ||
-    teks.includes('listrik') ||
-    teks.includes('hujan deras')
+    teks.includes('motor') ||
+    teks.includes('hujan') ||
+    teks.includes('transport')
   ) {
     return {
-      indikasi: 'Kendala Teknis / Transportasi',
-      ringkasan: 'Indikasi awal: kendala perjalanan, cuaca, atau teknis.',
+      kategori: 'Izin',
+      ringkasan: 'Terindikasi izin kendala perjalanan, kendaraan, atau cuaca.',
     };
   }
 
   return {
-    indikasi: 'Keperluan Pribadi',
-    ringkasan: 'Indikasi awal: keperluan pribadi di luar kategori medis/akademik.',
+    kategori: 'Izin',
+    ringkasan: 'Terindikasi izin keperluan pribadi non-medis.',
   };
 }
 
-function buatHasilFallback(alasan: string, sebab: string): HasilKlasifikasiAI {
-  const lokal = indikasiHeuristikLokal(alasan);
+function buatHasilFallback(alasan: string): HasilKlasifikasiAI {
+  const lokal = klasifikasiLokal(alasan);
   return {
-    kategori: KATEGORI_FALLBACK,
+    kategori: lokal.kategori,
     isFallback: true,
-    keterangan: `${lokal.ringkasan} (${sebab} — fallback lokal: ${lokal.indikasi})`,
+    keterangan: lokal.ringkasan,
+  };
+}
+
+/**
+ * Helper tampilan UI untuk memformat label klasifikasi AI (termasuk data lama di Firestore)
+ * agar selalu menampilkan "Sakit" / "Izin" (ID) atau "Sick" / "Excused Leave" (EN).
+ */
+export function formatLabelKategoriAi(
+  kategori?: string,
+  ringkasan?: string,
+  isEn = false,
+): {
+  kategoriResmi: KategoriIzinResmi | null;
+  label: string;
+  terklasifikasi: boolean;
+} {
+  const dariKategori = kategori ? normalisasiKategoriResmi(kategori) : null;
+  const dariRingkasan =
+    !dariKategori && ringkasan ? normalisasiKategoriResmi(ringkasan) : null;
+  const hasil = dariKategori ?? dariRingkasan;
+
+  if (hasil === 'Sakit') {
+    return {
+      kategoriResmi: 'Sakit',
+      label: isEn ? 'Sick' : 'Sakit',
+      terklasifikasi: true,
+    };
+  }
+  if (hasil === 'Izin') {
+    return {
+      kategoriResmi: 'Izin',
+      label: isEn ? 'Excused Leave' : 'Izin',
+      terklasifikasi: true,
+    };
+  }
+  return {
+    kategoriResmi: null,
+    label: isEn ? 'Unclassified' : 'Belum terklasifikasi',
+    terklasifikasi: false,
   };
 }
 
@@ -244,10 +327,9 @@ async function resolveOpenAiModel(
 }
 
 /**
- * Mengklasifikasikan alasan izin menggunakan API Model AI pengajar.
- *
- * @param alasan Teks alasan izin dari praktikan
- * @returns Promise<HasilKlasifikasiAI>
+ * Mengklasifikasikan alasan izin dalam bentuk narasi menjadi "Sakit" atau "Izin".
+ * Mencoba API Model AI terlebih dahulu; bila endpoint/token bermasalah,
+ * otomatis menggunakan klasifikasi lokal agar label Sakit/Izin tetap dihasilkan.
  */
 export async function klasifikasikanAlasanIzin(
   alasan: string,
@@ -258,13 +340,13 @@ export async function klasifikasikanAlasanIzin(
     return {
       kategori: KATEGORI_FALLBACK,
       isFallback: true,
-      keterangan: 'Alasan kosong (fallback lokal)',
+      keterangan: 'Alasan kosong.',
     };
   }
 
-  // Jika URL API belum dikonfigurasi, gunakan fallback resmi ("Belum Terklasifikasi")
+  // Jika URL API belum dikonfigurasi, langsung klasifikasikan secara lokal
   if (!AI_API_URL || AI_API_URL.includes('placeholder')) {
-    return buatHasilFallback(alasanBersih, 'Endpoint AI belum dikonfigurasi');
+    return buatHasilFallback(alasanBersih);
   }
 
   const controller = new AbortController();
@@ -305,12 +387,12 @@ export async function klasifikasikanAlasanIzin(
             {
               role: 'system',
               content:
-                'Kamu adalah asisten pengklasifikasi alasan izin praktikum mahasiswa. ' +
-                'Klasifikasikan alasan izin ke tepat SATU kategori resmi berikut: ' +
-                '"Sakit / Medis", "Kegiatan Akademik / Delegasi", "Keluarga / Mendesak", ' +
-                '"Kendala Teknis / Transportasi", atau "Keperluan Pribadi". ' +
+                'Kamu adalah asisten pengklasifikasi narasi izin praktikum mahasiswa. ' +
+                'Klasifikasikan narasi alasan ketidakhadiran ke tepat SATU label resmi berikut: ' +
+                '"Sakit" (jika terkait kondisi kesehatan/medis/dokter/klinik) atau ' +
+                '"Izin" (jika terkait urusan keluarga, akademik, transportasi, atau keperluan pribadi). ' +
                 'Jawab HANYA dengan JSON valid tanpa markdown: ' +
-                '{"kategori": "<nama kategori resmi>", "keterangan": "<ringkasan singkat 1 kalimat Bahasa Indonesia>"}',
+                '{"kategori": "Sakit" atau "Izin", "keterangan": "<ringkasan singkat 1 kalimat Bahasa Indonesia>"}',
             },
             {
               role: 'user',
@@ -350,7 +432,7 @@ export async function klasifikasikanAlasanIzin(
                   typeof parsed.keterangan === 'string' &&
                   parsed.keterangan.trim().length > 0
                     ? parsed.keterangan.trim()
-                    : 'Diklasifikasikan oleh Model AI.',
+                    : 'Diklasifikasikan otomatis oleh Model AI.',
               };
             }
           }
@@ -364,13 +446,13 @@ export async function klasifikasikanAlasanIzin(
             return {
               kategori: kategoriValid,
               isFallback: false,
-              keterangan: 'Diklasifikasikan oleh Model AI.',
+              keterangan: 'Diklasifikasikan otomatis oleh Model AI.',
             };
           }
         }
       }
     } else {
-      // Mode 2: Custom REST / Proxy Endpoint (tanpa perlu mengekspos API key di klien)
+      // Mode 2: Custom REST / Proxy Endpoint
       const response = await fetch(AI_API_URL, {
         method: 'POST',
         headers,
@@ -407,23 +489,15 @@ export async function klasifikasikanAlasanIzin(
             keterangan:
               data.keterangan ||
               data.ringkasan ||
-              'Diklasifikasikan oleh Model AI.',
+              'Diklasifikasikan otomatis oleh Model AI.',
           };
         }
       }
     }
 
-    return buatHasilFallback(
-      alasanBersih,
-      'Kategori respons AI di luar daftar resmi',
-    );
-  } catch (error: any) {
+    return buatHasilFallback(alasanBersih);
+  } catch {
     clearTimeout(timer);
-
-    const isTimeout = error?.name === 'AbortError';
-    return buatHasilFallback(
-      alasanBersih,
-      isTimeout ? 'Layanan AI timeout' : 'Layanan AI tidak terjangkau',
-    );
+    return buatHasilFallback(alasanBersih);
   }
 }

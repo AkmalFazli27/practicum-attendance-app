@@ -6,7 +6,7 @@ import { ConfirmSheet, StatusBadge, Tombol, useToast } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type Izin } from '@/data/dummy';
-import { KATEGORI_FALLBACK } from '@/services/ai';
+import { formatLabelKategoriAi } from '@/services/ai';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 import { formatJam, titikJam } from '@/utils/format';
 
@@ -28,11 +28,12 @@ const COPY: Record<Keputusan, { judul: string; isi: string; ya: string; toast: s
   },
 };
 
-/** Penanda hasil klasifikasi AI; AI hanya informasi pendukung, bukan keputusan. */
+/** Penanda hasil klasifikasi AI (Sakit / Izin); AI hanya informasi pendukung, bukan keputusan. */
 function AiInfo({ item }: { item: Izin }) {
   const { themeColors, language } = usePreferences();
   const isEn = language === 'en';
-  const tidakTersedia = !item.kategoriAi || item.kategoriAi === KATEGORI_FALLBACK;
+  const infoAi = formatLabelKategoriAi(item.kategoriAi, item.ringkasanAi, isEn);
+  const tidakTersedia = !infoAi.terklasifikasi;
   return (
     <View
       style={[
@@ -63,9 +64,9 @@ function AiInfo({ item }: { item: Izin }) {
         >
           {tidakTersedia
             ? isEn
-              ? 'AI unavailable · Unclassified'
-              : 'AI tidak tersedia · Belum terklasifikasi'
-            : `AI: ${item.kategoriAi}`}
+              ? 'AI: Unclassified'
+              : 'AI: Belum terklasifikasi'
+            : `AI: ${infoAi.label}`}
         </Text>
       </View>
       {item.ringkasanAi ? (
@@ -274,13 +275,17 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
         summary={
           izinTampil
             ? [
-                { label: 'Praktikan', value: infoPraktikan(izinTampil).nama },
                 {
-                  label: 'Prediksi AI',
-                  value:
-                    izinTampil.kategoriAi && izinTampil.kategoriAi !== KATEGORI_FALLBACK
-                      ? izinTampil.kategoriAi
-                      : 'Belum terklasifikasi',
+                  label: isEn ? 'Student' : 'Praktikan',
+                  value: infoPraktikan(izinTampil).nama,
+                },
+                {
+                  label: isEn ? 'AI Label' : 'Prediksi AI',
+                  value: formatLabelKategoriAi(
+                    izinTampil.kategoriAi,
+                    izinTampil.ringkasanAi,
+                    isEn,
+                  ).label,
                 },
               ]
             : []

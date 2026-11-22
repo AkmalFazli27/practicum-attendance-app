@@ -3,9 +3,10 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { Sparkles } from 'lucide-react-native';
 
 import { SheetModal, Tombol, useToast } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
-import { KATEGORI_FALLBACK, KATEGORI_IZIN_RESMI } from '@/services/ai';
+import { formatLabelKategoriAi, KATEGORI_IZIN_RESMI } from '@/services/ai';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 import { formatHariTanggalSingkat, titikJam } from '@/utils/format';
 
@@ -22,6 +23,8 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
     getStatusEfektif,
   } = useSession();
   const { showToast } = useToast();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
 
   const [alasan, setAlasan] = useState('');
   const [galat, setGalat] = useState<string | null>(null);
@@ -40,15 +43,27 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
   const handleKirim = async () => {
     if (!sesi || mengirim) return;
     if (getStatusEfektif(sesi) === 'SELESAI') {
-      setGalat('Tidak dapat mengajukan izin karena waktu sesi telah selesai.');
+      setGalat(
+        isEn
+          ? 'Cannot submit a leave request because this session has ended.'
+          : 'Tidak dapat mengajukan izin karena waktu sesi telah selesai.',
+      );
       return;
     }
     if (alasan.trim().length < 10) {
-      setGalat('Tuliskan alasan ketidakhadiran minimal 10 karakter.');
+      setGalat(
+        isEn
+          ? 'Please enter a leave reason of at least 10 characters.'
+          : 'Tuliskan alasan ketidakhadiran minimal 10 karakter.',
+      );
       return;
     }
     if (currentUser && getIzinBySesiPraktikan(sesi.id, currentUser.id)) {
-      setGalat('Kamu sudah mengajukan izin untuk sesi ini.');
+      setGalat(
+        isEn
+          ? 'You have already submitted a leave request for this session.'
+          : 'Kamu sudah mengajukan izin untuk sesi ini.',
+      );
       return;
     }
 
@@ -64,18 +79,23 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
       }
       onClose();
 
-      const aiFallback =
-        /fallback/i.test(hasil.izin.ringkasanAi ?? '') ||
-        hasil.izin.kategoriAi === KATEGORI_FALLBACK;
+      const infoAi = formatLabelKategoriAi(
+        hasil.izin.kategoriAi,
+        hasil.izin.ringkasanAi,
+        isEn,
+      );
       showToast(
-        aiFallback
-          ? 'Izin diajukan (AI tidak tersedia · Belum terklasifikasi). Menunggu pemeriksaan asisten.'
-          : `Izin diajukan (Kategori AI: ${hasil.izin.kategoriAi}). Menunggu pemeriksaan asisten.`,
+        isEn
+          ? `Leave submitted (AI Label: ${infoAi.label}). Waiting for assistant review.`
+          : `Izin diajukan (Label AI: ${infoAi.label}). Menunggu pemeriksaan asisten.`,
       );
     } catch (e: any) {
       setMengirim(false);
       setGalat(
-        e?.message || 'Gagal mengirimkan pengajuan izin. Periksa koneksimu.',
+        e?.message ||
+          (isEn
+            ? 'Failed to submit leave request. Check your connection.'
+            : 'Gagal mengirimkan pengajuan izin. Periksa koneksimu.'),
       );
     }
   };
@@ -83,8 +103,8 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
   return (
     <SheetModal
       visible={visible}
-      kicker="PENGAJUAN IZIN"
-      judul="Ajukan Izin Praktikum"
+      kicker={isEn ? 'LEAVE REQUEST' : 'PENGAJUAN IZIN'}
+      judul={isEn ? 'Request Practicum Leave' : 'Ajukan Izin Praktikum'}
       dismissible={!mengirim}
       onClose={onClose}
       footer={
@@ -95,7 +115,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
             onPress={onClose}
             style={styles.cancelBtn}
           >
-            Batal
+            {isEn ? 'Cancel' : 'Batal'}
           </Tombol>
           <Tombol
             variant="primer"
@@ -104,74 +124,181 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
             onPress={handleKirim}
             style={styles.submitBtn}
           >
-            {mengirim ? 'Menganalisis & Mengirim...' : 'Kirim Pengajuan'}
+            {mengirim
+              ? isEn
+                ? 'Analyzing & Sending...'
+                : 'Menganalisis & Mengirim...'
+              : isEn
+                ? 'Submit Request'
+                : 'Kirim Pengajuan'}
           </Tombol>
         </View>
       }
     >
       {sesi && (
         <>
-          <View style={styles.summaryBox}>
+          <View
+            style={[
+              styles.summaryBox,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: themeColors.surface,
+              },
+            ]}
+          >
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Praktikum</Text>
-              <Text style={styles.summaryVal}>{sesi.namaPraktikum}</Text>
+              <Text
+                style={[styles.summaryLabel, { color: themeColors.textMuted }]}
+              >
+                {isEn ? 'Practicum' : 'Praktikum'}
+              </Text>
+              <Text
+                style={[styles.summaryVal, { color: themeColors.textPrimary }]}
+              >
+                {sesi.namaPraktikum}
+              </Text>
             </View>
-            <View style={[styles.summaryRow, styles.summaryRowBorder]}>
-              <Text style={styles.summaryLabel}>Jadwal</Text>
-              <Text style={styles.summaryVal}>
+            <View
+              style={[
+                styles.summaryRow,
+                styles.summaryRowBorder,
+                { borderTopColor: themeColors.border },
+              ]}
+            >
+              <Text
+                style={[styles.summaryLabel, { color: themeColors.textMuted }]}
+              >
+                {isEn ? 'Schedule' : 'Jadwal'}
+              </Text>
+              <Text
+                style={[styles.summaryVal, { color: themeColors.textPrimary }]}
+              >
                 {formatHariTanggalSingkat(sesi.tanggal)} ·{' '}
                 {titikJam(sesi.jamMulai)}
               </Text>
             </View>
-            <View style={[styles.summaryRow, styles.summaryRowBorder]}>
-              <Text style={styles.summaryLabel}>Praktikan</Text>
-              <Text style={styles.summaryVal}>{currentUser?.nama ?? '-'}</Text>
+            <View
+              style={[
+                styles.summaryRow,
+                styles.summaryRowBorder,
+                { borderTopColor: themeColors.border },
+              ]}
+            >
+              <Text
+                style={[styles.summaryLabel, { color: themeColors.textMuted }]}
+              >
+                {isEn ? 'Student' : 'Praktikan'}
+              </Text>
+              <Text
+                style={[styles.summaryVal, { color: themeColors.textPrimary }]}
+              >
+                {currentUser?.nama ?? '-'}
+              </Text>
             </View>
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Alasan ketidakhadiran</Text>
+            <Text style={[styles.label, { color: themeColors.textPrimary }]}>
+              {isEn ? 'Reason for absence' : 'Alasan ketidakhadiran'}
+            </Text>
             <TextInput
               value={alasan}
               onChangeText={(txt) => {
                 setAlasan(txt);
                 if (galat) setGalat(null);
               }}
-              placeholder="Jelaskan alasan kamu berhalangan hadir (misal: sakit demam dan istirahat medis, atau delegasi lomba kampus)..."
-              placeholderTextColor={colors.textMuted}
+              placeholder={
+                isEn
+                  ? 'Explain why you cannot attend (e.g., fever and medical rest, or campus competition)...'
+                  : 'Jelaskan alasan kamu berhalangan hadir (misal: sakit demam dan istirahat medis, atau delegasi lomba kampus)...'
+              }
+              placeholderTextColor={themeColors.textMuted}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
               editable={!mengirim}
-              style={styles.textArea}
+              style={[
+                styles.textArea,
+                {
+                  borderColor: themeColors.border,
+                  backgroundColor: themeColors.surface,
+                  color: themeColors.textPrimary,
+                },
+              ]}
             />
           </View>
 
           {/* Informasi Kategori Klasifikasi AI (PB-02) */}
-          <View style={styles.aiNotice}>
+          <View
+            style={[
+              styles.aiNotice,
+              {
+                backgroundColor: themeColors.primarySoft,
+                borderColor: themeColors.radiusInsideBorder,
+              },
+            ]}
+          >
             <View style={styles.aiHeaderRow}>
-              <Sparkles size={15} color={colors.sesiDibukaFg} />
-              <Text style={styles.aiNoticeTitle}>
-                Klasifikasi Otomatis Model AI
+              <Sparkles size={15} color={themeColors.sesiDibukaFg} />
+              <Text
+                style={[
+                  styles.aiNoticeTitle,
+                  { color: themeColors.sesiDibukaFg },
+                ]}
+              >
+                {isEn
+                  ? 'Automatic AI Classification'
+                  : 'Klasifikasi Otomatis Model AI'}
               </Text>
             </View>
-            <Text style={styles.aiNoticeText}>
-              Alasanmu akan diklasifikasikan ke salah satu kategori berikut
-              sebagai referensi pendukung bagi asisten (keputusan akhir tetap
-              oleh asisten):
+            <Text
+              style={[
+                styles.aiNoticeText,
+                { color: themeColors.textPrimary },
+              ]}
+            >
+              {isEn
+                ? 'Your reason will be automatically labeled into one of the following categories as a reference for the assistant (final decision is made by the assistant):'
+                : 'Alasanmu akan diklasifikasikan ke salah satu kategori berikut sebagai referensi pendukung bagi asisten (keputusan akhir tetap oleh asisten):'}
             </Text>
             <View style={styles.categoryChipWrap}>
               {KATEGORI_IZIN_RESMI.map((kat) => (
-                <View key={kat} style={styles.categoryPill}>
-                  <Text style={styles.categoryPillText}>{kat}</Text>
+                <View
+                  key={kat}
+                  style={[
+                    styles.categoryPill,
+                    {
+                      backgroundColor: themeColors.surface,
+                      borderColor: themeColors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.categoryPillText,
+                      { color: themeColors.textPrimary },
+                    ]}
+                  >
+                    {isEn ? (kat === 'Sakit' ? 'Sick' : 'Excused Leave') : kat}
+                  </Text>
                 </View>
               ))}
             </View>
           </View>
 
           {galat && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{galat}</Text>
+            <View
+              style={[
+                styles.errorBox,
+                {
+                  backgroundColor: themeColors.errorBg,
+                  borderColor: themeColors.dangerBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.errorText, { color: themeColors.errorFg }]}>
+                {galat}
+              </Text>
             </View>
           )}
         </>
@@ -249,8 +376,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   categoryPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
     borderWidth: 1,

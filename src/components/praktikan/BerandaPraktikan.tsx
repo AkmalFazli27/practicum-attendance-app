@@ -164,7 +164,7 @@ export function BerandaPraktikan() {
                   <ArrowRight size={18} color={colors.onPrimary} />
                 ) : undefined
               }
-              onPress={() => bukaPresensi(sesiBerjalan.id)}
+              onPress={() => bukaDetail(sesiBerjalan.id)}
             >
               {sudahHadirAktif
                 ? isEn

@@ -23,6 +23,8 @@ import { useSession } from '@/context/SessionContext';
 import {
   bacaRiwayatNotifikasi,
   hapusRiwayatNotifikasi,
+  sinkronkanNotifikasiTerkirim,
+  subscribeRiwayatNotifikasi,
   type NotifikasiRiwayatItem,
 } from '@/hooks/useNotifications';
 import {
@@ -64,6 +66,7 @@ export default function NotifikasiScreen() {
     if (!currentUser?.id) return;
     setMemuat(true);
     try {
+      await sinkronkanNotifikasiTerkirim(currentUser.id);
       const daftar = await bacaRiwayatNotifikasi(currentUser.id);
       setItems(daftar);
     } finally {
@@ -73,7 +76,12 @@ export default function NotifikasiScreen() {
 
   useEffect(() => {
     void muatRiwayat();
-  }, [muatRiwayat]);
+    if (!currentUser?.id) return;
+    const unsub = subscribeRiwayatNotifikasi(() => {
+      void bacaRiwayatNotifikasi(currentUser.id).then(setItems);
+    });
+    return unsub;
+  }, [muatRiwayat, currentUser?.id]);
 
   if (!currentUser) return <Redirect href="/" />;
 
