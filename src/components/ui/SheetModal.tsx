@@ -2,7 +2,6 @@ import React from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -61,10 +60,7 @@ export function SheetModal({
       }}
       statusBarTranslucent
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}
-      >
+      <KeyboardAvoidingView behavior="padding" style={styles.overlay}>
         <Pressable
           style={styles.backdrop}
           onPress={handleBackdropPress}
