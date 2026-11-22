@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import MapView, { Circle, Marker } from 'react-native-maps';
 
-import { colors, radius, shadows } from '@/theme/tokens';
+import { usePreferences } from '@/context/PreferencesContext';
+import { radius, shadows, type ThemeColors } from '@/theme/tokens';
 import { getLabMarkerStyle } from './labMarkerStyle';
 import { labPunyaKoordinat } from './region';
+import { teksPeta } from './teks';
 import type { PetaMapProps } from './types';
 
 export function PetaMap({
@@ -17,6 +19,9 @@ export function PetaMap({
   const mapRef = useRef<MapView>(null);
   const [siap, setSiap] = useState(false);
   const sudahDiposisikan = useRef(false);
+  const { isDark, themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
   const labTampil = labs.filter(labPunyaKoordinat);
 
   useEffect(() => {
@@ -42,7 +47,8 @@ export function PetaMap({
       pitchEnabled={false}
       showsMyLocationButton={false}
       showsCompass
-      accessibilityLabel="Peta laboratorium"
+      userInterfaceStyle={isDark ? 'dark' : 'light'}
+      accessibilityLabel={teks.a11y.peta}
     >
       {labTampil.map((lab, idx) => {
         const dipilih = labDipilih?.id === lab.id;
@@ -64,7 +70,9 @@ export function PetaMap({
                   styles.markerBubble,
                   {
                     backgroundColor: bg,
-                    borderColor: dipilih ? colors.primary : colors.surface,
+                    borderColor: dipilih
+                      ? themeColors.primary
+                      : themeColors.surface,
                     transform: [{ scale: dipilih ? 1.12 : 1 }],
                   },
                 ]}
@@ -74,7 +82,7 @@ export function PetaMap({
               <View
                 style={[
                   styles.markerPointer,
-                  { borderTopColor: dipilih ? colors.primary : bg },
+                  { borderTopColor: dipilih ? themeColors.primary : bg },
                 ]}
               />
             </View>
@@ -88,15 +96,15 @@ export function PetaMap({
             <Circle
               center={{ latitude: pengguna.lat, longitude: pengguna.lng }}
               radius={pengguna.akurasi}
-              strokeColor={colors.primaryPressed}
+              strokeColor={themeColors.primaryPressed}
               strokeWidth={1}
-              fillColor={colors.primarySoft}
+              fillColor={themeColors.primarySoft}
             />
           ) : null}
           <Marker
             coordinate={{ latitude: pengguna.lat, longitude: pengguna.lng }}
             anchor={{ x: 0.5, y: 0.5 }}
-            accessibilityLabel="Posisi kamu"
+            accessibilityLabel={teks.a11y.posisiKamu}
             zIndex={2}
           >
             <View style={styles.titikPengguna}>
@@ -111,47 +119,48 @@ export function PetaMap({
 
 const UKURAN_TITIK = 20;
 
-const styles = StyleSheet.create({
-  map: {
-    flex: 1,
-    backgroundColor: colors.surfaceMuted,
-  },
-  markerWrap: {
-    alignItems: 'center',
-  },
-  markerBubble: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    borderWidth: 2.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.card,
-  },
-  markerPointer: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 7,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    marginTop: -1,
-  },
-  titikPengguna: {
-    width: UKURAN_TITIK,
-    height: UKURAN_TITIK,
-    borderRadius: radius.pill,
-    borderWidth: 2,
-    borderColor: colors.graphite,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titikPenggunaInti: {
-    width: 6,
-    height: 6,
-    borderRadius: radius.pill,
-    backgroundColor: colors.graphite,
-  },
-});
+const buatGaya = (w: ThemeColors) =>
+  StyleSheet.create({
+    map: {
+      flex: 1,
+      backgroundColor: w.surfaceMuted,
+    },
+    markerWrap: {
+      alignItems: 'center',
+    },
+    markerBubble: {
+      width: 38,
+      height: 38,
+      borderRadius: 14,
+      borderWidth: 2.5,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...shadows.card,
+    },
+    markerPointer: {
+      width: 0,
+      height: 0,
+      borderLeftWidth: 6,
+      borderRightWidth: 6,
+      borderTopWidth: 7,
+      borderLeftColor: 'transparent',
+      borderRightColor: 'transparent',
+      marginTop: -1,
+    },
+    titikPengguna: {
+      width: UKURAN_TITIK,
+      height: UKURAN_TITIK,
+      borderRadius: radius.pill,
+      borderWidth: 2,
+      borderColor: w.graphite,
+      backgroundColor: w.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    titikPenggunaInti: {
+      width: 6,
+      height: 6,
+      borderRadius: radius.pill,
+      backgroundColor: w.graphite,
+    },
+  });

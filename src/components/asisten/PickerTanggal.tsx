@@ -175,46 +175,52 @@ export function PickerTanggal({
           </View>
 
           <View style={styles.grid}>
-            {sel.map((h, i) => {
-              if (h === null) return <View key={`k${i}`} style={styles.sel} />;
-              const str = keStr(tahun, bulan, h);
-              const mati = str < batas;
-              const aktif = str === value;
-              return (
-                <Pressable
-                  key={str}
-                  disabled={mati}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: aktif, disabled: mati }}
-                  onPress={() => {
-                    onChange(str);
-                    setTerbuka(false);
-                  }}
-                  style={styles.sel}
-                >
-                  <View
-                    style={[
-                      styles.hari,
-                      aktif && { backgroundColor: themeColors.primary },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.hariText,
-                        { color: themeColors.textPrimary },
-                        mati && styles.off,
-                        aktif && {
-                          color: themeColors.onPrimary,
-                          fontFamily: fontFamily.bold,
-                        },
-                      ]}
+            {Array.from({ length: sel.length / 7 }, (_, w) => (
+              <View key={`w${w}`} style={styles.minggu}>
+                {sel.slice(w * 7, w * 7 + 7).map((h, j) => {
+                  if (h === null) {
+                    return <View key={`k${w}-${j}`} style={styles.sel} />;
+                  }
+                  const str = keStr(tahun, bulan, h);
+                  const mati = str < batas;
+                  const aktif = str === value;
+                  return (
+                    <Pressable
+                      key={str}
+                      disabled={mati}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: aktif, disabled: mati }}
+                      onPress={() => {
+                        onChange(str);
+                        setTerbuka(false);
+                      }}
+                      style={styles.sel}
                     >
-                      {h}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
+                      <View
+                        style={[
+                          styles.hari,
+                          aktif && { backgroundColor: themeColors.primary },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.hariText,
+                            { color: themeColors.textPrimary },
+                            mati && styles.off,
+                            aktif && {
+                              color: themeColors.onPrimary,
+                              fontFamily: fontFamily.bold,
+                            },
+                          ]}
+                        >
+                          {h}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))}
           </View>
         </View>
       )}
@@ -255,8 +261,9 @@ const styles = StyleSheet.create({
     ...type.micro,
     color: colors.textMuted,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  sel: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
+  grid: {},
+  minggu: { flexDirection: 'row' },
+  sel: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
   hari: {
     width: 36,
     height: 36,

@@ -15,6 +15,7 @@ import {
 
 import { formatJarak } from '@/components/asisten/formatJarak';
 import { IzinPanel } from '@/components/asisten/IzinPanel';
+import { QrPresensi } from '@/components/asisten/QrPresensi';
 import { SesiFormSheet } from '@/components/asisten/SesiFormSheet';
 import {
   ErrorBlock,
@@ -43,7 +44,8 @@ export default function DetailSesiAsisten() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
   const {
     currentUser,
     users,
@@ -156,7 +158,7 @@ export default function DetailSesiAsisten() {
 
         <View style={styles.headerCenter}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            DETAIL SESI
+            {isEn ? 'SESSION DETAIL' : 'DETAIL SESI'}
           </Text>
           <Text
             style={[styles.headerTitle, { color: themeColors.textPrimary }]}
@@ -243,7 +245,7 @@ export default function DetailSesiAsisten() {
               <Text
                 style={[styles.gridLabel, { color: themeColors.textMuted }]}
               >
-                Tanggal
+                {isEn ? 'Date' : 'Tanggal'}
               </Text>
               <Text
                 style={[styles.gridValue, { color: themeColors.textPrimary }]}
@@ -267,7 +269,7 @@ export default function DetailSesiAsisten() {
               <Text
                 style={[styles.gridLabel, { color: themeColors.textMuted }]}
               >
-                Waktu
+                {isEn ? 'Time' : 'Waktu'}
               </Text>
               <Text
                 style={[styles.gridValue, { color: themeColors.textPrimary }]}
@@ -291,7 +293,7 @@ export default function DetailSesiAsisten() {
               <Text
                 style={[styles.gridLabel, { color: themeColors.textMuted }]}
               >
-                Lokasi
+                {isEn ? 'Location' : 'Lokasi'}
               </Text>
               <Text
                 style={[styles.gridValue, { color: themeColors.textPrimary }]}
@@ -316,7 +318,7 @@ export default function DetailSesiAsisten() {
               <Text
                 style={[styles.gridLabel, { color: themeColors.textMuted }]}
               >
-                Kelas
+                {isEn ? 'Class' : 'Kelas'}
               </Text>
               <Text
                 style={[styles.gridValue, { color: themeColors.textPrimary }]}
@@ -337,7 +339,7 @@ export default function DetailSesiAsisten() {
                 disabled={!aksi.aktif}
                 onPress={() => mulai(s.id, 'buka')}
               >
-                Buka sesi
+                {isEn ? 'Open session' : 'Buka sesi'}
               </Tombol>
               {!aksi.aktif && <Text style={styles.actionHint}>{aksi.keterangan}</Text>}
             </>
@@ -348,15 +350,19 @@ export default function DetailSesiAsisten() {
               icon={<ArrowRight size={19} color={colors.errorFg} />}
               onPress={() => mulai(s.id, 'tutup')}
             >
-              Tutup sesi
+              {isEn ? 'Close session' : 'Tutup sesi'}
             </Tombol>
           )}
           {aksi.jenis === 'selesai' && (
             <Text style={styles.actionHint}>
-              Sesi sudah selesai dan tidak dapat dibuka lagi.
+              {isEn
+                ? 'Session has ended and cannot be reopened.'
+                : 'Sesi sudah selesai dan tidak dapat dibuka lagi.'}
             </Text>
           )}
         </View>
+
+        {aksi.jenis === 'tutup' && <QrPresensi sesiId={s.id} />}
 
         {/* Panel Pemeriksaan Izin & Klasifikasi AI (FR-16 & FR-17) */}
         <IzinPanel sesiId={s.id} />
@@ -374,12 +380,14 @@ export default function DetailSesiAsisten() {
           <View style={styles.panelHeader}>
             <View>
               <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-                KEHADIRAN
+                {isEn ? 'ATTENDANCE' : 'KEHADIRAN'}
               </Text>
               <Text
                 style={[styles.panelTitle, { color: themeColors.textPrimary }]}
               >
-                {daftarHadir.length} dari {kapasitas} praktikan
+                {isEn
+                  ? `${daftarHadir.length} of ${kapasitas} students`
+                  : `${daftarHadir.length} dari ${kapasitas} praktikan`}
               </Text>
             </View>
 
@@ -411,7 +419,9 @@ export default function DetailSesiAsisten() {
             <Text
               style={[styles.smallEmpty, { color: themeColors.textMuted }]}
             >
-              Belum ada praktikan yang melakukan presensi.
+              {isEn
+                ? 'No students have checked in yet.'
+                : 'Belum ada praktikan yang melakukan presensi.'}
             </Text>
           ) : (
             <View>
@@ -480,7 +490,7 @@ export default function DetailSesiAsisten() {
                 { color: themeColors.textPrimary },
               ]}
             >
-              Lihat di tab Rekap ›
+              {isEn ? 'View in Recap tab ›' : 'Lihat di tab Rekap ›'}
             </Text>
           </Pressable>
         </View>

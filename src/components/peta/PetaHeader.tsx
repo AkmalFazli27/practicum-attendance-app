@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -11,12 +11,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, RefreshCw } from 'lucide-react-native';
 
 import { usePreferences } from '@/context/PreferencesContext';
-import { colors, layout, radius, spacing, type } from '@/theme/tokens';
+import {
+  layout,
+  radius,
+  spacing,
+  type,
+  type ThemeColors,
+} from '@/theme/tokens';
+import { teksPeta } from './teks';
 
 export interface PetaHeaderProps {
   onRefresh?: () => void;
   sedangMemuat?: boolean;
-  /** Default "Peta Laboratorium"; halaman lain memakai header yang sama. */
+  /** Default dari kamus teks P2; halaman lain memakai header yang sama. */
   judul?: string;
   kicker?: string;
 }
@@ -24,12 +31,16 @@ export interface PetaHeaderProps {
 export function PetaHeader({
   onRefresh,
   sedangMemuat = false,
-  judul = 'Peta Laboratorium',
-  kicker = 'PETA',
+  judul,
+  kicker,
 }: PetaHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
+  const judulFinal = judul ?? teks.judulPeta;
+  const kickerFinal = kicker ?? teks.kickerPeta;
 
   const handleKembali = () => {
     if (router.canGoBack()) {
@@ -40,61 +51,35 @@ export function PetaHeader({
   };
 
   return (
-    <View
-      style={[
-        styles.wrapper,
-        {
-          backgroundColor: themeColors.background,
-          borderBottomColor: themeColors.border,
-          paddingTop: insets.top,
-        },
-      ]}
-    >
+    <View style={[styles.wrapper, { paddingTop: insets.top }]}>
       <View style={styles.inner}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Kembali"
+          accessibilityLabel={teks.a11y.kembali}
           onPress={handleKembali}
           style={({ pressed }) => [
             styles.iconBtn,
-            {
-              borderColor: themeColors.border,
-              backgroundColor: pressed
-                ? themeColors.surfaceMuted
-                : themeColors.surface,
-            },
+            pressed && styles.iconBtnPressed,
           ]}
         >
           <ArrowLeft size={20} color={themeColors.textPrimary} />
         </Pressable>
 
         <View style={styles.center}>
-          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            {kicker}
-          </Text>
-          <Text
-            style={[styles.title, { color: themeColors.textPrimary }]}
-            numberOfLines={1}
-          >
-            {judul}
-          </Text>
+          <Text style={styles.kicker}>{kickerFinal}</Text>
+          <Text style={styles.title}>{judulFinal}</Text>
         </View>
 
         {onRefresh ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Muat ulang data laboratorium"
+            accessibilityLabel={teks.a11y.muatUlang}
             accessibilityState={{ busy: sedangMemuat }}
             disabled={sedangMemuat}
             onPress={onRefresh}
             style={({ pressed }) => [
               styles.iconBtn,
-              {
-                borderColor: themeColors.border,
-                backgroundColor: pressed
-                  ? themeColors.surfaceMuted
-                  : themeColors.surface,
-              },
+              pressed && styles.iconBtnPressed,
               sedangMemuat && styles.iconBtnDisabled,
             ]}
           >
@@ -112,51 +97,60 @@ export function PetaHeader({
   );
 }
 
-const styles = StyleSheet.create({
-  wrapper: {
-    backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  inner: {
-    minHeight: 68,
-    paddingHorizontal: layout.screenPadding,
-    paddingVertical: spacing.s2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s3,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  kicker: {
-    ...type.micro,
-    color: colors.textMuted,
-    letterSpacing: 1.1,
-  },
-  title: {
-    ...type.h2,
-    color: colors.textPrimary,
-  },
-  iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconBtnPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  iconBtnDisabled: {
-    opacity: 0.55,
-  },
-  iconPlaceholder: {
-    width: 42,
-    height: 42,
-  },
-});
+const buatGaya = (w: ThemeColors) =>
+  StyleSheet.create({
+    wrapper: {
+      backgroundColor: w.background,
+      borderBottomWidth: 1,
+      borderBottomColor: w.border,
+    },
+    inner: {
+      minHeight: 68,
+      paddingHorizontal: layout.screenPadding,
+      paddingVertical: spacing.s2,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s3,
+    },
+    center: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: 'center',
+      gap: 2,
+    },
+    kicker: {
+      ...type.micro,
+      color: w.textMuted,
+      letterSpacing: 1.1,
+      textAlign: 'center',
+      // `alignItems: 'center'` pada `center` tidak melebarkan anak, sehingga teks
+      // bisa melebar melewati kotaknya dan menimpa tombol saat font diperbesar.
+      width: '100%',
+    },
+    title: {
+      ...type.h2,
+      color: w.textPrimary,
+      textAlign: 'center',
+      width: '100%',
+    },
+    iconBtn: {
+      width: 42,
+      height: 42,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconBtnPressed: {
+      backgroundColor: w.surfaceMuted,
+    },
+    iconBtnDisabled: {
+      opacity: 0.55,
+    },
+    iconPlaceholder: {
+      width: 42,
+      height: 42,
+    },
+  });

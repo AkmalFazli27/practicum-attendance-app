@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -9,8 +9,16 @@ import {
 } from 'react-native';
 import { LocateFixed, MapIcon } from 'lucide-react-native';
 
-import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
+import { usePreferences } from '@/context/PreferencesContext';
+import {
+  fontFamily,
+  radius,
+  spacing,
+  type,
+  type ThemeColors,
+} from '@/theme/tokens';
 import { bacaAngka, teksKoordinat, teksTersinkron } from './validasiLab';
+import { teksPeta } from './teks';
 import type { LokasiPickerProps } from './types';
 
 /**
@@ -33,6 +41,9 @@ export function LokasiPicker({
   // akan langsung dinormalisasi menjadi "-7" dan kursor melompat.
   const [latTeks, setLatTeks] = useState(teksKoordinat(titik?.lat));
   const [lngTeks, setLngTeks] = useState(teksKoordinat(titik?.lng));
+  const { themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   // Sinkronkan saat titik berubah dari luar input (pilih lab / lokasi saat ini).
   // `teksTersinkron` menjaga teks setengah jadi seperti "-" agar tidak dihapus.
@@ -60,39 +71,36 @@ export function LokasiPicker({
   return (
     <View style={styles.root}>
       <View style={styles.notice}>
-        <MapIcon size={18} color={colors.textMuted} />
-        <Text style={styles.noticeText}>
-          Peta interaktif hanya tersedia di aplikasi mobile. Isi titik lab
-          dengan koordinat di bawah.
-        </Text>
+        <MapIcon size={18} color={themeColors.textMuted} />
+        <Text style={styles.noticeText}>{teks.pickerWebNotice}</Text>
       </View>
 
       <View style={styles.koordRow}>
         <View style={styles.field}>
           <Text style={styles.label}>Latitude</Text>
           <TextInput
-            accessibilityLabel="Latitude laboratorium"
+            accessibilityLabel={teks.a11y.latitude}
             value={latTeks}
             onChangeText={(teks) => ubahKoord('lat', teks)}
             keyboardType="numeric"
             inputMode="decimal"
             editable={!disabled}
             placeholder="-7.0490375"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={themeColors.textMuted}
             style={[styles.input, disabled && styles.inputNonaktif]}
           />
         </View>
         <View style={styles.field}>
           <Text style={styles.label}>Longitude</Text>
           <TextInput
-            accessibilityLabel="Longitude laboratorium"
+            accessibilityLabel={teks.a11y.longitude}
             value={lngTeks}
             onChangeText={(teks) => ubahKoord('lng', teks)}
             keyboardType="numeric"
             inputMode="decimal"
             editable={!disabled}
             placeholder="110.441484375"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={themeColors.textMuted}
             style={[styles.input, disabled && styles.inputNonaktif]}
           />
         </View>
@@ -100,7 +108,7 @@ export function LokasiPicker({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Gunakan lokasi saat ini"
+        accessibilityLabel={teks.a11y.gunakanLokasi}
         accessibilityState={{
           disabled: disabled || !bisaGunakanLokasi || sedangMembacaLokasi,
         }}
@@ -113,11 +121,11 @@ export function LokasiPicker({
         ]}
       >
         {sedangMembacaLokasi ? (
-          <ActivityIndicator size="small" color={colors.textPrimary} />
+          <ActivityIndicator size="small" color={themeColors.textPrimary} />
         ) : (
-          <LocateFixed size={16} color={colors.textPrimary} />
+          <LocateFixed size={16} color={themeColors.textPrimary} />
         )}
-        <Text style={styles.tombolLokasiTeks}>Gunakan lokasi saat ini</Text>
+        <Text style={styles.tombolLokasiTeks}>{teks.gunakanLokasi}</Text>
       </Pressable>
 
       {pesanLokasi ? (
@@ -126,148 +134,151 @@ export function LokasiPicker({
 
       <View style={styles.radiusRow}>
         <View style={styles.radiusCopy}>
-          <Text style={styles.label}>Radius presensi</Text>
-          <Text style={styles.bantuan}>
-            Area yang dihitung sah saat praktikan presensi
-            {radius > 0 ? ` (${Math.round(radius)} m)` : ''}.
-          </Text>
+          <Text style={styles.label}>{teks.radiusPresensiLabel}</Text>
+          <Text style={styles.bantuan}>{teks.radiusBantuan(radius)}</Text>
         </View>
         <View style={styles.radiusInputWrap}>
           <TextInput
-            accessibilityLabel="Radius presensi dalam meter"
+            accessibilityLabel={teks.a11y.radiusInput}
             value={radiusTeks}
             onChangeText={onRadiusTeksChange}
             keyboardType="numeric"
             inputMode="decimal"
             editable={!disabled}
             placeholder="0"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={themeColors.textMuted}
             style={[styles.radiusInput, disabled && styles.inputNonaktif]}
             returnKeyType="done"
           />
-          <Text style={styles.radiusSatuan}>m</Text>
+          <Text style={styles.radiusSatuan}>{teks.satuanMeter}</Text>
         </View>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    gap: spacing.s3,
-  },
-  notice: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.s2,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  noticeText: {
-    ...type.caption,
-    fontFamily: fontFamily.regular,
-    color: colors.textSecondary,
-    flex: 1,
-    lineHeight: 18,
-  },
-  koordRow: {
-    flexDirection: 'row',
-    gap: spacing.s3,
-  },
-  field: {
-    flex: 1,
-    gap: spacing.s1,
-  },
-  label: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.semibold,
-    color: colors.textPrimary,
-  },
-  input: {
-    ...type.body,
-    color: colors.textPrimary,
-    height: 44,
-    paddingHorizontal: spacing.s3,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.borderDashed,
-    backgroundColor: colors.surface,
-  },
-  inputNonaktif: {
-    color: colors.disabledText,
-    backgroundColor: colors.disabledBg,
-  },
-  tombolLokasi: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.s2,
-    paddingHorizontal: spacing.s3,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  tombolLokasiDitekan: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  tombolLokasiNonaktif: {
-    backgroundColor: colors.disabledBg,
-  },
-  tombolLokasiTeks: {
-    ...type.caption,
-    fontFamily: fontFamily.semibold,
-    color: colors.textPrimary,
-  },
-  pesanLokasi: {
-    ...type.caption,
-    color: colors.textMuted,
-    lineHeight: 18,
-  },
-  radiusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s3,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  radiusCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  bantuan: {
-    ...type.caption,
-    color: colors.textMuted,
-    lineHeight: 17,
-  },
-  radiusInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s1,
-    paddingHorizontal: spacing.s3,
-    height: 44,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.borderDashed,
-    backgroundColor: colors.background,
-  },
-  radiusInput: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.semibold,
-    color: colors.textPrimary,
-    minWidth: 48,
-    textAlign: 'right',
-    paddingVertical: 0,
-  },
-  radiusSatuan: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-});
+const buatGaya = (w: ThemeColors) =>
+  StyleSheet.create({
+    root: {
+      gap: spacing.s3,
+    },
+    notice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.s2,
+      padding: spacing.s3,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    noticeText: {
+      ...type.caption,
+      fontFamily: fontFamily.regular,
+      color: w.textSecondary,
+      flex: 1,
+      lineHeight: 18,
+    },
+    koordRow: {
+      flexDirection: 'row',
+      gap: spacing.s3,
+    },
+    field: {
+      flex: 1,
+      gap: spacing.s1,
+    },
+    label: {
+      ...type.bodyStrong,
+      fontFamily: fontFamily.semibold,
+      color: w.textPrimary,
+    },
+    input: {
+      ...type.body,
+      color: w.textPrimary,
+      height: 44,
+      paddingHorizontal: spacing.s3,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: w.borderDashed,
+      backgroundColor: w.surface,
+    },
+    inputNonaktif: {
+      color: w.disabledText,
+      backgroundColor: w.disabledBg,
+    },
+    tombolLokasi: {
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.s2,
+      paddingHorizontal: spacing.s3,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    tombolLokasiDitekan: {
+      backgroundColor: w.surfaceMuted,
+    },
+    tombolLokasiNonaktif: {
+      backgroundColor: w.disabledBg,
+    },
+    tombolLokasiTeks: {
+      ...type.caption,
+      fontFamily: fontFamily.semibold,
+      color: w.textPrimary,
+    },
+    pesanLokasi: {
+      ...type.caption,
+      color: w.textMuted,
+      lineHeight: 18,
+    },
+    radiusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s3,
+      padding: spacing.s3,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    radiusCopy: {
+      flex: 1,
+      gap: 2,
+    },
+    bantuan: {
+      ...type.caption,
+      color: w.textMuted,
+      lineHeight: 17,
+    },
+    radiusInputWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s1,
+      paddingHorizontal: spacing.s3,
+      height: 44,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: w.borderDashed,
+      backgroundColor: w.background,
+    },
+    radiusInput: {
+      ...type.bodyStrong,
+      fontFamily: fontFamily.semibold,
+      color: w.textPrimary,
+      // `<input>` HTML punya lebar intrinsik ~200 px dari atribut `size`
+      // bawaan, sehingga kolom label di sebelahnya terjepit sampai 0 px di
+      // layar 320 dp. Lebar eksplisit mengembalikan ruang untuk label; input
+      // native tidak punya perilaku ini.
+      width: 72,
+      minWidth: 48,
+      textAlign: 'right',
+      paddingVertical: 0,
+    },
+    radiusSatuan: {
+      ...type.caption,
+      color: w.textMuted,
+    },
+  });

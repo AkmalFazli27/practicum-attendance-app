@@ -16,7 +16,6 @@ import { Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LabInfoSheet } from '@/components/peta/LabInfoSheet';
-import { LocationBanner } from '@/components/peta/LocationBanner';
 import { PetaHeader } from '@/components/peta/PetaHeader';
 import { PetaMap } from '@/components/peta/PetaMap';
 import {
@@ -29,12 +28,13 @@ import {
   lokasiPunyaKoordinat,
   statusTungguLabs,
 } from '@/components/peta/region';
-import { EmptyState, FilterChip } from '@/components/ui';
-import { usePreferences } from '@/context/PreferencesContext';
+import { EmptyState, FilterChip, PermissionBanner } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
+import { usePreferences } from '@/context/PreferencesContext';
+import { teksPeta } from '@/components/peta/teks';
 import type { Lab } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
-import { colors, layout, radius, spacing, type } from '@/theme/tokens';
+import { layout, radius, spacing, type, type ThemeColors } from '@/theme/tokens';
 
 const JEDA_TUNGGU_LABS_MS = 4000;
 /** Durasi animasi tutup sheet; data lab baru dikosongkan setelahnya. */
@@ -47,14 +47,17 @@ const JEDA_TUTUP_SHEET_MS = 280;
  */
 export default function PetaScreen() {
   const { currentUser, loading } = useSession();
+  const { themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   if (loading) {
     return (
       <View style={styles.root}>
         <PetaHeader />
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.graphite} />
-          <Text style={styles.centerText}>Memuat peta laboratorium…</Text>
+          <ActivityIndicator size="large" color={themeColors.graphite} />
+          <Text style={styles.centerText}>{teks.memuatPeta}</Text>
         </View>
       </View>
     );
@@ -69,9 +72,12 @@ export default function PetaScreen() {
 
 function PetaContent() {
   const { labs, error, retrySync } = useSession();
-  const { themeColors } = usePreferences();
-  const { status: statusLokasi, koordinat, pesanError, mintaIzin, coba } =
-    useLocation();
+  const { themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
+  // `pesanError` dari hook selalu berbahasa Indonesia; copy banner diambil dari
+  // kamus P2 agar ikut bahasa aplikasi.
+  const { status: statusLokasi, koordinat, mintaIzin, coba } = useLocation();
   const insets = useSafeAreaInsets();
   const [labIdDipilih, setLabIdDipilih] = useState<string | null>(null);
   const [sheetTerbuka, setSheetTerbuka] = useState(false);
@@ -91,7 +97,7 @@ function PetaContent() {
 
   const region = useMemo(() => hitungRegion(labs, pengguna), [labs, pengguna]);
 
-  const bannerLokasi = bannerLokasiDari(statusLokasi, pesanError);
+  const bannerLokasi = bannerLokasiDari(statusLokasi, null);
   const banner = bannerPrioritas(error, bannerLokasi);
 
   // `loading` hanya mencakup auth + koleksi sesi. Koleksi labs punya listener
@@ -134,20 +140,14 @@ function PetaContent() {
   }, []);
 
   return (
-    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
+    <View style={styles.root}>
       <PetaHeader onRefresh={retrySync} />
 
       {labs.length > 0 ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={[
-            styles.chipScroll,
-            {
-              backgroundColor: themeColors.background,
-              borderBottomColor: themeColors.border,
-            },
-          ]}
+          style={styles.chipScroll}
           contentContainerStyle={styles.chipRow}
         >
           {labs.map((lab) => (
@@ -163,10 +163,12 @@ function PetaContent() {
 
       {banner ? (
         <View style={styles.bannerWrap}>
-          <LocationBanner
+          <PermissionBanner
             jenis={banner.jenis}
-            pesan={banner.pesan}
-            onRetry={handlerBanner(banner, { mintaIzin, coba, retrySync })}
+            judul={teks.banner[banner.jenis].judul}
+            pesan={banner.pesan ?? teks.banner[banner.jenis].pesan}
+            aksiLabel={teks.banner[banner.jenis].aksi}
+            onAksi={handlerBanner(banner, { mintaIzin, coba, retrySync })}
           />
         </View>
       ) : null}
@@ -189,20 +191,16 @@ function PetaContent() {
           >
             {menungguLabs ? (
               <View style={styles.menungguCard}>
-                <ActivityIndicator size="small" color={colors.graphite} />
-                <Text style={styles.centerText}>
-                  Memuat data laboratorium…
-                </Text>
+                <ActivityIndicator size="small" color={themeColors.graphite} />
+                <Text style={styles.centerText}>{teks.memuatLabs}</Text>
               </View>
             ) : (
               <EmptyState
-                judul="Belum ada data laboratorium"
+                judul={teks.petaKosongJudul}
                 pesan={
-                  error
-                    ? 'Data lab belum bisa dimuat. Periksa koneksi internet lalu coba lagi.'
-                    : 'Data lab belum tersedia. Hubungi asisten praktikum atau coba lagi nanti.'
+                  error ? teks.petaKosongPesanError : teks.petaKosongPesan
                 }
-                aksi={{ label: 'Coba lagi', onPress: retrySync }}
+                aksi={{ label: teks.coba, onPress: retrySync }}
                 style={styles.emptyCard}
               />
             )}
@@ -219,59 +217,60 @@ function PetaContent() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.s3,
-    padding: spacing.s5,
-  },
-  centerText: {
-    ...type.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  chipScroll: {
-    flexGrow: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  chipRow: {
-    paddingHorizontal: layout.screenPadding,
-    paddingVertical: spacing.s3,
-    gap: spacing.s2,
-  },
-  bannerWrap: {
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.s3,
-  },
-  mapWrap: {
-    flex: 1,
-    marginTop: spacing.s3,
-    overflow: 'hidden',
-  },
-  emptyOverlay: {
-    position: 'absolute',
-    left: layout.screenPadding,
-    right: layout.screenPadding,
-  },
-  menungguCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.s2,
-    padding: spacing.s4,
-    borderRadius: radius.cardLg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  emptyCard: {
-    paddingVertical: spacing.s4,
-  },
-});
+const buatGaya = (w: ThemeColors) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: w.background,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.s3,
+      padding: spacing.s5,
+    },
+    centerText: {
+      ...type.caption,
+      color: w.textMuted,
+      textAlign: 'center',
+    },
+    chipScroll: {
+      flexGrow: 0,
+      borderBottomWidth: 1,
+      borderBottomColor: w.border,
+    },
+    chipRow: {
+      paddingHorizontal: layout.screenPadding,
+      paddingVertical: spacing.s3,
+      gap: spacing.s2,
+    },
+    bannerWrap: {
+      paddingHorizontal: layout.screenPadding,
+      paddingTop: spacing.s3,
+    },
+    mapWrap: {
+      flex: 1,
+      marginTop: spacing.s3,
+      overflow: 'hidden',
+    },
+    emptyOverlay: {
+      position: 'absolute',
+      left: layout.screenPadding,
+      right: layout.screenPadding,
+    },
+    menungguCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.s2,
+      padding: spacing.s4,
+      borderRadius: radius.cardLg,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    emptyCard: {
+      paddingVertical: spacing.s4,
+    },
+  });

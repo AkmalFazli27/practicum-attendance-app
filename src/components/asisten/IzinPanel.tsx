@@ -30,7 +30,8 @@ const COPY: Record<Keputusan, { judul: string; isi: string; ya: string; toast: s
 
 /** Penanda hasil klasifikasi AI; AI hanya informasi pendukung, bukan keputusan. */
 function AiInfo({ item }: { item: Izin }) {
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
   const tidakTersedia = !item.kategoriAi || item.kategoriAi === KATEGORI_FALLBACK;
   return (
     <View
@@ -61,7 +62,9 @@ function AiInfo({ item }: { item: Izin }) {
           ]}
         >
           {tidakTersedia
-            ? 'AI tidak tersedia · Belum terklasifikasi'
+            ? isEn
+              ? 'AI unavailable · Unclassified'
+              : 'AI tidak tersedia · Belum terklasifikasi'
             : `AI: ${item.kategoriAi}`}
         </Text>
       </View>
@@ -73,7 +76,9 @@ function AiInfo({ item }: { item: Izin }) {
         </Text>
       ) : null}
       <Text style={[styles.aiFootnote, { color: themeColors.textMuted }]}>
-        Informasi pendukung — keputusan ditetapkan oleh asisten.
+        {isEn
+          ? 'Supporting information — decision is made by the assistant.'
+          : 'Informasi pendukung — keputusan ditetapkan oleh asisten.'}
       </Text>
     </View>
   );
@@ -82,7 +87,8 @@ function AiInfo({ item }: { item: Izin }) {
 export function IzinPanel({ sesiId }: { sesiId: string }) {
   const { users, error, clearError, getIzinSesi, reviewIzin } = useSession();
   const { showToast } = useToast();
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const isEn = language === 'en';
 
   const [target, setTarget] = useState<Target | null>(null);
   const [loading, setLoading] = useState(false);
@@ -168,11 +174,15 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
     >
       <View style={styles.header}>
         <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-          PEMERIKSAAN IZIN & AI
+          {isEn ? 'LEAVE & AI REVIEW' : 'PEMERIKSAAN IZIN & AI'}
         </Text>
         <Text style={[styles.title, { color: themeColors.textPrimary }]}>
-          Pengajuan izin ({daftarIzin.length})
-          {menunggu > 0 ? ` · ${menunggu} menunggu` : ''}
+          {isEn
+            ? `Leave requests (${daftarIzin.length})`
+            : `Pengajuan izin (${daftarIzin.length})`}
+          {menunggu > 0
+            ? ` · ${menunggu} ${isEn ? 'pending' : 'menunggu'}`
+            : ''}
         </Text>
       </View>
 
@@ -186,7 +196,9 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
             },
           ]}
         >
-          Belum ada pengajuan izin dari praktikan pada sesi ini.
+          {isEn
+            ? 'No leave requests from students for this session yet.'
+            : 'Belum ada pengajuan izin dari praktikan pada sesi ini.'}
         </Text>
       ) : (
         <View style={styles.list}>
@@ -207,7 +219,8 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
                     <Text
                       style={[styles.nim, { color: themeColors.textMuted }]}
                     >
-                      {mhs.nim} · Diajukan {titikJam(formatJam(item.waktuPengajuan))}
+                      {mhs.nim} · {isEn ? 'Submitted' : 'Diajukan'}{' '}
+                      {titikJam(formatJam(item.waktuPengajuan))}
                     </Text>
                   </View>
                   <StatusBadge status={item.status} />
@@ -231,7 +244,7 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
                         setTarget({ izinId: item.id, keputusan: 'DITOLAK' })
                       }
                     >
-                      Tolak
+                      {isEn ? 'Reject' : 'Tolak'}
                     </Tombol>
                     <Tombol
                       variant="primer"
@@ -241,7 +254,7 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
                         setTarget({ izinId: item.id, keputusan: 'DITERIMA' })
                       }
                     >
-                      Terima izin
+                      {isEn ? 'Approve leave' : 'Terima izin'}
                     </Tombol>
                   </View>
                 )}

@@ -1,12 +1,19 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Map as MapIcon, Navigation } from 'lucide-react-native';
 
 import { usePreferences } from '@/context/PreferencesContext';
-import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
+import {
+  fontFamily,
+  radius,
+  spacing,
+  type,
+  type ThemeColors,
+} from '@/theme/tokens';
 import { hitungJarak } from '@/utils/geo';
 import { getLabMarkerStyle } from './labMarkerStyle';
 import { labPunyaKoordinat } from './region';
+import { teksPeta } from './teks';
 import type { PetaMapProps } from './types';
 
 /**
@@ -19,44 +26,28 @@ export function PetaMap({
   onPilihLab,
   pengguna,
 }: PetaMapProps) {
-  const { themeColors } = usePreferences();
+  const { themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   return (
-    <View style={[styles.root, { backgroundColor: themeColors.background }]}>
-      <View
-        style={[
-          styles.notice,
-          {
-            borderColor: themeColors.border,
-            backgroundColor: themeColors.surface,
-          },
-        ]}
-      >
+    <View style={styles.root}>
+      <View style={styles.notice}>
         <MapIcon size={18} color={themeColors.textMuted} />
-        <Text style={[styles.noticeText, { color: themeColors.textSecondary }]}>
-          Peta interaktif tersedia di aplikasi mobile. Pilih lab dari daftar
-          berikut.
-        </Text>
+        <Text style={styles.noticeText}>{teks.petaWebNotice}</Text>
       </View>
 
       {pengguna ? (
-        <View
-          style={[
-            styles.lokasiRow,
-            {
-              borderColor: themeColors.border,
-              backgroundColor: themeColors.primarySoft,
-            },
-          ]}
-        >
+        <View style={styles.lokasiRow}>
           <Navigation size={16} color={themeColors.textPrimary} />
-          <Text
-            style={[styles.lokasiText, { color: themeColors.textPrimary }]}
-          >
-            Posisi kamu: {pengguna.lat.toFixed(5)}, {pengguna.lng.toFixed(5)}
-            {typeof pengguna.akurasi === 'number' && pengguna.akurasi > 0
-              ? ` (±${Math.round(pengguna.akurasi)} m)`
-              : ''}
+          <Text style={styles.lokasiText}>
+            {teks.posisiKamu(
+              pengguna.lat.toFixed(5),
+              pengguna.lng.toFixed(5),
+              typeof pengguna.akurasi === 'number' && pengguna.akurasi > 0
+                ? String(Math.round(pengguna.akurasi))
+                : '',
+            )}
           </Text>
         </View>
       ) : null}
@@ -80,35 +71,21 @@ export function PetaMap({
               onPress={() => onPilihLab(lab)}
               style={({ pressed }) => [
                 styles.row,
-                {
-                  borderColor: aktif ? themeColors.primary : themeColors.border,
-                  backgroundColor: pressed
-                    ? themeColors.surfaceMuted
-                    : themeColors.surface,
-                },
+                aktif && styles.rowAktif,
+                pressed && styles.rowPressed,
               ]}
             >
               <View style={[styles.iconTile, { backgroundColor: bg }]}>
                 <Icon size={18} color={fg} />
               </View>
               <View style={styles.copy}>
-                <Text
-                  style={[styles.nama, { color: themeColors.textPrimary }]}
-                >
-                  {lab.nama}
-                </Text>
-                <Text
-                  style={[styles.alamat, { color: themeColors.textMuted }]}
-                >
-                  {lab.alamat}
-                </Text>
+                <Text style={styles.nama}>{lab.nama}</Text>
+                <Text style={styles.alamat}>{lab.alamat}</Text>
                 {jarak !== null ? (
-                  <Text
-                    style={[styles.jarak, { color: themeColors.textSecondary }]}
-                  >
+                  <Text style={styles.jarak}>
                     {jarak < 1000
-                      ? `${Math.round(jarak)} m dari posisimu`
-                      : `${(jarak / 1000).toFixed(1)} km dari posisimu`}
+                      ? teks.jarakMeter(Math.round(jarak))
+                      : teks.jarakKm((jarak / 1000).toFixed(1))}
                   </Text>
                 ) : null}
               </View>
@@ -120,91 +97,92 @@ export function PetaMap({
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.surfaceMuted,
-  },
-  notice: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.s2,
-    margin: spacing.s4,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  noticeText: {
-    ...type.caption,
-    fontFamily: fontFamily.regular,
-    color: colors.textSecondary,
-    flex: 1,
-    lineHeight: 18,
-  },
-  lokasiRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s2,
-    marginHorizontal: spacing.s4,
-    marginBottom: spacing.s3,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.primarySoft,
-  },
-  lokasiText: {
-    ...type.caption,
-    fontFamily: fontFamily.medium,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  list: {
-    paddingHorizontal: spacing.s4,
-    paddingBottom: spacing.s8,
-    gap: spacing.s2,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s3,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  rowAktif: {
-    borderColor: colors.graphite,
-  },
-  rowPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  iconTile: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.button,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  copy: {
-    flex: 1,
-    gap: 2,
-  },
-  nama: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.bold,
-    color: colors.textPrimary,
-  },
-  alamat: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-  jarak: {
-    ...type.caption,
-    color: colors.textSecondary,
-  },
-});
+const buatGaya = (w: ThemeColors) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: w.surfaceMuted,
+    },
+    notice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.s2,
+      margin: spacing.s4,
+      padding: spacing.s3,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    noticeText: {
+      ...type.caption,
+      fontFamily: fontFamily.regular,
+      color: w.textSecondary,
+      flex: 1,
+      lineHeight: 18,
+    },
+    lokasiRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s2,
+      marginHorizontal: spacing.s4,
+      marginBottom: spacing.s3,
+      padding: spacing.s3,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.primarySoft,
+    },
+    lokasiText: {
+      ...type.caption,
+      fontFamily: fontFamily.medium,
+      color: w.textPrimary,
+      flex: 1,
+    },
+    list: {
+      paddingHorizontal: spacing.s4,
+      paddingBottom: spacing.s8,
+      gap: spacing.s2,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s3,
+      padding: spacing.s3,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    rowAktif: {
+      borderColor: w.graphite,
+    },
+    rowPressed: {
+      backgroundColor: w.surfaceMuted,
+    },
+    iconTile: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.button,
+      backgroundColor: w.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    copy: {
+      flex: 1,
+      gap: 2,
+    },
+    nama: {
+      ...type.bodyStrong,
+      fontFamily: fontFamily.bold,
+      color: w.textPrimary,
+    },
+    alamat: {
+      ...type.caption,
+      color: w.textMuted,
+    },
+    jarak: {
+      ...type.caption,
+      color: w.textSecondary,
+    },
+  });

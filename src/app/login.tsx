@@ -18,14 +18,13 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
-  ShieldCheck,
   UserRound,
 } from 'lucide-react-native';
 
 import { Brand, Tombol, useToast } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import { type Peran } from '@/data/dummy';
-import { colors, fontFamily, radius, shadows, spacing, type } from '@/theme/tokens';
+import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 
 type AuthMode = 'login' | 'register';
 type AuthField = 'nama' | 'nim' | 'kelas' | 'email' | 'password' | 'konfirmasi';
@@ -75,7 +74,6 @@ function pesanUntukAlasan(alasan: string): string {
 
 type ValidasiAuthInput = {
   authMode: AuthMode;
-  peran: Peran;
   nama: string;
   nim: string;
   kelas: string;
@@ -86,7 +84,6 @@ type ValidasiAuthInput = {
 
 function validateAuthForm({
   authMode,
-  peran,
   nama,
   nim,
   kelas,
@@ -96,6 +93,8 @@ function validateAuthForm({
 }: ValidasiAuthInput): FieldErrors {
   const hasil: FieldErrors = {};
 
+  // Pendaftaran mandiri hanya untuk praktikan, sehingga NIM dan kelas selalu wajib
+  // pada mode register. Ubah bagian ini bila kelak asisten boleh mendaftar sendiri.
   if (authMode === 'register') {
     if (nama.trim().length < 3) {
       hasil.nama = 'Nama lengkap minimal 3 karakter.';
@@ -105,7 +104,7 @@ function validateAuthForm({
       hasil.nim = 'NIM/ID hanya boleh berisi angka (6–20 digit).';
     }
 
-    if (peran === 'praktikan' && !POLA_KELAS.test(kelas.trim().toUpperCase())) {
+    if (!POLA_KELAS.test(kelas.trim().toUpperCase())) {
       hasil.kelas = 'Format kelas tidak valid. Contoh: IF-2A.';
     }
   }
@@ -134,7 +133,6 @@ export default function LoginScreen() {
   const [authMode, setAuthMode] = useState<AuthMode>(
     params.mode === 'register' ? 'register' : 'login',
   );
-  const [peran, setPeran] = useState<Peran>('praktikan');
   const [nama, setNama] = useState('');
   const [nim, setNim] = useState('');
   const [kelas, setKelas] = useState('IF-2A');
@@ -161,7 +159,6 @@ export default function LoginScreen() {
   useEffect(() => {
     if (params.mode === 'register') {
       setAuthMode('register');
-      setPeran('praktikan');
     }
   }, [params.mode]);
 
@@ -199,17 +196,7 @@ export default function LoginScreen() {
 
   const handleGantiMode = (modeBaru: AuthMode) => {
     setAuthMode(modeBaru);
-    if (modeBaru === 'register') {
-      setPeran('praktikan');
-    }
     setKonfirmasiPassword('');
-    setErrors({});
-    setPesanError(null);
-    setSubmitted(false);
-  };
-
-  const handleGantiPeran = (peranBaru: Peran) => {
-    setPeran(peranBaru);
     setErrors({});
     setPesanError(null);
     setSubmitted(false);
@@ -220,7 +207,7 @@ export default function LoginScreen() {
       ? email.trim().length > 0 && password.length > 0
       : nama.trim().length > 0 &&
         nim.trim().length > 0 &&
-        (peran === 'asisten' || kelas.trim().length > 0) &&
+        kelas.trim().length > 0 &&
         email.trim().length > 0 &&
         password.length > 0 &&
         konfirmasiPassword.length > 0;
@@ -235,11 +222,8 @@ export default function LoginScreen() {
     redirectAwalSelesai.current = true;
     setPesanError(null);
 
-    const peranForm: Peran = authMode === 'register' ? 'praktikan' : peran;
-
     const hasilValidasi = validateAuthForm({
       authMode,
-      peran: peranForm,
       nama,
       nim,
       kelas,
@@ -254,9 +238,7 @@ export default function LoginScreen() {
 
       const urutanField: AuthField[] =
         authMode === 'register'
-          ? peranForm === 'praktikan'
-            ? ['nama', 'nim', 'kelas', 'email', 'password', 'konfirmasi']
-            : ['nama', 'nim', 'email', 'password', 'konfirmasi']
+          ? ['nama', 'nim', 'kelas', 'email', 'password', 'konfirmasi']
           : ['email', 'password'];
       const fieldPertamaTidakValid = urutanField.find(
         (field) => hasilValidasi[field],
@@ -298,10 +280,9 @@ export default function LoginScreen() {
         nama: nama.trim(),
         email: email.trim().toLowerCase(),
         password,
-        peran: peranForm,
+        peran: 'praktikan',
         nim: nim.trim(),
-        kelas:
-          peranForm === 'praktikan' ? kelas.trim().toUpperCase() : undefined,
+        kelas: kelas.trim().toUpperCase(),
       });
 
       if (!res.ok) {
@@ -361,7 +342,7 @@ export default function LoginScreen() {
             </Text>
             <Text style={styles.introSub}>
               {authMode === 'login'
-                ? 'Masuk dengan akun sesuai peranmu untuk melanjutkan.'
+                ? 'Masuk dengan email dan kata sandi akunmu. Peran akun dikenali otomatis.'
                 : 'Daftarkan identitasmu untuk mengakses praktikum sebagai Praktikan.'}
             </Text>
           </View>
@@ -420,82 +401,8 @@ export default function LoginScreen() {
               </Pressable>
             </View>
 
-            {/* Role Switch / Info Registrasi */}
-            {authMode === 'login' ? (
-              <>
-                <Text style={styles.fieldLabel}>Saya masuk sebagai</Text>
-                <View style={styles.roleSwitch}>
-                  <Pressable
-                    accessibilityRole="radio"
-                    accessibilityLabel="Peran praktikan"
-                    accessibilityHint="Pilih peran praktikan untuk akun ini."
-                    accessibilityState={{
-                      selected: peran === 'praktikan',
-                      disabled: sedangMemproses,
-                    }}
-                    disabled={sedangMemproses}
-                    onPress={() => handleGantiPeran('praktikan')}
-                    style={[
-                      styles.roleButton,
-                      peran === 'praktikan' && styles.roleButtonActive,
-                    ]}
-                  >
-                    <UserRound
-                      size={18}
-                      color={
-                        peran === 'praktikan'
-                          ? colors.textPrimary
-                          : colors.textSecondary
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.roleButtonText,
-                        peran === 'praktikan' && styles.roleButtonTextActive,
-                      ]}
-                    >
-                      Praktikan
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
-                    accessibilityRole="radio"
-                    accessibilityLabel="Peran asisten"
-                    accessibilityHint="Pilih peran asisten untuk akun ini."
-                    accessibilityState={{
-                      selected: peran === 'asisten',
-                      disabled: sedangMemproses,
-                    }}
-                    disabled={sedangMemproses}
-                    onPress={() => handleGantiPeran('asisten')}
-                    style={[
-                      styles.roleButton,
-                      peran === 'asisten' && styles.roleButtonActive,
-                    ]}
-                  >
-                    <ShieldCheck
-                      size={18}
-                      color={
-                        peran === 'asisten'
-                          ? colors.textPrimary
-                          : colors.textSecondary
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.roleButtonText,
-                        peran === 'asisten' && styles.roleButtonTextActive,
-                      ]}
-                    >
-                      Asisten
-                    </Text>
-                  </Pressable>
-                </View>
-                <Text style={styles.roleHint}>
-                  Peran akun terdeteksi otomatis.
-                </Text>
-              </>
-            ) : (
+            {/* Info Registrasi */}
+            {authMode === 'register' && (
               <View style={styles.registerInfo}>
                 <UserRound size={16} color={colors.textSecondary} />
                 <Text style={styles.registerInfoText}>
@@ -553,32 +460,30 @@ export default function LoginScreen() {
                     )}
                   </View>
 
-                  {peran === 'praktikan' && (
-                    <View style={[styles.fieldGroup, { flex: 0.8 }]}>
-                      <Text style={styles.fieldLabel}>Kelas</Text>
-                      <TextInput
-                        ref={refKelas}
-                        value={kelas}
-                        onChangeText={ubahField('kelas', setKelas)}
-                        onBlur={() => tandaiTouched('kelas')}
-                        placeholder="IF-2A"
-                        placeholderTextColor={colors.textMuted}
-                        autoCapitalize="characters"
-                        editable={!sedangMemproses}
-                        accessibilityLabel="Kelas"
-                        accessibilityHint="Gunakan format seperti IF-2A."
-                        style={[
-                          styles.input,
-                          errorField('kelas') && styles.inputError,
-                        ]}
-                      />
-                      {errorField('kelas') && (
-                        <Text style={styles.fieldError}>
-                          {errorField('kelas')}
-                        </Text>
-                      )}
-                    </View>
-                  )}
+                  <View style={[styles.fieldGroup, { flex: 0.8 }]}>
+                    <Text style={styles.fieldLabel}>Kelas</Text>
+                    <TextInput
+                      ref={refKelas}
+                      value={kelas}
+                      onChangeText={ubahField('kelas', setKelas)}
+                      onBlur={() => tandaiTouched('kelas')}
+                      placeholder="IF-2A"
+                      placeholderTextColor={colors.textMuted}
+                      autoCapitalize="characters"
+                      editable={!sedangMemproses}
+                      accessibilityLabel="Kelas"
+                      accessibilityHint="Gunakan format seperti IF-2A."
+                      style={[
+                        styles.input,
+                        errorField('kelas') && styles.inputError,
+                      ]}
+                    />
+                    {errorField('kelas') && (
+                      <Text style={styles.fieldError}>
+                        {errorField('kelas')}
+                      </Text>
+                    )}
+                  </View>
                 </View>
               </>
             )}
@@ -591,11 +496,7 @@ export default function LoginScreen() {
                 value={email}
                 onChangeText={ubahField('email', setEmail)}
                 onBlur={() => tandaiTouched('email')}
-                placeholder={
-                  peran === 'asisten'
-                    ? 'nama.asisten@tapin.ac.id'
-                    : 'nama.praktikan@tapin.ac.id'
-                }
+                placeholder="nama@tapin.ac.id"
                 placeholderTextColor={colors.textMuted}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -875,43 +776,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.s2,
     marginLeft: 2,
-  },
-  roleSwitch: {
-    flexDirection: 'row',
-    gap: 6,
-    padding: 5,
-    borderRadius: 15,
-    backgroundColor: colors.surfaceMuted,
-    marginBottom: spacing.s2,
-  },
-  roleHint: {
-    ...type.micro,
-    fontFamily: fontFamily.regular,
-    color: colors.textMuted,
-    marginLeft: 2,
-    marginBottom: spacing.s4,
-  },
-  roleButton: {
-    flex: 1,
-    minHeight: 45,
-    borderRadius: 11,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.s2,
-  },
-  roleButtonActive: {
-    backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  roleButtonText: {
-    ...type.caption,
-    fontFamily: fontFamily.semibold,
-    color: colors.textSecondary,
-  },
-  roleButtonTextActive: {
-    color: colors.textPrimary,
-    fontFamily: fontFamily.bold,
   },
   registerInfo: {
     flexDirection: 'row',
