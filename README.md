@@ -288,3 +288,77 @@ Variabel yang digunakan:
    Asisten login → menambah/membuka sesi praktikum → praktikan login dan melakukan presensi → data tersimpan di Cloud Firestore (percobaan presensi kedua ditolak) → asisten langsung melihat daftar hadir & rekap secara *real-time* → asisten menutup sesi.
 2. **Alur Pengajuan & Pemeriksaan Izin Berbantuan AI:**
    Praktikan login → mengajukan izin pada sesi tertentu dengan mengisi alasan → aplikasi mengirim alasan ke API Model AI untuk mendapatkan prediksi kategori alasan sebagai informasi pendukung → asisten memeriksa pengajuan beserta badge klasifikasi AI lalu memilih **Terima** atau **Tolak** → praktikan melihat status pengajuannya berubah secara *real-time*.
+
+---
+
+## Kelanjutan Sprint 3 — Presensi Berbasis Lokasi, Maps, dan Push Notification
+
+Pada **Sprint 3**, aplikasi **TapIn** dikembangkan agar proses presensi mempertimbangkan lokasi fisik praktikan terhadap titik laboratorium, menampilkan peta interaktif laboratorium beserta aktivitas praktikumnya secara *real-time*, mengirimkan *push notification* pada peristiwa penting, serta menyempurnakan beberapa antarmuka dan aturan bisnis dari Sprint 2 (termasuk opsi presensi QR Code dinamis, preferensi tema gelap, dan dual bahasa Indonesia/Inggris).
+
+Detail lengkap pembagian area, kriteria terima, dan jadwal kerja berada di [`docs/sprints/sprint-3.md`](docs/sprints/sprint-3.md).
+
+### Fitur Sprint 3 (FR-19 s.d. FR-25 & PB-01 s.d. PB-06)
+
+| FR / PB | Fitur | Area | Status |
+| --- | --- | --- | --- |
+| FR-19 | Halaman Presensi terpisah dari detail sesi + opsi presensi QR Code dinamis (berlaku 15 menit) | P1 (Farras) + P3 (Eileen) | Selesai |
+| FR-20 | Validasi lokasi, radius lab, dan batas waktu sesi pada pencatatan presensi (Firestore transaction) | PM (Nouvella) + P1 (Farras) | Selesai |
+| FR-21 | Pengelolaan titik koordinat dan radius laboratorium oleh asisten (`Kelola Lab`) di Firestore | PM (Nouvella) + P2 (Akmal) | Selesai |
+| FR-22 | Peta laboratorium interaktif dengan marker tiap lab, marker pengguna *live*, dan info marker | P2 (Akmal) | Selesai |
+| FR-23 | Informasi aktivitas laboratorium (praktikum berlangsung dan berikutnya secara *real-time*) | P2 (Akmal) + PM (Nouvella) | Selesai |
+| FR-24 | *Push notification* tertarget (sesi dibuka, jadwal berubah, keputusan izin) & riwayat notifikasi | PM (Nouvella) + P1 (Farras) | Selesai |
+| FR-25 | Penanganan izin dan kondisi perangkat (izin lokasi/notifikasi ditolak, GPS mati, status perangkat) | PM (Nouvella) + P1 / P2 / P3 | Selesai |
+| PB-01 | Perbaikan validasi form login/register dan penyederhanaan alur masuk | P2 (Akmal) + PM (Nouvella) | Selesai |
+| PB-02 | Perbaikan klasifikasi AI alasan izin, penanda *fallback* lokal, dan filter kategori AI | PM + P1 + P3 | Selesai |
+| PB-03 | Rekap kehadiran dua level (pilih mata kuliah lalu daftar praktikan beserta jarak presensi) | P3 (Eileen) | Selesai |
+| PB-04 | Pemilih tanggal dan jam mandiri di form sesi, pilihan lab dari daftar, dan validasi bentrok jadwal lab | P3 (Eileen) + PM (Nouvella) | Selesai |
+| PB-05 | Sesi yang sudah ditutup (manual atau otomatis) dikunci agar tidak dapat dibuka kembali atau diedit | PM (Nouvella) + P3 (Eileen) | Selesai |
+| PB-06 | Pembatasan waktu buka & tutup sesi otomatis sesuai jadwal (zona waktu WIB) | PM (Nouvella) + P1 / P2 / P3 | Selesai |
+| Tambahan | Preferensi pengguna (Dark Mode & Dual Bahasa ID/EN), riwayat notifikasi, serta pengurutan jadwal dari sesi terdekat | P1 + P2 + P3 | Selesai |
+
+### Pembagian Tugas Sprint 3
+
+| Peran | Nama | Tanggung jawab Sprint 3 |
+| --- | --- | --- |
+| PM | Nouvella | Kontrak `useSession()` Sprint 3, validasi presensi & waktu sesi (`markAttendance`, `getStatusEfektif`, `bentrokJadwal`), `useLocation`, pengiriman *push notification* (`notifications.ts`), perbaikan `ai.ts`, `firestore.rules`, EAS build, review/merge PR, rilis `v0.3-sprint3` |
+| P1 | Farras | Skeleton Sprint 3, UI Kit & token status, halaman Presensi lokasi + pemindai QR Code, notifikasi klien (`useNotifications`), halaman Riwayat Notifikasi & Pengaturan (Dark Mode & Bahasa ID/EN) |
+| P2 | Akmal | Halaman Peta laboratorium interaktif (`/peta`), *bottom sheet* aktivitas lab *real-time*, halaman Kelola Lab (`/kelola-lab`) & `LokasiPicker`, serta perbaikan autentikasi (PB-01) |
+| P3 | Eileen | Area Asisten: pemilih tanggal & jam mandiri (PB-04), rekap dua level + jarak presensi (PB-03), penguncian sesi selesai (PB-05 & PB-06), tampilan QR Code sesi, serta filter izin berdasarkan kategori AI |
+
+### Route Utama Sprint 3
+
+| Halaman | Route internal | URL web |
+| --- | --- | --- |
+| Peta Laboratorium | `/peta` | `/peta` |
+| Kelola Lab (Asisten) | `/kelola-lab` | `/kelola-lab` |
+| Presensi Praktikan (Lokasi & QR) | `/(praktikan)/presensi/[id]` | `/presensi/[id]` |
+| Riwayat Notifikasi | `/notifikasi` | `/notifikasi` |
+| Pengaturan (Tema, Bahasa & Izin) | `/pengaturan` | `/pengaturan` |
+
+### Konfigurasi Environment & Build Sprint 3
+
+Selain variabel Firebase dan AI dari Sprint 2, Sprint 3 menggunakan variabel tambahan pada `.env` (dan EAS Environment Variables untuk build APK):
+
+- `EXPO_PUBLIC_AI_MODEL` (opsional, nama model AI spesifik dari endpoint)
+- `GOOGLE_MAPS_API_KEY` (konfigurasi Google Maps Android pada `app.json`)
+
+Karena **Maps** dan **Expo Push Notifications** memerlukan modul *native* di luar Expo Go, pengujian dilakukan menggunakan **EAS Development Build** atau **APK Preview**:
+
+```bash
+npx tsc --noEmit
+npx eas-cli@latest build --platform android --profile preview
+```
+
+### Alur Demo Sprint 3
+
+1. **Alur Presensi Berbasis Lokasi:**
+
+   Asisten membuka sesi `TERJADWAL` → status berubah menjadi `DIBUKA` secara *real-time* → praktikan membuka halaman Presensi (atau memindai QR Code sesi) → aplikasi memeriksa radius laboratorium dan waktu sesi (ditolak jika di luar radius atau waktu habis; dicatat lengkap dengan koordinat dan jarak jika memenuhi syarat) → asisten melihat jarak presensi di Rekap dua level.
+
+2. **Alur Peta dan Informasi Lab:**
+
+   Pengguna membuka halaman Peta lewat ikon di header → melihat marker seluruh lab dan posisi pengguna secara *live* → memilih marker lab untuk melihat praktikum yang sedang berlangsung dan berikutnya secara *real-time*.
+
+3. **Alur Push Notification Kegiatan:**
+
+   Asisten membuka sesi, mengubah jadwal, atau memutuskan pengajuan izin → sistem mengirimkan *push notification* tertarget ke praktikan terkait → mengetuk notifikasi langsung membuka detail sesi yang bersangkutan.
