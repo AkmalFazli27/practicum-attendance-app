@@ -15,6 +15,7 @@ import {
 
 import { formatJarak } from '@/components/asisten/formatJarak';
 import { IzinPanel } from '@/components/asisten/IzinPanel';
+import { QrPresensi } from '@/components/asisten/QrPresensi';
 import { SesiFormSheet } from '@/components/asisten/SesiFormSheet';
 import {
   ErrorBlock,
@@ -259,6 +260,8 @@ export default function DetailSesiAsisten() {
             </Text>
           )}
         </View>
+
+        {aksi.jenis === 'tutup' && <QrPresensi sesiId={s.id} />}
 
         {/* Panel Pemeriksaan Izin & Klasifikasi AI (FR-16 & FR-17) */}
         <IzinPanel sesiId={s.id} />
