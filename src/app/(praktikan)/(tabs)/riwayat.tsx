@@ -1,18 +1,18 @@
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Check, FileText, Sparkles } from 'lucide-react-native';
+import { AlertCircle, Check, FileText, Sparkles } from 'lucide-react-native';
 
 import { EmptyState, StatusBadge } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type StatusIzin } from '@/data/dummy';
-import { KATEGORI_FALLBACK } from '@/services/ai';
+import { formatLabelKategoriAi } from '@/services/ai';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
 import { formatHariTanggalSingkat, formatJam, titikJam } from '@/utils/format';
 
 type Catatan = {
   id: string;
-  jenis: 'HADIR' | 'IZIN';
+  jenis: 'HADIR' | 'IZIN' | 'ALPHA';
   sesiId: string;
   waktu: string;
   jarak?: number;
@@ -24,12 +24,22 @@ type Catatan = {
 export default function RiwayatScreen() {
   const { themeColors, language } = usePreferences();
   const isEn = language === 'en';
-  const { currentUser, sesi, kehadiran, izin, loading, error, retrySync } =
-    useSession();
+  const {
+    currentUser,
+    sesi,
+    kehadiran,
+    izin,
+    getStatusEfektif,
+    loading,
+    error,
+    retrySync,
+  } = useSession();
 
   const daftarCatatan = useMemo<Catatan[]>(() => {
     if (!currentUser) return [];
     const sesiAda = new Set(sesi.map((s) => s.id));
+    const normKelas = (k?: string) => (k ?? '').trim().toUpperCase();
+    const kelasSaya = normKelas(currentUser.kelas);
 
     const hadirItems: Catatan[] = kehadiran
       .filter((k) => k.praktikanId === currentUser.id && sesiAda.has(k.sesiId))
@@ -53,10 +63,30 @@ export default function RiwayatScreen() {
         ringkasanAi: i.ringkasanAi,
       }));
 
-    return [...hadirItems, ...izinItems].sort((a, b) =>
+    const sesiTercatat = new Set<string>([
+      ...hadirItems.map((h) => h.sesiId),
+      ...izinItems.map((i) => i.sesiId),
+    ]);
+
+    // Fallback otomatis Alpha untuk sesi kelas praktikan yang sudah SELESAI tanpa presensi / izin
+    const alphaItems: Catatan[] = sesi
+      .filter(
+        (s) =>
+          getStatusEfektif(s) === 'SELESAI' &&
+          (!kelasSaya || normKelas(s.kelas) === kelasSaya) &&
+          !sesiTercatat.has(s.id),
+      )
+      .map((s) => ({
+        id: `alpha-${s.id}`,
+        jenis: 'ALPHA',
+        sesiId: s.id,
+        waktu: `${s.tanggal}T${s.jamSelesai}:00`,
+      }));
+
+    return [...hadirItems, ...izinItems, ...alphaItems].sort((a, b) =>
       (b.waktu || '').localeCompare(a.waktu || ''),
     );
-  }, [currentUser, sesi, kehadiran, izin]);
+  }, [currentUser, sesi, kehadiran, izin, getStatusEfektif]);
 
   const sesiMap = useMemo(() => new Map(sesi.map((s) => [s.id, s])), [sesi]);
 
@@ -112,10 +142,13 @@ export default function RiwayatScreen() {
               if (!s) return null;
 
               const isHadir = item.jenis === 'HADIR';
-              const aiTidakTersedia =
-                !item.kategoriAi ||
-                item.kategoriAi === KATEGORI_FALLBACK ||
-                /fallback/i.test(item.ringkasanAi ?? '');
+              const isAlpha = item.jenis === 'ALPHA';
+              const infoAi = formatLabelKategoriAi(
+                item.kategoriAi,
+                item.ringkasanAi,
+                isEn,
+              );
+              const aiTidakTersedia = !infoAi.terklasifikasi;
 
               return (
                 <View
@@ -134,12 +167,16 @@ export default function RiwayatScreen() {
                       {
                         backgroundColor: isHadir
                           ? themeColors.sesiDibukaBg
-                          : themeColors.izinBg,
+                          : isAlpha
+                            ? themeColors.errorBg
+                            : themeColors.izinBg,
                       },
                     ]}
                   >
                     {isHadir ? (
                       <Check size={18} color={themeColors.sesiDibukaFg} />
+                    ) : isAlpha ? (
+                      <AlertCircle size={18} color={themeColors.errorFg} />
                     ) : (
                       <FileText size={18} color={themeColors.izinFg} />
                     )}
@@ -163,12 +200,14 @@ export default function RiwayatScreen() {
                       numberOfLines={1}
                     >
                       {formatHariTanggalSingkat(s.tanggal)} ·{' '}
-                      {titikJam(formatJam(item.waktu))}
+                      {isAlpha
+                        ? `${titikJam(s.jamMulai)}–${titikJam(s.jamSelesai)}`
+                        : titikJam(formatJam(item.waktu))}
                       {isHadir && typeof item.jarak === 'number'
                         ? ` · ${Math.round(item.jarak)} m`
                         : ''}
                     </Text>
-                    {!isHadir ? (
+                    {!isHadir && !isAlpha ? (
                       <View
                         style={[
                           styles.aiChip,
@@ -198,11 +237,7 @@ export default function RiwayatScreen() {
                           ]}
                           numberOfLines={1}
                         >
-                          {aiTidakTersedia
-                            ? isEn
-                              ? 'AI unavailable · Unclassified'
-                              : 'AI tidak tersedia · Belum terklasifikasi'
-                            : `AI: ${item.kategoriAi}`}
+                          {`AI: ${infoAi.label}`}
                         </Text>
                       </View>
                     ) : null}
@@ -224,6 +259,8 @@ export default function RiwayatScreen() {
                         {isEn ? 'Present' : 'Hadir'}
                       </Text>
                     </View>
+                  ) : isAlpha ? (
+                    <StatusBadge status="ALPHA" />
                   ) : item.statusIzin ? (
                     <StatusBadge status={item.statusIzin} />
                   ) : null}

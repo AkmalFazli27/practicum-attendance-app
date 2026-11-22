@@ -19,7 +19,7 @@ import { IzinSheet } from '@/components/praktikan/IzinSheet';
 import { EmptyState, StatusBadge, Tombol } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
-import { KATEGORI_FALLBACK } from '@/services/ai';
+import { formatLabelKategoriAi } from '@/services/ai';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
 import { formatHariTanggalSingkat, formatJam, titikJam } from '@/utils/format';
 import { sudahLewat, sudahMulai } from '@/utils/statusSesi';
@@ -136,10 +136,12 @@ export default function DetailSesiPraktikan() {
                   ? 'Tap untuk presensi'
                   : 'Sesi belum dibuka asisten';
 
-  const aiTidakTersedia =
-    !izinSaya?.kategoriAi ||
-    izinSaya.kategoriAi === KATEGORI_FALLBACK ||
-    /fallback/i.test(izinSaya.ringkasanAi ?? '');
+  const infoAi = formatLabelKategoriAi(
+    izinSaya?.kategoriAi,
+    izinSaya?.ringkasanAi,
+    isEn,
+  );
+  const aiTidakTersedia = !infoAi.terklasifikasi;
 
   const bukaHalamanPresensi = () => {
     router.push({
@@ -414,12 +416,7 @@ export default function DetailSesiPraktikan() {
                     },
                   ]}
                 >
-                  {aiTidakTersedia
-                    ? izinSaya.kategoriAi &&
-                      izinSaya.kategoriAi !== KATEGORI_FALLBACK
-                      ? `AI (Fallback): ${izinSaya.kategoriAi}`
-                      : 'AI tidak tersedia · Belum terklasifikasi'
-                    : `Kategori AI: ${izinSaya.kategoriAi}`}
+                  {isEn ? `AI Label: ${infoAi.label}` : `Label AI: ${infoAi.label}`}
                 </Text>
               </View>
               {izinSaya.ringkasanAi ? (

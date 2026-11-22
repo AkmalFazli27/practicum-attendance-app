@@ -22,8 +22,9 @@ type Entri = {
   nama: string;
   nim: string;
   waktu: string;
-  kind: 'hadir' | 'izin';
+  kind: 'hadir' | 'izin' | 'alpha';
   status?: 'MENUNGGU' | 'DITERIMA' | 'DITOLAK';
+  kategoriAi?: string;
   jarak?: number;
 };
 
@@ -31,6 +32,7 @@ type RekapSesi = {
   hadir: number;
   diterima: number;
   menunggu: number;
+  alpha: number;
   entri: Entri[];
 };
 
@@ -44,8 +46,17 @@ type RingkasanPraktikum = {
 export default function RekapScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ sesiId?: string; t?: string }>();
-  const { currentUser, users, sesi, kehadiran, izin, loading, error, retrySync } =
-    useSession();
+  const {
+    currentUser,
+    users,
+    sesi,
+    kehadiran,
+    izin,
+    getStatusEfektif,
+    loading,
+    error,
+    retrySync,
+  } = useSession();
   const { themeColors, language } = usePreferences();
   const isEn = language === 'en';
 
@@ -110,7 +121,35 @@ export default function RekapScreen() {
             waktu: i.waktuPengajuan,
             kind: 'izin' as const,
             status: i.status,
+            kategoriAi: i.kategoriAi,
           }));
+
+        // Fallback otomatis Alpha: praktikan di kelas sesi yang sudah SELESAI tanpa presensi & izin
+        const normKelas = (k?: string) => (k ?? '').trim().toUpperCase();
+        const sesiSelesai = getStatusEfektif(s) === 'SELESAI';
+        const sudahAdaIds = new Set<string>([
+          ...kehadiran
+            .filter((k) => k.sesiId === s.id)
+            .map((k) => k.praktikanId),
+          ...daftarIzin.map((i) => i.praktikanId),
+        ]);
+        const alphaEntri: Entri[] = sesiSelesai
+          ? users
+              .filter(
+                (u) =>
+                  u.peran === 'praktikan' &&
+                  normKelas(u.kelas) === normKelas(s.kelas) &&
+                  !sudahAdaIds.has(u.id),
+              )
+              .sort((a, b) => a.nama.localeCompare(b.nama))
+              .map((u) => ({
+                id: `a-${s.id}-${u.id}`,
+                nama: u.nama,
+                nim: u.nim || '-',
+                waktu: '',
+                kind: 'alpha' as const,
+              }))
+          : [];
 
         return [
           s.id,
@@ -118,12 +157,13 @@ export default function RekapScreen() {
             hadir: hadir.length,
             diterima: daftarIzin.filter((i) => i.status === 'DITERIMA').length,
             menunggu: daftarIzin.filter((i) => i.status === 'MENUNGGU').length,
-            entri: [...hadir, ...izinEntri],
+            alpha: alphaEntri.length,
+            entri: [...hadir, ...izinEntri, ...alphaEntri],
           },
         ] as const;
       }),
     );
-  }, [sesiSaya, users, kehadiran, izin]);
+  }, [sesiSaya, users, kehadiran, izin, getStatusEfektif]);
 
   const daftarPraktikum = useMemo(() => {
     const peta = new Map<string, RingkasanPraktikum>();
@@ -285,7 +325,7 @@ export default function RekapScreen() {
                 <Text
                   style={[styles.statValue, { color: themeColors.textPrimary }]}
                 >
-                  {data.diterima}
+                  {data.diterima + data.menunggu}
                 </Text>
                 <Text
                   style={[
@@ -293,7 +333,7 @@ export default function RekapScreen() {
                     { color: themeColors.textSecondary },
                   ]}
                 >
-                  Izin diterima
+                  {isEn ? 'Leave' : 'Izin / Sakit'}
                 </Text>
               </View>
               <View
@@ -306,9 +346,17 @@ export default function RekapScreen() {
                 ]}
               >
                 <Text
-                  style={[styles.statValue, { color: themeColors.textPrimary }]}
+                  style={[
+                    styles.statValue,
+                    {
+                      color:
+                        data.alpha > 0
+                          ? themeColors.errorFg
+                          : themeColors.textPrimary,
+                    },
+                  ]}
                 >
-                  {data.menunggu}
+                  {data.alpha}
                 </Text>
                 <Text
                   style={[
@@ -316,7 +364,7 @@ export default function RekapScreen() {
                     { color: themeColors.textSecondary },
                   ]}
                 >
-                  Izin menunggu
+                  Alpha
                 </Text>
               </View>
             </View>
@@ -364,7 +412,8 @@ export default function RekapScreen() {
                             { color: themeColors.sesiDibukaFg },
                           ]}
                         >
-                          Hadir {titikJam(formatJam(e.waktu))}
+                          {isEn ? 'Present' : 'Hadir'}{' '}
+                          {titikJam(formatJam(e.waktu))}
                         </Text>
                         {e.jarak !== undefined && (
                           <Text
@@ -377,6 +426,8 @@ export default function RekapScreen() {
                           </Text>
                         )}
                       </View>
+                    ) : e.kind === 'alpha' ? (
+                      <StatusBadge status="ALPHA" />
                     ) : (
                       e.status && <StatusBadge status={e.status} />
                     )}

@@ -5,7 +5,7 @@ import { usePreferences } from '@/context/PreferencesContext';
 import { type StatusIzin, type StatusSesi } from '@/data/dummy';
 import { fontFamily, radius, spacing, type ThemeColors } from '@/theme/tokens';
 
-export type BadgeStatusType = StatusSesi | StatusIzin;
+export type BadgeStatusType = StatusSesi | StatusIzin | 'ALPHA';
 
 export interface StatusBadgeProps {
   status: BadgeStatusType;
@@ -45,6 +45,12 @@ function getBadgeConfig(
     case 'DITOLAK':
       return {
         label: isEn ? 'Leave Rejected' : 'Izin Ditolak',
+        bg: tc.errorBg,
+        fg: tc.errorFg,
+      };
+    case 'ALPHA':
+      return {
+        label: isEn ? 'Absent (Alpha)' : 'Alpha',
         bg: tc.errorBg,
         fg: tc.errorFg,
       };

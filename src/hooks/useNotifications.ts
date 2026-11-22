@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
@@ -18,6 +18,23 @@ export interface NotifikasiRiwayatItem {
 }
 
 const keyRiwayat = (uid: string) => `@tapin_notif_history_${uid}`;
+
+const listenersRiwayat = new Set<() => void>();
+
+export function subscribeRiwayatNotifikasi(cb: () => void): () => void {
+  listenersRiwayat.add(cb);
+  return () => {
+    listenersRiwayat.delete(cb);
+  };
+}
+
+function kabariRiwayatBerubah() {
+  listenersRiwayat.forEach((cb) => {
+    try {
+      cb();
+    } catch {}
+  });
+}
 
 export async function bacaRiwayatNotifikasi(
   uid: string,
@@ -39,8 +56,11 @@ export async function simpanRiwayatNotifikasi(
   try {
     const lama = await bacaRiwayatNotifikasi(uid);
     const tanpaDuplikat = lama.filter((x) => x.id !== item.id);
-    const baru = [item, ...tanpaDuplikat].slice(0, 50);
+    const baru = [item, ...tanpaDuplikat]
+      .sort((a, b) => (b.waktu || '').localeCompare(a.waktu || ''))
+      .slice(0, 50);
     await AsyncStorage.setItem(keyRiwayat(uid), JSON.stringify(baru));
+    kabariRiwayatBerubah();
   } catch {
     // Abaikan kegagalan storage lokal
   }
@@ -49,8 +69,79 @@ export async function simpanRiwayatNotifikasi(
 export async function hapusRiwayatNotifikasi(uid: string): Promise<void> {
   try {
     await AsyncStorage.removeItem(keyRiwayat(uid));
+    kabariRiwayatBerubah();
   } catch {
     // Abaikan kegagalan storage lokal
+  }
+}
+
+function ubahKeItemRiwayat(
+  notification: Notifications.Notification,
+): NotifikasiRiwayatItem {
+  const content = notification.request.content;
+  const rawData = content.data as Record<string, unknown> | undefined;
+  const sesiId = ekstrakSesiId(rawData) ?? undefined;
+  const rawDate = notification.date;
+  // iOS mengirim detik, Android mengirim milidetik
+  const ms =
+    typeof rawDate === 'number' && Number.isFinite(rawDate)
+      ? rawDate < 1e12
+        ? rawDate * 1000
+        : rawDate
+      : Date.now();
+  return {
+    id:
+      notification.request.identifier ||
+      `notif-${ms}-${content.title ?? ''}-${content.body ?? ''}`,
+    judul: content.title || 'Notifikasi TapIn',
+    pesan: content.body || '',
+    waktu: new Date(ms).toISOString(),
+    sesiId,
+  };
+}
+
+/**
+ * Menyinkronkan seluruh notifikasi yang sudah tampil di tray HP (termasuk yang
+ * masuk saat aplikasi di background/tertutup dan tidak ditekan) ke riwayat lokal.
+ */
+export async function sinkronkanNotifikasiTerkirim(uid: string): Promise<void> {
+  if (Platform.OS === 'web' || !uid) return;
+  try {
+    const [disajikan, responTerakhir] = await Promise.all([
+      Notifications.getPresentedNotificationsAsync().catch(() => []),
+      Notifications.getLastNotificationResponseAsync().catch(() => null),
+    ]);
+
+    const kandidat: NotifikasiRiwayatItem[] = [];
+    for (const notif of disajikan) {
+      kandidat.push(ubahKeItemRiwayat(notif));
+    }
+    if (responTerakhir?.notification) {
+      kandidat.push(ubahKeItemRiwayat(responTerakhir.notification));
+    }
+    if (kandidat.length === 0) return;
+
+    const lama = await bacaRiwayatNotifikasi(uid);
+    const peta = new Map<string, NotifikasiRiwayatItem>();
+    for (const item of lama) {
+      peta.set(item.id, item);
+    }
+    let berubah = false;
+    for (const item of kandidat) {
+      if (!peta.has(item.id)) {
+        peta.set(item.id, item);
+        berubah = true;
+      }
+    }
+    if (!berubah) return;
+
+    const gabung = Array.from(peta.values())
+      .sort((a, b) => (b.waktu || '').localeCompare(a.waktu || ''))
+      .slice(0, 50);
+    await AsyncStorage.setItem(keyRiwayat(uid), JSON.stringify(gabung));
+    kabariRiwayatBerubah();
+  } catch {
+    // Abaikan kegagalan sinkronisasi native
   }
 }
 
@@ -83,8 +174,9 @@ function ekstrakSesiId(
  * Hook klien push notification (FR-24 & FR-25).
  * - Meminta izin notifikasi saat pengguna login.
  * - Mendaftarkan Expo Push Token melalui `savePushToken` dari `useSession()`.
- * - Menangani notifikasi yang masuk serta navigasi ke detail sesi saat notifikasi diketuk.
- * - Tidak menerima parameter dan tidak menulis langsung ke Firestore.
+ * - Mencatat setiap notifikasi yang muncul (foreground, background, ditekan maupun tidak)
+ *   ke riwayat notifikasi lokal.
+ * - Menangani navigasi ke detail sesi saat notifikasi diketuk.
  */
 export function useNotifications(): void {
   const router = useRouter();
@@ -181,9 +273,20 @@ export function useNotifications(): void {
     };
   }, [currentUser?.id, savePushToken, showToast]);
 
-  // 2. Tangani notifikasi yang diketuk pengguna untuk membuka detail sesi terkait
+  // 2. Tangani notifikasi yang masuk (foreground/background) & yang diketuk pengguna
   useEffect(() => {
     if (Platform.OS === 'web' || !currentUser) return;
+
+    const uid = currentUser.id;
+
+    // Sinkronkan notifikasi popup yang muncul saat aplikasi di background/tertutup
+    void sinkronkanNotifikasiTerkirim(uid);
+
+    const subAppState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void sinkronkanNotifikasiTerkirim(uid);
+      }
+    });
 
     const arahkanKeSesi = (
       response: Notifications.NotificationResponse | null,
@@ -215,6 +318,10 @@ export function useNotifications(): void {
     Notifications.getLastNotificationResponseAsync()
       .then((lastResponse) => {
         if (lastResponse) {
+          void simpanRiwayatNotifikasi(
+            uid,
+            ubahKeItemRiwayat(lastResponse.notification),
+          );
           arahkanKeSesi(lastResponse);
         }
       })
@@ -222,40 +329,22 @@ export function useNotifications(): void {
 
     const subReceived = Notifications.addNotificationReceivedListener(
       (notification) => {
-        const content = notification.request.content;
-        const rawData = content.data as Record<string, unknown> | undefined;
-        const sesiId = ekstrakSesiId(rawData) ?? undefined;
-        void simpanRiwayatNotifikasi(currentUser.id, {
-          id:
-            notification.request.identifier ||
-            `notif-${Date.now()}`,
-          judul: content.title || 'Notifikasi TapIn',
-          pesan: content.body || '',
-          waktu: new Date().toISOString(),
-          sesiId,
-        });
+        void simpanRiwayatNotifikasi(uid, ubahKeItemRiwayat(notification));
       },
     );
 
     const subTap = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        const content = response.notification.request.content;
-        const rawData = content.data as Record<string, unknown> | undefined;
-        const sesiId = ekstrakSesiId(rawData) ?? undefined;
-        void simpanRiwayatNotifikasi(currentUser.id, {
-          id:
-            response.notification.request.identifier ||
-            `notif-${Date.now()}`,
-          judul: content.title || 'Notifikasi TapIn',
-          pesan: content.body || '',
-          waktu: new Date().toISOString(),
-          sesiId,
-        });
+        void simpanRiwayatNotifikasi(
+          uid,
+          ubahKeItemRiwayat(response.notification),
+        );
         arahkanKeSesi(response);
       },
     );
 
     return () => {
+      subAppState.remove();
       subReceived.remove();
       subTap.remove();
     };
