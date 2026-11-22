@@ -122,7 +122,7 @@ export function SesiFormSheet({
         const hasilUbah = await updateSession(initialSesi.id, payload);
         setMenyimpan(false);
         if (!hasilUbah.ok) {
-          setGalat('Gagal memperbarui data sesi praktikum. Periksa koneksi Anda.');
+          setGalat(hasilUbah.alasan);
           return;
         }
         showToast(
@@ -132,10 +132,10 @@ export function SesiFormSheet({
         );
         onClose();
       } else {
-        const sesiBaru = await createSession(payload);
+        const hasilBuat = await createSession(payload);
         setMenyimpan(false);
-        if (!sesiBaru) {
-          setGalat('Gagal menambahkan sesi praktikum baru. Periksa koneksi Anda.');
+        if (!hasilBuat.ok) {
+          setGalat(hasilBuat.alasan);
           return;
         }
         showToast('Sesi praktikum baru berhasil ditambahkan.');
