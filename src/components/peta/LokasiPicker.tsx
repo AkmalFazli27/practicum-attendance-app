@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -10,8 +10,16 @@ import {
 import MapView, { Circle, Marker, type MapPressEvent } from 'react-native-maps';
 import { LocateFixed, MapPin } from 'lucide-react-native';
 
-import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
+import { usePreferences } from '@/context/PreferencesContext';
+import {
+  fontFamily,
+  radius,
+  spacing,
+  type,
+  type ThemeColors,
+} from '@/theme/tokens';
 import { REGION_KAMPUS_FSM } from './region';
+import { teksPeta } from './teks';
 import type { LokasiPickerProps } from './types';
 /** Region awal hanya dipakai sekali; peta tidak boleh melompat saat data berubah. */
 const DELTA_AWAL = 0.004;
@@ -33,6 +41,9 @@ export function LokasiPicker({
   const mapRef = useRef<MapView>(null);
   const [siap, setSiap] = useState(false);
   const sudahDiposisikan = useRef(false);
+  const { isDark, themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   const regionAwal = {
     latitude: titik?.lat ?? REGION_KAMPUS_FSM.latitude,
@@ -83,16 +94,17 @@ export function LokasiPicker({
           pitchEnabled={false}
           rotateEnabled={false}
           showsCompass
-          accessibilityLabel="Peta pengaturan lokasi laboratorium"
+          userInterfaceStyle={isDark ? 'dark' : 'light'}
+          accessibilityLabel={teks.a11y.petaPicker}
         >
           {titik ? (
             <>
               <Circle
                 center={{ latitude: titik.lat, longitude: titik.lng }}
                 radius={Number.isFinite(radius) && radius > 0 ? radius : 0}
-                strokeColor={colors.primaryPressed}
+                strokeColor={themeColors.primaryPressed}
                 strokeWidth={2}
-                fillColor={colors.primarySoft}
+                fillColor={themeColors.primarySoft}
               />
               <Marker
                 coordinate={{ latitude: titik.lat, longitude: titik.lng }}
@@ -103,10 +115,10 @@ export function LokasiPicker({
                   onTitikChange({ lat: latitude, lng: longitude });
                 }}
                 anchor={{ x: 0.5, y: 0.5 }}
-                accessibilityLabel="Titik laboratorium"
+                accessibilityLabel={teks.a11y.titikLab}
               >
                 <View style={styles.titik}>
-                  <MapPin size={14} color={colors.onPrimary} />
+                  <MapPin size={14} color={themeColors.onPrimary} />
                 </View>
               </Marker>
             </>
@@ -119,7 +131,7 @@ export function LokasiPicker({
       <View style={styles.aksiRow}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Gunakan lokasi saat ini"
+          accessibilityLabel={teks.a11y.gunakanLokasi}
           accessibilityState={{
             disabled: disabled || !bisaGunakanLokasi || sedangMembacaLokasi,
           }}
@@ -132,11 +144,11 @@ export function LokasiPicker({
           ]}
         >
           {sedangMembacaLokasi ? (
-            <ActivityIndicator size="small" color={colors.textPrimary} />
+            <ActivityIndicator size="small" color={themeColors.textPrimary} />
           ) : (
-            <LocateFixed size={16} color={colors.textPrimary} />
+            <LocateFixed size={16} color={themeColors.textPrimary} />
           )}
-          <Text style={styles.tombolLokasiTeks}>Gunakan lokasi saat ini</Text>
+          <Text style={styles.tombolLokasiTeks}>{teks.gunakanLokasi}</Text>
         </Pressable>
       </View>
 
@@ -146,143 +158,142 @@ export function LokasiPicker({
 
       <View style={styles.radiusRow}>
         <View style={styles.radiusCopy}>
-          <Text style={styles.label}>Radius presensi</Text>
-          <Text style={styles.bantuan}>
-            Area yang dihitung sah saat praktikan presensi.
-          </Text>
+          <Text style={styles.label}>{teks.radiusPresensiLabel}</Text>
+          <Text style={styles.bantuan}>{teks.radiusBantuan(radius)}</Text>
         </View>
         <View style={styles.radiusInputWrap}>
           <TextInput
-            accessibilityLabel="Radius presensi dalam meter"
+            accessibilityLabel={teks.a11y.radiusInput}
             value={radiusTeks}
             onChangeText={onRadiusTeksChange}
             keyboardType="numeric"
             inputMode="decimal"
             editable={!disabled}
             placeholder="0"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={themeColors.textMuted}
             style={[styles.radiusInput, disabled && styles.radiusInputNonaktif]}
             returnKeyType="done"
           />
-          <Text style={styles.radiusSatuan}>m</Text>
+          <Text style={styles.radiusSatuan}>{teks.satuanMeter}</Text>
         </View>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    gap: spacing.s3,
-  },
-  mapWrap: {
-    height: 260,
-    borderRadius: radius.card,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-  },
-  map: {
-    flex: 1,
-  },
-  tirai: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.surfaceMuted,
-    opacity: 0.45,
-  },
-  titik: {
-    width: UKURAN_TITIK,
-    height: UKURAN_TITIK,
-    borderRadius: radius.pill,
-    borderWidth: 2,
-    borderColor: colors.onPrimary,
-    backgroundColor: colors.graphite,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  aksiRow: {
-    flexDirection: 'row',
-  },
-  tombolLokasi: {
-    flex: 1,
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.s2,
-    paddingHorizontal: spacing.s3,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  tombolLokasiDitekan: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  tombolLokasiNonaktif: {
-    backgroundColor: colors.disabledBg,
-  },
-  tombolLokasiTeks: {
-    ...type.caption,
-    fontFamily: fontFamily.semibold,
-    color: colors.textPrimary,
-  },
-  pesanLokasi: {
-    ...type.caption,
-    color: colors.textMuted,
-    lineHeight: 18,
-  },
-  radiusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s3,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  radiusCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  label: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.semibold,
-    color: colors.textPrimary,
-  },
-  bantuan: {
-    ...type.caption,
-    color: colors.textMuted,
-    lineHeight: 17,
-  },
-  radiusInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s1,
-    paddingHorizontal: spacing.s3,
-    height: 44,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.borderDashed,
-    backgroundColor: colors.background,
-  },
-  radiusInput: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.semibold,
-    color: colors.textPrimary,
-    minWidth: 48,
-    textAlign: 'right',
-    paddingVertical: 0,
-  },
-  radiusInputNonaktif: {
-    color: colors.disabledText,
-  },
-  radiusSatuan: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-});
+const buatGaya = (w: ThemeColors) =>
+  StyleSheet.create({
+    root: {
+      gap: spacing.s3,
+    },
+    mapWrap: {
+      height: 260,
+      borderRadius: radius.card,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surfaceMuted,
+    },
+    map: {
+      flex: 1,
+    },
+    tirai: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: w.surfaceMuted,
+      opacity: 0.45,
+    },
+    titik: {
+      width: UKURAN_TITIK,
+      height: UKURAN_TITIK,
+      borderRadius: radius.pill,
+      borderWidth: 2,
+      borderColor: w.onPrimary,
+      backgroundColor: w.graphite,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    aksiRow: {
+      flexDirection: 'row',
+    },
+    tombolLokasi: {
+      flex: 1,
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.s2,
+      paddingHorizontal: spacing.s3,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    tombolLokasiDitekan: {
+      backgroundColor: w.surfaceMuted,
+    },
+    tombolLokasiNonaktif: {
+      backgroundColor: w.disabledBg,
+    },
+    tombolLokasiTeks: {
+      ...type.caption,
+      fontFamily: fontFamily.semibold,
+      color: w.textPrimary,
+    },
+    pesanLokasi: {
+      ...type.caption,
+      color: w.textMuted,
+      lineHeight: 18,
+    },
+    radiusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s3,
+      padding: spacing.s3,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    radiusCopy: {
+      flex: 1,
+      gap: 2,
+    },
+    label: {
+      ...type.bodyStrong,
+      fontFamily: fontFamily.semibold,
+      color: w.textPrimary,
+    },
+    bantuan: {
+      ...type.caption,
+      color: w.textMuted,
+      lineHeight: 17,
+    },
+    radiusInputWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s1,
+      paddingHorizontal: spacing.s3,
+      height: 44,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: w.borderDashed,
+      backgroundColor: w.background,
+    },
+    radiusInput: {
+      ...type.bodyStrong,
+      fontFamily: fontFamily.semibold,
+      color: w.textPrimary,
+      minWidth: 48,
+      textAlign: 'right',
+      paddingVertical: 0,
+    },
+    radiusInputNonaktif: {
+      color: w.disabledText,
+    },
+    radiusSatuan: {
+      ...type.caption,
+      color: w.textMuted,
+    },
+  });
 
 

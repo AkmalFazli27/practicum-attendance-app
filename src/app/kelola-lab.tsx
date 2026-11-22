@@ -10,7 +10,6 @@ import { Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertTriangle } from 'lucide-react-native';
 
-import { LocationBanner } from '@/components/peta/LocationBanner';
 import { LokasiPicker } from '@/components/peta/LokasiPicker';
 import { PetaHeader } from '@/components/peta/PetaHeader';
 import {
@@ -19,17 +18,32 @@ import {
   handlerBanner,
 } from '@/components/peta/bannerLokasi';
 import { labPunyaKoordinat, statusTungguLabs } from '@/components/peta/region';
+import { teksPeta } from '@/components/peta/teks';
 import {
   adaPerubahan,
   alasanTidakValid,
   parseRadius,
   type DrafLab,
 } from '@/components/peta/validasiLab';
-import { EmptyState, FilterChip, Tombol, useToast } from '@/components/ui';
+import {
+  EmptyState,
+  FilterChip,
+  PermissionBanner,
+  Tombol,
+  useToast,
+} from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
+import { usePreferences } from '@/context/PreferencesContext';
 import type { Lab } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
-import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
+import {
+  fontFamily,
+  layout,
+  radius,
+  spacing,
+  type,
+  type ThemeColors,
+} from '@/theme/tokens';
 
 const JEDA_TUNGGU_LABS_MS = 4000;
 
@@ -40,14 +54,17 @@ const JEDA_TUNGGU_LABS_MS = 4000;
  */
 export default function KelolaLabScreen() {
   const { currentUser, loading } = useSession();
+  const { themeColors, language } = usePreferences();
+  const teks = teksPeta(language);
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   if (loading) {
     return (
       <View style={styles.root}>
-        <PetaHeader judul="Kelola Lab" kicker="LABORATORIUM" />
+        <PetaHeader judul={teks.judulKelolaLab} kicker={teks.kickerLab} />
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.graphite} />
-          <Text style={styles.centerText}>Memuat data laboratorium…</Text>
+          <ActivityIndicator size="large" color={themeColors.graphite} />
+          <Text style={styles.centerText}>{teks.memuatLabs}</Text>
         </View>
       </View>
     );
@@ -63,9 +80,13 @@ export default function KelolaLabScreen() {
 
 function KelolaLabContent() {
   const { labs, error, retrySync, updateLab } = useSession();
-  const { status: statusLokasi, koordinat, pesanError, mintaIzin, coba } =
-    useLocation();
+  const { status: statusLokasi, koordinat, mintaIzin, coba } = useLocation();
+  // `pesanError` dari hook selalu berbahasa Indonesia; copy banner dan pesan
+  // lokasi diambil dari kamus P2 agar ikut bahasa aplikasi.
   const { showToast } = useToast();
+  const { language, themeColors } = usePreferences();
+  const teks = teksPeta(language);
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
 
   const [labId, setLabId] = useState<string | null>(null);
@@ -122,6 +143,7 @@ function KelolaLabContent() {
     radius: radiusAngka ?? Number.NaN,
   };
   const alasan = alasanTidakValid(draf);
+  const pesanValidasi = alasan.map((kode) => teks.validasi[kode]);
   const berubah = labTerpilih ? adaPerubahan(labTerpilih, draf) : false;
   // Tombol tetap aktif saat data tidak valid supaya pesan inline bisa muncul;
   // `simpan` sendiri menolak menyimpan selama `alasan` belum kosong.
@@ -145,47 +167,44 @@ function KelolaLabContent() {
       });
       if (berhasil) {
         setSudahMencobaSimpan(false);
-        showToast('Data laboratorium tersimpan.');
+        showToast(teks.toastTersimpan);
         return;
       }
-      showToast(
-        'Gagal menyimpan data laboratorium. Periksa koneksi lalu coba lagi.',
-      );
+      showToast(teks.toastGagalSimpan);
     } finally {
       setMenyimpan(false);
     }
   }, [alasan.length, labId, radiusAngka, showToast, titik, updateLab]);
 
   // Pesan lokasi hanya relevan saat tombol "gunakan lokasi" belum bisa dipakai.
+  // Saat status gagal, banner di bawah sudah menjelaskan sebabnya, jadi pesan
+  // kecil cukup muncul selama lokasi masih dibaca.
   const pesanLokasi =
-    statusLokasi === 'siap'
-      ? null
-      : (pesanError ??
-        (statusLokasi === 'memuat' ? 'Membaca lokasi perangkat…' : null));
+    statusLokasi === 'memuat' ? teks.membacaLokasi : null;
 
   // Halaman ini memakai lokasi hanya untuk tombol "gunakan lokasi saat ini",
   // jadi status `memuat` cukup tampil sebagai pesan kecil, bukan banner.
   const banner = bannerPrioritas(
     error,
-    statusLokasi === 'memuat'
-      ? null
-      : bannerLokasiDari(statusLokasi, pesanError),
+    statusLokasi === 'memuat' ? null : bannerLokasiDari(statusLokasi, null),
   );
 
   return (
     <View style={styles.root}>
       <PetaHeader
-        judul="Kelola Lab"
-        kicker="LABORATORIUM"
+        judul={teks.judulKelolaLab}
+        kicker={teks.kickerLab}
         onRefresh={retrySync}
       />
 
       {banner ? (
         <View style={styles.bannerWrap}>
-          <LocationBanner
+          <PermissionBanner
             jenis={banner.jenis}
-            pesan={banner.pesan}
-            onRetry={handlerBanner(banner, { mintaIzin, coba, retrySync })}
+            judul={teks.banner[banner.jenis].judul}
+            pesan={banner.pesan ?? teks.banner[banner.jenis].pesan}
+            aksiLabel={teks.banner[banner.jenis].aksi}
+            onAksi={handlerBanner(banner, { mintaIzin, coba, retrySync })}
           />
         </View>
       ) : null}
@@ -193,19 +212,15 @@ function KelolaLabContent() {
       {labs.length === 0 ? (
         menungguLabs ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={colors.graphite} />
-            <Text style={styles.centerText}>Memuat data laboratorium…</Text>
+            <ActivityIndicator size="large" color={themeColors.graphite} />
+            <Text style={styles.centerText}>{teks.memuatLabs}</Text>
           </View>
         ) : (
           <View style={styles.center}>
             <EmptyState
-              judul="Belum ada data laboratorium"
-              pesan={
-                error
-                  ? 'Data lab belum bisa dimuat. Periksa koneksi lalu coba lagi.'
-                  : 'Data lab belum tersedia. Hubungi pengelola laboratorium atau coba lagi nanti.'
-              }
-              aksi={{ label: 'Coba lagi', onPress: retrySync }}
+              judul={teks.petaKosongJudul}
+              pesan={error ? teks.labKosongPesanError : teks.labKosongPesan}
+              aksi={{ label: teks.coba, onPress: retrySync }}
             />
           </View>
         )
@@ -219,7 +234,7 @@ function KelolaLabContent() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.section}>
-            <Text style={styles.label}>Pilih laboratorium</Text>
+            <Text style={styles.label}>{teks.pilihLab}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -272,12 +287,12 @@ function KelolaLabContent() {
               {sudahMencobaSimpan && alasan.length > 0 ? (
                 <View style={styles.validasiBox} accessibilityRole="alert">
                   <View style={styles.validasiJudulRow}>
-                    <AlertTriangle size={16} color={colors.errorFg} />
+                    <AlertTriangle size={16} color={themeColors.errorFg} />
                     <Text style={styles.validasiJudul}>
-                      Periksa kembali data lab
+                      {teks.periksaData}
                     </Text>
                   </View>
-                  {alasan.map((pesan) => (
+                  {pesanValidasi.map((pesan) => (
                     <Text key={pesan} style={styles.validasiPesan}>
                       • {pesan}
                     </Text>
@@ -287,8 +302,8 @@ function KelolaLabContent() {
 
               <Text style={styles.bantuanSimpan}>
                 {berubah
-                  ? 'Perubahan belum disimpan.'
-                  : 'Titik dan radius lab sesuai data tersimpan.'}
+                  ? teks.perubahanBelumDisimpan
+                  : teks.dataSesuai}
               </Text>
 
               <Tombol
@@ -297,7 +312,7 @@ function KelolaLabContent() {
                 disabled={!bisaMencoba}
                 onPress={simpan}
               >
-                Simpan perubahan
+                {teks.simpanPerubahan}
               </Tombol>
             </>
           ) : null}
@@ -307,89 +322,90 @@ function KelolaLabContent() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.s3,
-    padding: spacing.s5,
-  },
-  centerText: {
-    ...type.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  bannerWrap: {
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.s3,
-  },
-  content: {
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.s4,
-    gap: spacing.s4,
-  },
-  section: {
-    gap: spacing.s2,
-  },
-  label: {
-    ...type.micro,
-    color: colors.textMuted,
-    letterSpacing: 1.1,
-  },
-  chipRow: {
-    gap: spacing.s2,
-    paddingRight: layout.screenPadding,
-  },
-  chipNonaktif: {
-    opacity: 0.5,
-  },
-  infoCard: {
-    gap: 2,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  infoNama: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.semibold,
-    color: colors.textPrimary,
-  },
-  infoAlamat: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-  validasiBox: {
-    gap: spacing.s1,
-    padding: spacing.s3,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    backgroundColor: colors.errorBg,
-  },
-  validasiJudulRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s2,
-  },
-  validasiJudul: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.semibold,
-    color: colors.errorFg,
-  },
-  validasiPesan: {
-    ...type.caption,
-    color: colors.errorFg,
-    lineHeight: 18,
-  },
-  bantuanSimpan: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-});
+const buatGaya = (w: ThemeColors) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: w.background,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.s3,
+      padding: spacing.s5,
+    },
+    centerText: {
+      ...type.caption,
+      color: w.textMuted,
+      textAlign: 'center',
+    },
+    bannerWrap: {
+      paddingHorizontal: layout.screenPadding,
+      paddingTop: spacing.s3,
+    },
+    content: {
+      paddingHorizontal: layout.screenPadding,
+      paddingTop: spacing.s4,
+      gap: spacing.s4,
+    },
+    section: {
+      gap: spacing.s2,
+    },
+    label: {
+      ...type.micro,
+      color: w.textMuted,
+      letterSpacing: 1.1,
+    },
+    chipRow: {
+      gap: spacing.s2,
+      paddingRight: layout.screenPadding,
+    },
+    chipNonaktif: {
+      opacity: 0.5,
+    },
+    infoCard: {
+      gap: 2,
+      padding: spacing.s3,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    infoNama: {
+      ...type.bodyStrong,
+      fontFamily: fontFamily.semibold,
+      color: w.textPrimary,
+    },
+    infoAlamat: {
+      ...type.caption,
+      color: w.textMuted,
+    },
+    validasiBox: {
+      gap: spacing.s1,
+      padding: spacing.s3,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: w.dangerBorder,
+      backgroundColor: w.errorBg,
+    },
+    validasiJudulRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s2,
+    },
+    validasiJudul: {
+      ...type.bodyStrong,
+      fontFamily: fontFamily.semibold,
+      color: w.errorFg,
+    },
+    validasiPesan: {
+      ...type.caption,
+      color: w.errorFg,
+      lineHeight: 18,
+    },
+    bantuanSimpan: {
+      ...type.caption,
+      color: w.textMuted,
+    },
+  });
