@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 
 import { useSession } from '@/context/SessionContext';
 import type { Sesi, StatusIzin } from '@/data/dummy';
+import { bandingkanSesiJadwal } from '@/utils/urutanJadwal';
 
 export type RingkasanKehadiran = {
   total: number;
@@ -51,9 +52,7 @@ export function useJadwalPraktikan() {
         ...s,
         status: getStatusEfektif(s),
       }))
-      .sort((a, b) =>
-        `${a.tanggal} ${a.jamMulai}`.localeCompare(`${b.tanggal} ${b.jamMulai}`),
-      );
+      .sort(bandingkanSesiJadwal);
 
     const hadirMap = new Map<string, string>(
       kehadiran

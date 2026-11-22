@@ -8,26 +8,21 @@ import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { colors, layout, spacing, type } from '@/theme/tokens';
 import { formatJam, titikJam } from '@/utils/format';
+import { indeksAwalSelesai, izinDitampilkan } from '@/utils/urutanJadwal';
 
-type Filter = 'SEMUA' | 'DIBUKA' | 'HADIR' | 'IZIN';
+type Filter = 'SEMUA' | 'HADIR' | 'IZIN';
 
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'SEMUA', label: 'Semua' },
-  { key: 'DIBUKA', label: 'Dibuka' },
-  { key: 'HADIR', label: 'Dihadiri' },
-  { key: 'IZIN', label: 'Izin' },
-];
+const FILTERS: Filter[] = ['SEMUA', 'HADIR', 'IZIN'];
 
 const EMPTY_COPY: Record<Filter, { judul: string; pesan: string }> = {
   SEMUA: { judul: 'Belum ada jadwal', pesan: 'Jadwal praktikum akan tampil di sini.' },
-  DIBUKA: { judul: 'Belum ada sesi', pesan: 'Tidak ada sesi yang sedang dibuka saat ini.' },
   HADIR: { judul: 'Belum ada sesi', pesan: 'Kamu belum menghadiri sesi apa pun.' },
   IZIN: { judul: 'Belum ada izin', pesan: 'Kamu belum mengajukan izin untuk sesi apa pun.' },
 };
 
 export default function JadwalScreen() {
   const router = useRouter();
-  const { currentUser, getStatusEfektif } = useSession();
+  const { currentUser } = useSession();
   const { themeColors, language } = usePreferences();
   const isEn = language === 'en';
   const { daftarKelas, hadirMap, izinMap, loading, error, retrySync } = useJadwalPraktikan();
@@ -35,13 +30,12 @@ export default function JadwalScreen() {
   const [filter, setFilter] = useState<Filter>('SEMUA');
 
   const filterLabels: Record<Filter, string> = isEn
-    ? { SEMUA: 'All', DIBUKA: 'Open', HADIR: 'Attended', IZIN: 'Leave' }
-    : { SEMUA: 'Semua', DIBUKA: 'Dibuka', HADIR: 'Dihadiri', IZIN: 'Izin' };
+    ? { SEMUA: 'All', HADIR: 'Attended', IZIN: 'Leave' }
+    : { SEMUA: 'Semua', HADIR: 'Dihadiri', IZIN: 'Izin' };
 
   const emptyCopy: Record<Filter, { judul: string; pesan: string }> = isEn
     ? {
         SEMUA: { judul: 'No schedule yet', pesan: 'Practicum schedules will appear here.' },
-        DIBUKA: { judul: 'No open sessions', pesan: 'No sessions are currently open.' },
         HADIR: { judul: 'No attended sessions', pesan: 'You have not attended any sessions yet.' },
         IZIN: { judul: 'No leave requests', pesan: 'You have not submitted any leave requests yet.' },
       }
@@ -50,13 +44,16 @@ export default function JadwalScreen() {
   const data = useMemo(
     () =>
       daftarKelas.filter((s) => {
-        if (filter === 'DIBUKA') return getStatusEfektif(s) === 'DIBUKA';
         if (filter === 'HADIR') return hadirMap.has(s.id);
-        if (filter === 'IZIN') return izinMap.has(s.id);
+        if (filter === 'IZIN') return izinDitampilkan(izinMap.get(s.id));
         return true;
       }),
-    [daftarKelas, hadirMap, izinMap, filter, getStatusEfektif],
+    [daftarKelas, hadirMap, izinMap, filter],
   );
+
+  // Pemisah hanya muncul bila daftar benar-benar memuat dua kelompok sekaligus.
+  const indeksSelesai = indeksAwalSelesai(data);
+  const tampilkanPemisah = indeksSelesai > 0;
 
   if (!currentUser) return null;
 
@@ -87,10 +84,10 @@ export default function JadwalScreen() {
         >
           {FILTERS.map((f) => (
             <FilterChip
-              key={f.key}
-              label={filterLabels[f.key]}
-              aktif={filter === f.key}
-              onPress={() => setFilter(f.key)}
+              key={f}
+              label={filterLabels[f]}
+              aktif={filter === f}
+              onPress={() => setFilter(f)}
             />
           ))}
         </ScrollView>
@@ -124,16 +121,25 @@ export default function JadwalScreen() {
           />
         ) : (
           <View style={styles.list}>
-            {data.map((s) => {
+            {data.map((s, index) => {
               const waktu = hadirMap.get(s.id);
               return (
-                <SessionCard
-                  key={s.id}
-                  session={s}
-                  attendedTime={waktu ? titikJam(formatJam(waktu)) : undefined}
-                  izinStatus={izinMap.get(s.id)}
-                  onPress={() => bukaDetail(s.id)}
-                />
+                <React.Fragment key={s.id}>
+                  {tampilkanPemisah && index === indeksSelesai && (
+                    <View style={styles.separator}>
+                      <Text style={[styles.separatorText, { color: themeColors.textMuted }]}>
+                        {isEn ? 'COMPLETED' : 'SUDAH SELESAI'}
+                      </Text>
+                      <View style={[styles.separatorLine, { backgroundColor: themeColors.border }]} />
+                    </View>
+                  )}
+                  <SessionCard
+                    session={s}
+                    attendedTime={waktu ? titikJam(formatJam(waktu)) : undefined}
+                    izinStatus={izinMap.get(s.id)}
+                    onPress={() => bukaDetail(s.id)}
+                  />
+                </React.Fragment>
               );
             })}
           </View>
@@ -157,4 +163,15 @@ const styles = StyleSheet.create({
   sub: { ...type.caption, color: colors.textSecondary, marginTop: 5 },
   filterRow: { gap: spacing.s2 },
   list: { gap: spacing.s3 },
+  separator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s3,
+    marginTop: spacing.s2,
+  },
+  separatorText: {
+    ...type.micro,
+    letterSpacing: 1.15,
+  },
+  separatorLine: { flex: 1, height: 1 },
 });
