@@ -6,6 +6,7 @@ import { usePreferences } from '@/context/PreferencesContext';
 import { radius, shadows, type ThemeColors } from '@/theme/tokens';
 import { getLabMarkerStyle } from './labMarkerStyle';
 import { labPunyaKoordinat } from './region';
+import { titikTampilMarker } from './sebaranMarker';
 import { teksPeta } from './teks';
 import type { PetaMapProps } from './types';
 
@@ -23,6 +24,10 @@ export function PetaMap({
   const teks = teksPeta(language);
   const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
   const labTampil = labs.filter(labPunyaKoordinat);
+
+  // Lab yang berbagi koordinat (B/C/D di gedung yang sama) disebar hanya untuk
+  // tampilan; koordinat asli tetap dipakai validasi presensi dan jarak.
+  const titikTampil = useMemo(() => titikTampilMarker(labs), [labs]);
 
   useEffect(() => {
     if (!siap || sudahDiposisikan.current || labTampil.length === 0) return;
@@ -53,10 +58,11 @@ export function PetaMap({
       {labTampil.map((lab, idx) => {
         const dipilih = labDipilih?.id === lab.id;
         const { Icon, bg, fg } = getLabMarkerStyle(lab, idx);
+        const titik = titikTampil.get(lab.id) ?? { lat: lab.lat, lng: lab.lng };
         return (
           <Marker
             key={lab.id}
-            coordinate={{ latitude: lab.lat, longitude: lab.lng }}
+            coordinate={{ latitude: titik.lat, longitude: titik.lng }}
             title={lab.nama}
             description={lab.alamat}
             anchor={{ x: 0.5, y: 1 }}
