@@ -8,7 +8,8 @@
  *
  * Offset sengaja kecil (beberapa puluh meter) supaya pada zoom out marker
  * masih terlihat berdekatan di atas gedungnya, lalu mekar saat zoom in.
- * Posisi tiap marker dihitung dari hash id-nya, bukan urutan data, agar
+ * Kelompok tepat tiga marker memakai formasi sketsa dalam ruang layar;
+ * kelompok lain disebar pada lingkaran dengan sudut dari hash id. Keduanya
  * stabil walau Firestore mengirim dokumen dengan urutan berbeda.
  */
 import type { Lab } from '@/data/dummy';
@@ -20,10 +21,33 @@ import { koordinatValid, type Titik } from '@/utils/geo';
  * Angka ini diturunkan dari region minimum peta (`DELTA_MINIMUM` 0.004°,
  * ≈445 m pada layar 412 px) dan ukuran bubble marker 38 px: pada zoom awal
  * 1 px ≈ 1,08 m, sehingga jarak antar-marker perlu ≥ ~43 m agar tidak saling
- * menutup. Untuk tiga marker pada lingkaran, tali busur = √3 × radius,
- * jadi radius 30 m memberi jarak ≈52 m (≈48 px) — cukup terpisah.
+ * menutup. Untuk dua marker pada lingkaran, jaraknya 2 × radius = 60 m.
  */
 export const OFFSET_SEBARAN_M = 30;
+
+/**
+ * Region acuan untuk menerjemahkan offset layar ke derajat.
+ *
+ * Formasi tiga marker ditentukan dalam piksel layar karena skala vertikal dan
+ * horizontal peta tidak sama: pada region 0.004° dan layar 412 × 700, 1 px
+ * vertikal ≈ 0,59 px horizontal. Menentukan formasi dalam meter membuat
+ * jarak antarmarker di layar meleset dari sketsa.
+ */
+const DELTA_ACUAN = 0.004;
+const LEBAR_ACUAN_PX = 412;
+const TINGGI_ACUAN_PX = 700;
+
+/**
+ * Formasi tiga marker dalam piksel layar, relatif terhadap titik gedung
+ * (sumbu y ke bawah). Mengikuti sketsa: B di kiri-atas, C di bawah dekat B,
+ * dan D di kanan. Slot ditentukan urutan `id`, jadi stabil terhadap urutan
+ * dokumen dari Firestore.
+ */
+const FORMASI_TIGA_PX: ReadonlyArray<{ x: number; y: number }> = [
+  { x: -24, y: -30 },
+  { x: -8, y: 12 },
+  { x: 38, y: -8 },
+];
 
 /** Panjang 1 derajat lintang dalam meter (radius bumi rata-rata). */
 const METER_PER_DERAJAT_LAT = 111_320;
@@ -58,26 +82,39 @@ function geserTitik(titik: Titik, sudut: number, meter: number): Titik {
 }
 
 /** Batas atas radius sebaran agar marker tidak terlihat lepas dari gedungnya. */
-const OFFSET_MAKS_M = 60;
+export const OFFSET_MAKS_M = 60;
 
 /**
- * Radius lingkaran sebaran untuk `jumlah` marker. Tiga marker dianggap kasus
- * umum (Lab B/C/D) dan memakai `OFFSET_SEBARAN_M`; kelompok yang lebih besar
- * dilebarkan bertahap agar tali busurnya tetap ≥ ukuran bubble marker.
+ * Radius lingkaran sebaran untuk `jumlah` marker. Kelompok yang lebih dari
+ * tiga dilebarkan bertahap agar tali busurnya tetap ≥ ukuran bubble marker.
  */
 function radiusSebaran(jumlah: number): number {
-  if (jumlah <= 3) return OFFSET_SEBARAN_M;
+  if (jumlah <= 2) return OFFSET_SEBARAN_M;
   // Tali busur untuk n marker = 2r·sin(π/n); jaga agar tidak menyusut.
   const faktor = Math.sin(Math.PI / 3) / Math.sin(Math.PI / jumlah);
   return Math.min(OFFSET_SEBARAN_M * faktor, OFFSET_MAKS_M);
 }
 
 /**
+ * Menggeser titik sejauh offset piksel acuan, lalu mengembalikannya sebagai
+ * koordinat. Offset layar dikonversi lebih dulu ke derajat memakai delta
+ * region acuan, dengan pembagian cos(lintang) untuk sumbu bujur.
+ */
+function geserPiksel(titik: Titik, offset: { x: number; y: number }): Titik {
+  const dLat = -(offset.y * DELTA_ACUAN) / TINGGI_ACUAN_PX;
+  const cosLat = Math.cos((titik.lat * Math.PI) / 180);
+  const dLng =
+    cosLat === 0 ? 0 : (offset.x * DELTA_ACUAN) / (LEBAR_ACUAN_PX * cosLat);
+  return { lat: titik.lat + dLat, lng: titik.lng + dLng };
+}
+
+/**
  * Mengembalikan titik tampil per `lab.id`. Lab yang titiknya unik dipetakan
- * ke koordinat aslinya; lab yang berbagi titik disebar merata pada lingkaran
- * di sekitar titik bersama. Radius lingkaran tumbuh bila anggotanya banyak
- * supaya marker tetap terpisah, tetapi berhenti di batas `OFFSET_MAKS_M`
- * agar tidak terlihat lepas dari gedungnya.
+ * ke koordinat aslinya; lab yang berbagi titik disebar di sekitar titik
+ * bersama. Kelompok tepat tiga marker memakai formasi sketsa dalam ruang
+ * layar; kelompok lain memakai lingkaran yang radiusnya tumbuh bila
+ * anggotanya banyak, dibatasi `OFFSET_MAKS_M` agar tidak terlihat lepas dari
+ * gedungnya.
  */
 export function titikTampilMarker(labs: Lab[]): Map<string, Titik> {
   const hasil = new Map<string, Titik>();
@@ -106,9 +143,17 @@ export function titikTampilMarker(labs: Lab[]): Map<string, Titik> {
       continue;
     }
 
-    // Urutkan berdasarkan id agar sudut tidak bergantung urutan Firestore.
+    // Urutkan berdasarkan id agar posisi tidak bergantung urutan Firestore.
     const terurut = [...anggota].sort((a, b) => (a.id < b.id ? -1 : 1));
     const pusat = { lat: terurut[0].lat, lng: terurut[0].lng };
+
+    if (terurut.length === FORMASI_TIGA_PX.length) {
+      terurut.forEach((lab, index) => {
+        hasil.set(lab.id, geserPiksel(pusat, FORMASI_TIGA_PX[index]));
+      });
+      continue;
+    }
+
     // Sudut dasar dari id pertama membuat pola tidak selalu mulai dari timur.
     const sudutDasar = (hashId(terurut[0].id) % 360) * (Math.PI / 180);
     const radius = radiusSebaran(terurut.length);
