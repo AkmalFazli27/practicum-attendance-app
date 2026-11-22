@@ -16,6 +16,14 @@ export type BahasaApp = 'id' | 'en';
 
 const STORAGE_KEY_TEMA = '@tapin_theme_mode';
 const STORAGE_KEY_BAHASA = '@tapin_app_language';
+const STORAGE_KEY_PERNAH_LOGIN = '@tapin_has_logged_in';
+
+let activeLanguageCache: BahasaApp = 'id';
+
+/** Mengembalikan bahasa aktif saat ini secara sinkron (default 'id' di perangkat baru). */
+export function getActiveLanguage(): BahasaApp {
+  return activeLanguageCache;
+}
 
 const translations = {
   id: {
@@ -285,6 +293,7 @@ export interface PreferencesContextValue {
   setThemeMode: (mode: ModeTema) => Promise<void>;
   language: BahasaApp;
   setLanguage: (lang: BahasaApp) => Promise<void>;
+  markLoggedIn: () => Promise<void>;
   isDark: boolean;
   themeColors: ThemeColors;
   t: (key: TranslationKey) => string;
@@ -305,9 +314,10 @@ export function PreferencesProvider({
     let aktif = true;
     void (async () => {
       try {
-        const [savedTema, savedBahasa] = await Promise.all([
+        const [savedTema, savedBahasa, pernahLogin] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEY_TEMA),
           AsyncStorage.getItem(STORAGE_KEY_BAHASA),
+          AsyncStorage.getItem(STORAGE_KEY_PERNAH_LOGIN),
         ]);
         if (!aktif) return;
         if (
@@ -317,8 +327,17 @@ export function PreferencesProvider({
         ) {
           setThemeModeState(savedTema);
         }
-        if (savedBahasa === 'id' || savedBahasa === 'en') {
+        // Perangkat baru yang belum pernah login selalu default Bahasa Indonesia ('id').
+        // Jika pengguna sudah pernah login, ikuti bahasa sesi terakhir yang tersimpan.
+        if (
+          pernahLogin === '1' &&
+          (savedBahasa === 'id' || savedBahasa === 'en')
+        ) {
+          activeLanguageCache = savedBahasa;
           setLanguageState(savedBahasa);
+        } else {
+          activeLanguageCache = 'id';
+          setLanguageState('id');
         }
       } catch {
         // Fallback default
@@ -339,9 +358,18 @@ export function PreferencesProvider({
   }, []);
 
   const setLanguage = useCallback(async (lang: BahasaApp) => {
+    activeLanguageCache = lang;
     setLanguageState(lang);
     try {
       await AsyncStorage.setItem(STORAGE_KEY_BAHASA, lang);
+    } catch {
+      // Abaikan kegagalan storage
+    }
+  }, []);
+
+  const markLoggedIn = useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY_PERNAH_LOGIN, '1');
     } catch {
       // Abaikan kegagalan storage
     }
@@ -364,11 +392,21 @@ export function PreferencesProvider({
       setThemeMode,
       language,
       setLanguage,
+      markLoggedIn,
       isDark,
       themeColors,
       t,
     }),
-    [themeMode, setThemeMode, language, setLanguage, isDark, themeColors, t],
+    [
+      themeMode,
+      setThemeMode,
+      language,
+      setLanguage,
+      markLoggedIn,
+      isDark,
+      themeColors,
+      t,
+    ],
   );
 
   return (
@@ -387,6 +425,7 @@ export function usePreferences(): PreferencesContextValue {
       setThemeMode: async () => {},
       language: 'id',
       setLanguage: async () => {},
+      markLoggedIn: async () => {},
       isDark: false,
       themeColors: colors,
       t: (key: TranslationKey) => translations.id[key],

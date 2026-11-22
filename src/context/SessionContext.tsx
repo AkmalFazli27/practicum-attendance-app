@@ -34,6 +34,10 @@ import {
 
 import { auth, db, isFirebaseConfigured } from '@/config/firebase';
 import {
+  getActiveLanguage,
+  usePreferences,
+} from '@/context/PreferencesContext';
+import {
   IZIN_SEED,
   KEHADIRAN_SEED,
   LABS_SEED,
@@ -154,34 +158,56 @@ export type SessionContextValue = {
 
 const AUTH_LOAD_TIMEOUT_MS = 9000;
 
+const msg = (idText: string, enText: string): string =>
+  getActiveLanguage() === 'en' ? enText : idText;
+
 /**
- * Menerjemahkan kode error Firestore / Firebase ke Bahasa Indonesia yang ramah pengguna
- * agar pesan error mentah berbahasa Inggris tidak bocor ke antarmuka.
+ * Menerjemahkan kode error Firestore / Firebase sesuai bahasa aktif
+ * (default Bahasa Indonesia di perangkat baru, atau bahasa sesi terakhir jika pernah login).
  */
-function terjemahkanErrorFirestore(err: any, pesanDefault: string): string {
+function terjemahkanErrorFirestore(
+  err: any,
+  pesanDefaultId: string,
+  pesanDefaultEn?: string,
+): string {
+  const isEn = getActiveLanguage() === 'en';
   const rawCode = String(err?.code || '').toLowerCase();
   const code = rawCode.replace(/^(firestore|auth)\//, '');
 
   switch (code) {
     case 'permission-denied':
     case 'unauthenticated':
-      return 'Akses ditolak oleh server. Pastikan peran akun Anda sesuai dan sesi masih aktif.';
+      return isEn
+        ? 'Access denied by server. Make sure your account role is valid and your session is active.'
+        : 'Akses ditolak oleh server. Pastikan peran akun Anda sesuai dan sesi masih aktif.';
     case 'unavailable':
     case 'network-request-failed':
-      return 'Layanan tidak dapat dijangkau saat ini. Periksa koneksi internet Anda lalu coba lagi.';
+      return isEn
+        ? 'Service is currently unreachable. Check your internet connection and try again.'
+        : 'Layanan tidak dapat dijangkau saat ini. Periksa koneksi internet Anda lalu coba lagi.';
     case 'failed-precondition':
-      return 'Operasi tidak dapat dijalankan karena prasyarat data belum terpenuhi.';
+      return isEn
+        ? 'Operation cannot be completed because data prerequisites are not met.'
+        : 'Operasi tidak dapat dijalankan karena prasyarat data belum terpenuhi.';
     case 'resource-exhausted':
     case 'too-many-requests':
-      return 'Batas kuota permintaan tercapai. Silakan tunggu beberapa saat lalu coba lagi.';
+      return isEn
+        ? 'Request quota reached. Please wait a moment and try again.'
+        : 'Batas kuota permintaan tercapai. Silakan tunggu beberapa saat lalu coba lagi.';
     case 'deadline-exceeded':
-      return 'Waktu koneksi ke server habis. Periksa jaringan Anda lalu coba lagi.';
+      return isEn
+        ? 'Server connection timed out. Check your network and try again.'
+        : 'Waktu koneksi ke server habis. Periksa jaringan Anda lalu coba lagi.';
     case 'not-found':
-      return 'Data yang diminta tidak ditemukan di server.';
+      return isEn
+        ? 'The requested data was not found on the server.'
+        : 'Data yang diminta tidak ditemukan di server.';
     case 'already-exists':
-      return 'Data tersebut sudah tercatat sebelumnya.';
+      return isEn
+        ? 'This record already exists.'
+        : 'Data tersebut sudah tercatat sebelumnya.';
     default:
-      return pesanDefault;
+      return isEn && pesanDefaultEn ? pesanDefaultEn : pesanDefaultId;
   }
 }
 
@@ -227,6 +253,7 @@ function mapLab(id: string, d: Record<string, any>): Lab {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const { markLoggedIn } = usePreferences();
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [errorAksi, setErrorAksi] = useState<string | null>(null);
@@ -256,6 +283,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const id = setInterval(() => setTick((t) => t + 1), 30000);
     return () => clearInterval(id);
   }, []);
+
+  // Tandai perangkat pernah login agar bahasa sesi terakhir tetap diingat saat buka ulang
+  useEffect(() => {
+    if (currentUser?.id) {
+      void markLoggedIn();
+    }
+  }, [currentUser?.id, markLoggedIn]);
 
   // Menyimpan profil sementara saat proses registrasi berlangsung untuk mencegah
   // race condition antara createUserWithEmailAndPassword dan onAuthStateChanged
@@ -297,7 +331,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         authReady = true;
         sesiReady = true;
         setError(
-          'Waktu muat sesi habis. Periksa koneksi internet Anda lalu coba lagi.',
+          msg(
+            'Waktu muat sesi habis. Periksa koneksi internet Anda lalu coba lagi.',
+            'Session loading timed out. Check your internet connection and try again.',
+          ),
         );
         setLoading(false);
       }
@@ -354,7 +391,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             if (data.peran !== 'asisten' && data.peran !== 'praktikan') {
               await signOut(auth);
               setCurrentUser(null);
-              setError('Profil pengguna tidak ditemukan.');
+              setError(
+                msg(
+                  'Profil pengguna tidak ditemukan.',
+                  'User profile not found.',
+                ),
+              );
             } else {
               setCurrentUser({
                 id: fbUser.uid,
@@ -375,7 +417,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             // Fail closed: akun Auth tanpa dokumen profil di koleksi `users` ditolak
             await signOut(auth);
             setCurrentUser(null);
-            setError('Profil pengguna tidak ditemukan.');
+            setError(
+              msg(
+                'Profil pengguna tidak ditemukan.',
+                'User profile not found.',
+              ),
+            );
           }
         } catch (err: any) {
           if (
@@ -393,6 +440,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
                 terjemahkanErrorFirestore(
                   err,
                   'Gagal memuat profil pengguna dari server.',
+                  'Failed to load user profile from server.',
                 ),
               );
             }
@@ -420,7 +468,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       (err) => {
         if (cancelled) return;
         setError(
-          terjemahkanErrorFirestore(err, 'Gagal memuat jadwal sesi praktikum.'),
+          terjemahkanErrorFirestore(
+            err,
+            'Gagal memuat jadwal sesi praktikum.',
+            'Failed to load practicum session schedule.',
+          ),
         );
         sesiReady = true;
         checkReady();
@@ -665,7 +717,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const rawPassword = passwordInput;
 
     if (!cleanEmail || rawPassword.length === 0) {
-      return { ok: false, alasan: 'Email dan kata sandi tidak boleh kosong.' };
+      return {
+        ok: false,
+        alasan: msg(
+          'Email dan kata sandi tidak boleh kosong.',
+          'Email and password cannot be empty.',
+        ),
+      };
     }
 
     if (isFirebaseConfigured) {
@@ -726,26 +784,43 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setError(null);
         return { ok: true, user: userProfil };
       } catch (err: any) {
-        let pesan = 'Gagal masuk. Periksa kembali email dan kata sandi Anda.';
+        let pesan = msg(
+          'Gagal masuk. Periksa kembali email dan kata sandi Anda.',
+          'Sign in failed. Please check your email and password.',
+        );
         if (
           err?.code === 'auth/invalid-credential' ||
           err?.code === 'auth/invalid-login-credentials' ||
           err?.code === 'auth/wrong-password' ||
           err?.code === 'auth/user-not-found'
         ) {
-          pesan = 'Email atau kata sandi salah.';
+          pesan = msg(
+            'Email atau kata sandi salah.',
+            'Incorrect email or password.',
+          );
         } else if (
           err?.code === 'auth/invalid-email' ||
           err?.code === 'auth/missing-email'
         ) {
-          pesan = 'Format alamat email tidak valid.';
+          pesan = msg(
+            'Format alamat email tidak valid.',
+            'Invalid email address format.',
+          );
         } else if (err?.code === 'auth/too-many-requests') {
-          pesan = 'Terlalu banyak percobaan. Coba lagi beberapa saat lagi.';
+          pesan = msg(
+            'Terlalu banyak percobaan. Coba lagi beberapa saat lagi.',
+            'Too many attempts. Please try again later.',
+          );
         } else if (err?.code === 'auth/user-disabled') {
-          pesan = 'Akun ini telah dinonaktifkan.';
+          pesan = msg(
+            'Akun ini telah dinonaktifkan.',
+            'This account has been disabled.',
+          );
         } else if (err?.code === 'auth/network-request-failed') {
-          pesan =
-            'Tidak dapat terhubung ke server Firebase. Periksa koneksi internetmu.';
+          pesan = msg(
+            'Tidak dapat terhubung ke server Firebase. Periksa koneksi internetmu.',
+            'Cannot connect to Firebase server. Please check your internet connection.',
+          );
         }
         return { ok: false, alasan: pesan };
       }
@@ -761,7 +836,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!userDitemukan) {
       return {
         ok: false,
-        alasan: 'Email atau kata sandi salah.',
+        alasan: msg(
+          'Email atau kata sandi salah.',
+          'Incorrect email or password.',
+        ),
       };
     }
 
@@ -780,18 +858,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const cleanKelas = (payload.kelas || '').trim().toUpperCase();
 
     if (!cleanNama || !cleanEmail || rawPassword.length === 0) {
-      return { ok: false, alasan: 'Nama, email, dan kata sandi wajib diisi.' };
+      return {
+        ok: false,
+        alasan: msg(
+          'Nama, email, dan kata sandi wajib diisi.',
+          'Name, email, and password are required.',
+        ),
+      };
     }
 
     if (payload.peran === 'praktikan' && (!cleanNim || !cleanKelas)) {
       return {
         ok: false,
-        alasan: 'NIM dan Kelas wajib diisi untuk praktikan.',
+        alasan: msg(
+          'NIM dan Kelas wajib diisi untuk praktikan.',
+          'Student ID (NIM) and Class are required for students.',
+        ),
       };
     }
 
     if (rawPassword.length < 6) {
-      return { ok: false, alasan: 'Kata sandi minimal 6 karakter.' };
+      return {
+        ok: false,
+        alasan: msg(
+          'Kata sandi minimal 6 karakter.',
+          'Password must be at least 6 characters.',
+        ),
+      };
     }
 
     if (isFirebaseConfigured) {
@@ -845,8 +938,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           if (isPermissionDenied && payload.peran === 'asisten') {
             return {
               ok: false,
-              alasan:
+              alasan: msg(
                 'Pendaftaran mandiri hanya untuk Praktikan. Akun Asisten dibuat melalui Admin/Console.',
+                'Self-registration is only for Students. Assistant accounts are provisioned via Admin/Console.',
+              ),
             };
           }
 
@@ -855,6 +950,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             alasan: terjemahkanErrorFirestore(
               firestoreErr,
               'Gagal menyimpan profil pengguna ke database. Silakan coba lagi.',
+              'Failed to save user profile to database. Please try again.',
             ),
           };
         }
@@ -865,16 +961,30 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return { ok: true, user: userObj };
       } catch (err: any) {
         pendingRegisterUserRef.current = null;
-        let pesan = 'Gagal mendaftarkan akun.';
+        let pesan = msg(
+          'Gagal mendaftarkan akun.',
+          'Failed to register account.',
+        );
         if (err?.code === 'auth/email-already-in-use') {
-          pesan = 'Email ini sudah terdaftar. Silakan masuk.';
+          pesan = msg(
+            'Email ini sudah terdaftar. Silakan masuk.',
+            'This email is already registered. Please sign in.',
+          );
         } else if (err?.code === 'auth/invalid-email') {
-          pesan = 'Format alamat email tidak valid.';
+          pesan = msg(
+            'Format alamat email tidak valid.',
+            'Invalid email address format.',
+          );
         } else if (err?.code === 'auth/weak-password') {
-          pesan = 'Kata sandi terlalu lemah. Gunakan minimal 6 karakter.';
+          pesan = msg(
+            'Kata sandi terlalu lemah. Gunakan minimal 6 karakter.',
+            'Password is too weak. Use at least 6 characters.',
+          );
         } else if (err?.code === 'auth/network-request-failed') {
-          pesan =
-            'Tidak dapat terhubung ke server. Periksa koneksi internetmu.';
+          pesan = msg(
+            'Tidak dapat terhubung ke server. Periksa koneksi internetmu.',
+            'Cannot connect to server. Please check your internet connection.',
+          );
         }
         return { ok: false, alasan: pesan };
       }
@@ -885,7 +995,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (sudahAda) {
       return {
         ok: false,
-        alasan: 'Email ini sudah terdaftar. Silakan masuk.',
+        alasan: msg(
+          'Email ini sudah terdaftar. Silakan masuk.',
+          'This email is already registered. Please sign in.',
+        ),
       };
     }
 
@@ -914,6 +1027,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const alasan = terjemahkanErrorFirestore(
           err,
           'Gagal keluar dari akun. Periksa koneksi internet Anda.',
+          'Failed to log out. Check your internet connection.',
         );
         setError(alasan);
         return { ok: false, alasan };
@@ -1319,20 +1433,38 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     alasanInput: string,
   ): Promise<IzinResult> => {
     if (!currentUser) {
-      return { ok: false, alasan: 'Pengguna belum masuk.' };
+      return {
+        ok: false,
+        alasan: msg('Pengguna belum masuk.', 'User is not signed in.'),
+      };
     }
     if (currentUser.peran !== 'praktikan') {
-      return { ok: false, alasan: 'Hanya praktikan yang dapat mengajukan izin.' };
+      return {
+        ok: false,
+        alasan: msg(
+          'Hanya praktikan yang dapat mengajukan izin.',
+          'Only students can submit leave requests.',
+        ),
+      };
     }
 
     const sesiTarget = sesi.find((s) => s.id === sesiId);
     if (!sesiTarget) {
-      return { ok: false, alasan: 'Sesi praktikum tidak ditemukan.' };
+      return {
+        ok: false,
+        alasan: msg(
+          'Sesi praktikum tidak ditemukan.',
+          'Practicum session not found.',
+        ),
+      };
     }
     if (getStatusEfektif(sesiTarget) === 'SELESAI') {
       return {
         ok: false,
-        alasan: 'Tidak dapat mengajukan izin pada sesi yang sudah selesai.',
+        alasan: msg(
+          'Tidak dapat mengajukan izin pada sesi yang sudah selesai.',
+          'Cannot submit a leave request for a completed session.',
+        ),
       };
     }
 
@@ -1342,7 +1474,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (sudahHadir) {
       return {
         ok: false,
-        alasan: 'Kamu sudah tercatat hadir pada sesi ini.',
+        alasan: msg(
+          'Kamu sudah tercatat hadir pada sesi ini.',
+          'You are already marked present for this session.',
+        ),
       };
     }
 
@@ -1352,13 +1487,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (izinLama) {
       return {
         ok: false,
-        alasan: 'Kamu sudah mengajukan izin untuk sesi ini.',
+        alasan: msg(
+          'Kamu sudah mengajukan izin untuk sesi ini.',
+          'You have already submitted a leave request for this session.',
+        ),
       };
     }
 
     const teksAlasan = alasanInput.trim();
     if (teksAlasan.length < 10) {
-      return { ok: false, alasan: 'Alasan izin minimal 10 karakter.' };
+      return {
+        ok: false,
+        alasan: msg(
+          'Alasan izin minimal 10 karakter.',
+          'Leave reason must be at least 10 characters.',
+        ),
+      };
     }
 
     // Panggil service integrasi API AI pengajar (dengan timeout & fallback "Belum Terklasifikasi")
@@ -1460,7 +1604,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   ): Promise<boolean> => {
     if (!currentUser || currentUser.peran !== 'asisten') return false;
     if (!(data.radius > 0) || !koordinatValid(data)) {
-      setError('Koordinat atau radius lab tidak valid.');
+      setError(
+        msg(
+          'Koordinat atau radius lab tidak valid.',
+          'Invalid lab coordinates or radius.',
+        ),
+      );
       return false;
     }
     const patch = { lat: data.lat, lng: data.lng, radius: data.radius };
