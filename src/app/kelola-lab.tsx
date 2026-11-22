@@ -10,7 +10,6 @@ import { Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertTriangle } from 'lucide-react-native';
 
-import { LocationBanner } from '@/components/peta/LocationBanner';
 import { LokasiPicker } from '@/components/peta/LokasiPicker';
 import { PetaHeader } from '@/components/peta/PetaHeader';
 import {
@@ -25,7 +24,13 @@ import {
   parseRadius,
   type DrafLab,
 } from '@/components/peta/validasiLab';
-import { EmptyState, FilterChip, Tombol, useToast } from '@/components/ui';
+import {
+  EmptyState,
+  FilterChip,
+  PermissionBanner,
+  Tombol,
+  useToast,
+} from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import type { Lab } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
@@ -182,10 +187,10 @@ function KelolaLabContent() {
 
       {banner ? (
         <View style={styles.bannerWrap}>
-          <LocationBanner
+          <PermissionBanner
             jenis={banner.jenis}
             pesan={banner.pesan}
-            onRetry={handlerBanner(banner, { mintaIzin, coba, retrySync })}
+            onAksi={handlerBanner(banner, { mintaIzin, coba, retrySync })}
           />
         </View>
       ) : null}

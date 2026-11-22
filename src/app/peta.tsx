@@ -16,7 +16,6 @@ import { Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LabInfoSheet } from '@/components/peta/LabInfoSheet';
-import { LocationBanner } from '@/components/peta/LocationBanner';
 import { PetaHeader } from '@/components/peta/PetaHeader';
 import { PetaMap } from '@/components/peta/PetaMap';
 import {
@@ -29,7 +28,7 @@ import {
   lokasiPunyaKoordinat,
   statusTungguLabs,
 } from '@/components/peta/region';
-import { EmptyState, FilterChip } from '@/components/ui';
+import { EmptyState, FilterChip, PermissionBanner } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import type { Lab } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
@@ -155,10 +154,10 @@ function PetaContent() {
 
       {banner ? (
         <View style={styles.bannerWrap}>
-          <LocationBanner
+          <PermissionBanner
             jenis={banner.jenis}
             pesan={banner.pesan}
-            onRetry={handlerBanner(banner, { mintaIzin, coba, retrySync })}
+            onAksi={handlerBanner(banner, { mintaIzin, coba, retrySync })}
           />
         </View>
       ) : null}

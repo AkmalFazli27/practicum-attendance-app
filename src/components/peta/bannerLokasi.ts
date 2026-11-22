@@ -1,5 +1,6 @@
+import type { JenisPermissionBanner } from '@/components/ui';
+
 import type { StatusLokasi } from '@/hooks/useLocation';
-import type { JenisBannerLokasi } from './LocationBanner';
 
 export type AksiBannerLokasi = 'minta-izin' | 'coba-lagi' | null;
 
@@ -7,7 +8,7 @@ export type AksiBannerLokasi = 'minta-izin' | 'coba-lagi' | null;
 export type SumberBannerLokasi = 'lokasi' | 'jaringan';
 
 export type BannerLokasi = {
-  jenis: JenisBannerLokasi;
+  jenis: JenisPermissionBanner;
   sumber: SumberBannerLokasi;
   pesan?: string;
   aksi: AksiBannerLokasi;
@@ -40,10 +41,10 @@ export function bannerLokasiDari(
     case 'siap':
       return null;
     case 'memuat':
-      return { jenis: 'tanpa-koordinat', sumber: 'lokasi', aksi: null };
+      return { jenis: 'koordinat-belum-ada', sumber: 'lokasi', aksi: null };
     case 'izin-ditolak':
       return {
-        jenis: 'izin-ditolak',
+        jenis: 'izin-lokasi-ditolak',
         sumber: 'lokasi',
         pesan: pesanError ?? undefined,
         aksi: aksiUntuk(status),
@@ -57,14 +58,14 @@ export function bannerLokasiDari(
       };
     case 'koordinat-belum-ada':
       return {
-        jenis: 'tanpa-koordinat',
+        jenis: 'koordinat-belum-ada',
         sumber: 'lokasi',
         pesan: pesanError ?? undefined,
         aksi: aksiUntuk(status),
       };
     case 'error':
       return {
-        jenis: 'lokasi-gagal',
+        jenis: 'error',
         sumber: 'lokasi',
         pesan: pesanError ?? undefined,
         aksi: aksiUntuk(status),
