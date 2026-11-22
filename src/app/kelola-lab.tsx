@@ -18,6 +18,7 @@ import {
   handlerBanner,
 } from '@/components/peta/bannerLokasi';
 import { labPunyaKoordinat, statusTungguLabs } from '@/components/peta/region';
+import { teksPeta } from '@/components/peta/teks';
 import {
   adaPerubahan,
   alasanTidakValid,
@@ -32,6 +33,7 @@ import {
   useToast,
 } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
+import { usePreferences } from '@/context/PreferencesContext';
 import type { Lab } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
@@ -71,6 +73,8 @@ function KelolaLabContent() {
   const { status: statusLokasi, koordinat, pesanError, mintaIzin, coba } =
     useLocation();
   const { showToast } = useToast();
+  const { language } = usePreferences();
+  const teks = teksPeta(language);
   const insets = useSafeAreaInsets();
 
   const [labId, setLabId] = useState<string | null>(null);
@@ -127,6 +131,7 @@ function KelolaLabContent() {
     radius: radiusAngka ?? Number.NaN,
   };
   const alasan = alasanTidakValid(draf);
+  const pesanValidasi = alasan.map((kode) => teks.validasi[kode]);
   const berubah = labTerpilih ? adaPerubahan(labTerpilih, draf) : false;
   // Tombol tetap aktif saat data tidak valid supaya pesan inline bisa muncul;
   // `simpan` sendiri menolak menyimpan selama `alasan` belum kosong.
@@ -282,7 +287,7 @@ function KelolaLabContent() {
                       Periksa kembali data lab
                     </Text>
                   </View>
-                  {alasan.map((pesan) => (
+                  {pesanValidasi.map((pesan) => (
                     <Text key={pesan} style={styles.validasiPesan}>
                       • {pesan}
                     </Text>

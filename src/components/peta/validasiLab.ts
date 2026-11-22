@@ -60,21 +60,34 @@ export function teksTersinkron(
 }
 
 /**
+ * Kode alasan dipisah dari kalimatnya agar layar bisa menerjemahkan pesan
+ * tanpa menduplikasi logika validasi.
+ */
+export type KodeAlasanLab =
+  | 'pilih-lab'
+  | 'titik-belum'
+  | 'koordinat-invalid'
+  | 'radius-invalid';
+
+/**
  * Validasi dilakukan di layar, bukan hanya di context: context menolak tanpa
  * memberi tahu field mana yang salah, sedangkan form perlu pesan inline.
  */
-export function alasanTidakValid(draf: DrafLab): string[] {
-  const alasan: string[] = [];
-  if (!draf.labId) alasan.push('Pilih laboratorium terlebih dahulu.');
+export function alasanTidakValid(draf: DrafLab): KodeAlasanLab[] {
+  const alasan: KodeAlasanLab[] = [];
+  if (!draf.labId) alasan.push('pilih-lab');
   if (!draf.titik) {
-    alasan.push('Tentukan titik laboratorium pada peta.');
-  } else if (!koordinatValid(draf.titik) || (draf.titik.lat === 0 && draf.titik.lng === 0)) {
+    alasan.push('titik-belum');
+  } else if (
+    !koordinatValid(draf.titik) ||
+    (draf.titik.lat === 0 && draf.titik.lng === 0)
+  ) {
     // Titik 0,0 lolos `koordinatValid` tetapi bukan lokasi lab yang sah dan
     // akan hilang dari peta, jadi diperlakukan sama dengan koordinat invalid.
-    alasan.push('Koordinat laboratorium tidak valid.');
+    alasan.push('koordinat-invalid');
   }
   if (!Number.isFinite(draf.radius) || draf.radius <= 0) {
-    alasan.push('Radius harus lebih dari 0 meter.');
+    alasan.push('radius-invalid');
   }
   return alasan;
 }
