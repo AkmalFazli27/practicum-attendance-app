@@ -30,9 +30,10 @@ import {
 } from '@/components/peta/region';
 import { EmptyState, FilterChip, PermissionBanner } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
+import { usePreferences } from '@/context/PreferencesContext';
 import type { Lab } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
-import { colors, layout, radius, spacing, type } from '@/theme/tokens';
+import { layout, radius, spacing, type, type ThemeColors } from '@/theme/tokens';
 
 const JEDA_TUNGGU_LABS_MS = 4000;
 /** Durasi animasi tutup sheet; data lab baru dikosongkan setelahnya. */
@@ -45,13 +46,15 @@ const JEDA_TUTUP_SHEET_MS = 280;
  */
 export default function PetaScreen() {
   const { currentUser, loading } = useSession();
+  const { themeColors } = usePreferences();
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   if (loading) {
     return (
       <View style={styles.root}>
         <PetaHeader />
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.graphite} />
+          <ActivityIndicator size="large" color={themeColors.graphite} />
           <Text style={styles.centerText}>Memuat peta laboratorium…</Text>
         </View>
       </View>
@@ -67,6 +70,8 @@ export default function PetaScreen() {
 
 function PetaContent() {
   const { labs, error, retrySync } = useSession();
+  const { themeColors } = usePreferences();
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
   const { status: statusLokasi, koordinat, pesanError, mintaIzin, coba } =
     useLocation();
   const insets = useSafeAreaInsets();
@@ -180,7 +185,7 @@ function PetaContent() {
           >
             {menungguLabs ? (
               <View style={styles.menungguCard}>
-                <ActivityIndicator size="small" color={colors.graphite} />
+                <ActivityIndicator size="small" color={themeColors.graphite} />
                 <Text style={styles.centerText}>
                   Memuat data laboratorium…
                 </Text>
@@ -210,59 +215,60 @@ function PetaContent() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.s3,
-    padding: spacing.s5,
-  },
-  centerText: {
-    ...type.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  chipScroll: {
-    flexGrow: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  chipRow: {
-    paddingHorizontal: layout.screenPadding,
-    paddingVertical: spacing.s3,
-    gap: spacing.s2,
-  },
-  bannerWrap: {
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.s3,
-  },
-  mapWrap: {
-    flex: 1,
-    marginTop: spacing.s3,
-    overflow: 'hidden',
-  },
-  emptyOverlay: {
-    position: 'absolute',
-    left: layout.screenPadding,
-    right: layout.screenPadding,
-  },
-  menungguCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.s2,
-    padding: spacing.s4,
-    borderRadius: radius.cardLg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  emptyCard: {
-    paddingVertical: spacing.s4,
-  },
-});
+const buatGaya = (w: ThemeColors) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: w.background,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.s3,
+      padding: spacing.s5,
+    },
+    centerText: {
+      ...type.caption,
+      color: w.textMuted,
+      textAlign: 'center',
+    },
+    chipScroll: {
+      flexGrow: 0,
+      borderBottomWidth: 1,
+      borderBottomColor: w.border,
+    },
+    chipRow: {
+      paddingHorizontal: layout.screenPadding,
+      paddingVertical: spacing.s3,
+      gap: spacing.s2,
+    },
+    bannerWrap: {
+      paddingHorizontal: layout.screenPadding,
+      paddingTop: spacing.s3,
+    },
+    mapWrap: {
+      flex: 1,
+      marginTop: spacing.s3,
+      overflow: 'hidden',
+    },
+    emptyOverlay: {
+      position: 'absolute',
+      left: layout.screenPadding,
+      right: layout.screenPadding,
+    },
+    menungguCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.s2,
+      padding: spacing.s4,
+      borderRadius: radius.cardLg,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    emptyCard: {
+      paddingVertical: spacing.s4,
+    },
+  });

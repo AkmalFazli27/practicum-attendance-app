@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Map as MapIcon, Navigation } from 'lucide-react-native';
 
-import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
+import { usePreferences } from '@/context/PreferencesContext';
+import {
+  fontFamily,
+  radius,
+  spacing,
+  type,
+  type ThemeColors,
+} from '@/theme/tokens';
 import { hitungJarak } from '@/utils/geo';
 import { getLabMarkerStyle } from './labMarkerStyle';
 import { labPunyaKoordinat } from './region';
@@ -18,10 +25,13 @@ export function PetaMap({
   onPilihLab,
   pengguna,
 }: PetaMapProps) {
+  const { themeColors } = usePreferences();
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
+
   return (
     <View style={styles.root}>
       <View style={styles.notice}>
-        <MapIcon size={18} color={colors.textMuted} />
+        <MapIcon size={18} color={themeColors.textMuted} />
         <Text style={styles.noticeText}>
           Peta interaktif tersedia di aplikasi mobile. Pilih lab dari daftar
           berikut.
@@ -30,7 +40,7 @@ export function PetaMap({
 
       {pengguna ? (
         <View style={styles.lokasiRow}>
-          <Navigation size={16} color={colors.textPrimary} />
+          <Navigation size={16} color={themeColors.textPrimary} />
           <Text style={styles.lokasiText}>
             Posisi kamu: {pengguna.lat.toFixed(5)}, {pengguna.lng.toFixed(5)}
             {typeof pengguna.akurasi === 'number' && pengguna.akurasi > 0
@@ -85,91 +95,92 @@ export function PetaMap({
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.surfaceMuted,
-  },
-  notice: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.s2,
-    margin: spacing.s4,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  noticeText: {
-    ...type.caption,
-    fontFamily: fontFamily.regular,
-    color: colors.textSecondary,
-    flex: 1,
-    lineHeight: 18,
-  },
-  lokasiRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s2,
-    marginHorizontal: spacing.s4,
-    marginBottom: spacing.s3,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.primarySoft,
-  },
-  lokasiText: {
-    ...type.caption,
-    fontFamily: fontFamily.medium,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  list: {
-    paddingHorizontal: spacing.s4,
-    paddingBottom: spacing.s8,
-    gap: spacing.s2,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s3,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  rowAktif: {
-    borderColor: colors.graphite,
-  },
-  rowPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  iconTile: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.button,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  copy: {
-    flex: 1,
-    gap: 2,
-  },
-  nama: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.bold,
-    color: colors.textPrimary,
-  },
-  alamat: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-  jarak: {
-    ...type.caption,
-    color: colors.textSecondary,
-  },
-});
+const buatGaya = (w: ThemeColors) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: w.surfaceMuted,
+    },
+    notice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.s2,
+      margin: spacing.s4,
+      padding: spacing.s3,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    noticeText: {
+      ...type.caption,
+      fontFamily: fontFamily.regular,
+      color: w.textSecondary,
+      flex: 1,
+      lineHeight: 18,
+    },
+    lokasiRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s2,
+      marginHorizontal: spacing.s4,
+      marginBottom: spacing.s3,
+      padding: spacing.s3,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.primarySoft,
+    },
+    lokasiText: {
+      ...type.caption,
+      fontFamily: fontFamily.medium,
+      color: w.textPrimary,
+      flex: 1,
+    },
+    list: {
+      paddingHorizontal: spacing.s4,
+      paddingBottom: spacing.s8,
+      gap: spacing.s2,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s3,
+      padding: spacing.s3,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    rowAktif: {
+      borderColor: w.graphite,
+    },
+    rowPressed: {
+      backgroundColor: w.surfaceMuted,
+    },
+    iconTile: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.button,
+      backgroundColor: w.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    copy: {
+      flex: 1,
+      gap: 2,
+    },
+    nama: {
+      ...type.bodyStrong,
+      fontFamily: fontFamily.bold,
+      color: w.textPrimary,
+    },
+    alamat: {
+      ...type.caption,
+      color: w.textMuted,
+    },
+    jarak: {
+      ...type.caption,
+      color: w.textSecondary,
+    },
+  });

@@ -1,11 +1,18 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { CalendarClock, MapPin } from 'lucide-react-native';
 
 import { SheetModal, StatusBadge, Tombol } from '@/components/ui';
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import type { Lab, Sesi, StatusSesi } from '@/data/dummy';
-import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
+import {
+  fontFamily,
+  radius,
+  spacing,
+  type,
+  type ThemeColors,
+} from '@/theme/tokens';
 import { formatHariTanggalSingkat, titikJam } from '@/utils/format';
 
 export interface LabInfoSheetProps {
@@ -26,6 +33,8 @@ function BarisSesi({
   const waktu = denganTanggal
     ? `${formatHariTanggalSingkat(sesi.tanggal)}, ${titikJam(sesi.jamMulai)}–${titikJam(sesi.jamSelesai)}`
     : `${titikJam(sesi.jamMulai)}–${titikJam(sesi.jamSelesai)}`;
+  const { themeColors } = usePreferences();
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   return (
     <View style={styles.sesiRow}>
@@ -35,7 +44,7 @@ function BarisSesi({
         </Text>
         <Text style={styles.sesiKelas}>Kelas {sesi.kelas || '-'}</Text>
         <View style={styles.waktuRow}>
-          <CalendarClock size={13} color={colors.textMuted} />
+          <CalendarClock size={13} color={themeColors.textMuted} />
           <Text style={styles.sesiWaktu}>{waktu}</Text>
         </View>
       </View>
@@ -46,6 +55,8 @@ function BarisSesi({
 
 export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
   const { sesi, getStatusEfektif, loading, error, retrySync } = useSession();
+  const { themeColors } = usePreferences();
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   const sesiLab = lab
     ? sesi.filter(
@@ -74,7 +85,7 @@ export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
       {lab ? (
         <>
           <View style={styles.lokasiRow}>
-            <MapPin size={16} color={colors.textMuted} />
+            <MapPin size={16} color={themeColors.textMuted} />
             <View style={styles.lokasiCopy}>
               <Text style={styles.lokasiAlamat}>{lab.alamat}</Text>
               <Text style={styles.lokasiRadius}>
@@ -87,7 +98,7 @@ export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
 
           {loading && sesi.length === 0 ? (
             <View style={styles.statusRow}>
-              <ActivityIndicator size="small" color={colors.graphite} />
+              <ActivityIndicator size="small" color={themeColors.graphite} />
               <Text style={styles.statusText}>Memuat aktivitas lab…</Text>
             </View>
           ) : null}
@@ -142,93 +153,94 @@ export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  lokasiRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.s2,
-  },
-  lokasiCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  lokasiAlamat: {
-    ...type.bodyStrong,
-    color: colors.textPrimary,
-  },
-  lokasiRadius: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s2,
-    paddingVertical: spacing.s2,
-  },
-  statusText: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-  errorBox: {
-    gap: spacing.s2,
-    padding: spacing.s3,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    backgroundColor: colors.errorBg,
-  },
-  errorText: {
-    ...type.caption,
-    color: colors.errorFg,
-  },
-  section: {
-    gap: spacing.s2,
-    paddingTop: spacing.s2,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  sectionKicker: {
-    ...type.micro,
-    color: colors.textMuted,
-    letterSpacing: 1.1,
-  },
-  emptyText: {
-    ...type.caption,
-    color: colors.textMuted,
-    lineHeight: 18,
-  },
-  sesiRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.s2,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  sesiCopy: {
-    flex: 1,
-    gap: 3,
-  },
-  sesiNama: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.bold,
-    color: colors.textPrimary,
-  },
-  sesiKelas: {
-    ...type.caption,
-    color: colors.textSecondary,
-  },
-  waktuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  sesiWaktu: {
-    ...type.caption,
-    color: colors.textMuted,
-    flex: 1,
-  },
-});
+const buatGaya = (w: ThemeColors) =>
+  StyleSheet.create({
+    lokasiRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.s2,
+    },
+    lokasiCopy: {
+      flex: 1,
+      gap: 2,
+    },
+    lokasiAlamat: {
+      ...type.bodyStrong,
+      color: w.textPrimary,
+    },
+    lokasiRadius: {
+      ...type.caption,
+      color: w.textMuted,
+    },
+    statusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s2,
+      paddingVertical: spacing.s2,
+    },
+    statusText: {
+      ...type.caption,
+      color: w.textMuted,
+    },
+    errorBox: {
+      gap: spacing.s2,
+      padding: spacing.s3,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: w.dangerBorder,
+      backgroundColor: w.errorBg,
+    },
+    errorText: {
+      ...type.caption,
+      color: w.errorFg,
+    },
+    section: {
+      gap: spacing.s2,
+      paddingTop: spacing.s2,
+      borderTopWidth: 1,
+      borderTopColor: w.border,
+    },
+    sectionKicker: {
+      ...type.micro,
+      color: w.textMuted,
+      letterSpacing: 1.1,
+    },
+    emptyText: {
+      ...type.caption,
+      color: w.textMuted,
+      lineHeight: 18,
+    },
+    sesiRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.s2,
+      padding: spacing.s3,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    sesiCopy: {
+      flex: 1,
+      gap: 3,
+    },
+    sesiNama: {
+      ...type.bodyStrong,
+      fontFamily: fontFamily.bold,
+      color: w.textPrimary,
+    },
+    sesiKelas: {
+      ...type.caption,
+      color: w.textSecondary,
+    },
+    waktuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    sesiWaktu: {
+      ...type.caption,
+      color: w.textMuted,
+      flex: 1,
+    },
+  });

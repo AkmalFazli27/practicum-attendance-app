@@ -36,7 +36,14 @@ import { useSession } from '@/context/SessionContext';
 import { usePreferences } from '@/context/PreferencesContext';
 import type { Lab } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
-import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
+import {
+  fontFamily,
+  layout,
+  radius,
+  spacing,
+  type,
+  type ThemeColors,
+} from '@/theme/tokens';
 
 const JEDA_TUNGGU_LABS_MS = 4000;
 
@@ -47,13 +54,15 @@ const JEDA_TUNGGU_LABS_MS = 4000;
  */
 export default function KelolaLabScreen() {
   const { currentUser, loading } = useSession();
+  const { themeColors } = usePreferences();
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
 
   if (loading) {
     return (
       <View style={styles.root}>
         <PetaHeader judul="Kelola Lab" kicker="LABORATORIUM" />
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.graphite} />
+          <ActivityIndicator size="large" color={themeColors.graphite} />
           <Text style={styles.centerText}>Memuat data laboratorium…</Text>
         </View>
       </View>
@@ -73,8 +82,9 @@ function KelolaLabContent() {
   const { status: statusLokasi, koordinat, pesanError, mintaIzin, coba } =
     useLocation();
   const { showToast } = useToast();
-  const { language } = usePreferences();
+  const { language, themeColors } = usePreferences();
   const teks = teksPeta(language);
+  const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
 
   const [labId, setLabId] = useState<string | null>(null);
@@ -203,7 +213,7 @@ function KelolaLabContent() {
       {labs.length === 0 ? (
         menungguLabs ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={colors.graphite} />
+            <ActivityIndicator size="large" color={themeColors.graphite} />
             <Text style={styles.centerText}>Memuat data laboratorium…</Text>
           </View>
         ) : (
@@ -282,7 +292,7 @@ function KelolaLabContent() {
               {sudahMencobaSimpan && alasan.length > 0 ? (
                 <View style={styles.validasiBox} accessibilityRole="alert">
                   <View style={styles.validasiJudulRow}>
-                    <AlertTriangle size={16} color={colors.errorFg} />
+                    <AlertTriangle size={16} color={themeColors.errorFg} />
                     <Text style={styles.validasiJudul}>
                       Periksa kembali data lab
                     </Text>
@@ -317,89 +327,90 @@ function KelolaLabContent() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.s3,
-    padding: spacing.s5,
-  },
-  centerText: {
-    ...type.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  bannerWrap: {
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.s3,
-  },
-  content: {
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.s4,
-    gap: spacing.s4,
-  },
-  section: {
-    gap: spacing.s2,
-  },
-  label: {
-    ...type.micro,
-    color: colors.textMuted,
-    letterSpacing: 1.1,
-  },
-  chipRow: {
-    gap: spacing.s2,
-    paddingRight: layout.screenPadding,
-  },
-  chipNonaktif: {
-    opacity: 0.5,
-  },
-  infoCard: {
-    gap: 2,
-    padding: spacing.s3,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  infoNama: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.semibold,
-    color: colors.textPrimary,
-  },
-  infoAlamat: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-  validasiBox: {
-    gap: spacing.s1,
-    padding: spacing.s3,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    backgroundColor: colors.errorBg,
-  },
-  validasiJudulRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s2,
-  },
-  validasiJudul: {
-    ...type.bodyStrong,
-    fontFamily: fontFamily.semibold,
-    color: colors.errorFg,
-  },
-  validasiPesan: {
-    ...type.caption,
-    color: colors.errorFg,
-    lineHeight: 18,
-  },
-  bantuanSimpan: {
-    ...type.caption,
-    color: colors.textMuted,
-  },
-});
+const buatGaya = (w: ThemeColors) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: w.background,
+    },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.s3,
+      padding: spacing.s5,
+    },
+    centerText: {
+      ...type.caption,
+      color: w.textMuted,
+      textAlign: 'center',
+    },
+    bannerWrap: {
+      paddingHorizontal: layout.screenPadding,
+      paddingTop: spacing.s3,
+    },
+    content: {
+      paddingHorizontal: layout.screenPadding,
+      paddingTop: spacing.s4,
+      gap: spacing.s4,
+    },
+    section: {
+      gap: spacing.s2,
+    },
+    label: {
+      ...type.micro,
+      color: w.textMuted,
+      letterSpacing: 1.1,
+    },
+    chipRow: {
+      gap: spacing.s2,
+      paddingRight: layout.screenPadding,
+    },
+    chipNonaktif: {
+      opacity: 0.5,
+    },
+    infoCard: {
+      gap: 2,
+      padding: spacing.s3,
+      borderRadius: radius.card,
+      borderWidth: 1,
+      borderColor: w.border,
+      backgroundColor: w.surface,
+    },
+    infoNama: {
+      ...type.bodyStrong,
+      fontFamily: fontFamily.semibold,
+      color: w.textPrimary,
+    },
+    infoAlamat: {
+      ...type.caption,
+      color: w.textMuted,
+    },
+    validasiBox: {
+      gap: spacing.s1,
+      padding: spacing.s3,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: w.dangerBorder,
+      backgroundColor: w.errorBg,
+    },
+    validasiJudulRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s2,
+    },
+    validasiJudul: {
+      ...type.bodyStrong,
+      fontFamily: fontFamily.semibold,
+      color: w.errorFg,
+    },
+    validasiPesan: {
+      ...type.caption,
+      color: w.errorFg,
+      lineHeight: 18,
+    },
+    bantuanSimpan: {
+      ...type.caption,
+      color: w.textMuted,
+    },
+  });
