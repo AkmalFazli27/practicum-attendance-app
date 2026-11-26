@@ -7,7 +7,7 @@ Dokumen perencanaan sprint · disusun oleh PM
 | PM | Eileen |
 | Programmer | P1 Akmal, P2 Farras, P3 Nouvella |
 | Periode | Kamis, 26 November 2026 (H+0) — Senin, 30 November 2026 pukul 23.59 (H+4). Usulan; sesuaikan dengan batas dari pengajar. |
-| Acuan requirement (SRS) | docs/PRD.md + docs/sprints/sprint-3.md (FR-19 s.d. FR-25) + Spesifikasi Sprint 4 (FR-26 s.d. FR-41) |
+| Acuan requirement (SRS) | docs/PRD.md + docs/sprints/sprint-3.md (FR-19 s.d. FR-25) + Spesifikasi Sprint 4 (FR-26 s.d. FR-48) |
 | Acuan desain | docs/DESIGN.md + docs/DESIGN-SPRINT3.md + docs/DESIGN-SPRINT4.md |
 | Status | Direncanakan |
 
@@ -51,6 +51,13 @@ Tiga alur yang harus dapat didemonstrasikan:
 | FR-39 | Notifikasi: tagihan baru, pembayaran berhasil, pembayaran gagal | PM (pengiriman) + P1 (klien) |
 | FR-40 | Izin dan AI (analisis sentimen) disesuaikan dengan lab, sesi, presensi, dan denda; excused absence bebas denda | PM (ai.ts, context) + P1 (praktikan) + P3 (Asprak) |
 | FR-41 | Finalisasi antarmuka lintas peran: modern, konsisten, state loading/empty/error | P1 + semua pemilik area |
+| FR-42 | Notifikasi hanya diterima pengguna yang sedang login | PM (logout, token) + P1 (klien) |
+| FR-43 | Notifikasi lab hanya untuk praktikan yang terdaftar di lab tersebut; asisten tidak menerimanya | PM (penargetan) + P1 (klien, riwayat) |
+| FR-44 | Jumlah notifikasi belum dibaca pada tombol notifikasi | P1 |
+| FR-45 | Notifikasi berhasil atau gagal saat membuat dan menutup sesi | PM (pesan) + P3 (layar) + P1 (riwayat) |
+| FR-46 | Presensi tanpa konfirmasi tambahan di UI; validasi di `markAttendance` | P1 (antarmuka) + PM (validasi) |
+| FR-47 | Bahasa Indonesia dan Inggris memakai i18n | P1 (fondasi) + semua pemilik area |
+| FR-48 | Sesi hanya dalam jam operasional lab 07.00–20.00 WIB | PM (aturan) + P3 (form dan tombol) |
 
 ### 2.2 Keputusan Aturan Bisnis
 
@@ -65,6 +72,12 @@ Tiga alur yang harus dapat didemonstrasikan:
 - **Backend.** Sprint 3 mencatat backend kustom di luar cakupan; Sprint 4 mengubahnya karena webhook membutuhkan server. Keputusan PM pada H+0: (A) Firebase Cloud Functions (memerlukan paket Blaze) atau (B) server Node kecil di hosting gratis. Webhook membutuhkan URL HTTPS publik; saat pengembangan boleh memakai tunnel.
 - **Notifikasi.** Tagihan baru dikirim dari klien saat presensi terlambat; pembayaran berhasil dan gagal dikirim backend lewat Expo Push API ke `users/{uid}.pushToken`. Hanya ke praktikan terkait. Kegagalan notifikasi tidak menggagalkan aksi utama.
 - **AI.** Tetap informasi pendukung. Selain kategori Sakit/Izin dari Sprint 3, hasil analisis menambahkan sentimen (positif/netral/negatif) yang disimpan di dokumen izin. Bila 'analisis sentimen' pada spesifikasi ternyata sama dengan klasifikasi yang sudah ada, konfirmasikan ke pengajar (lihat §12). Layanan AI gagal → penanda fallback; pengajuan dan pemeriksaan tetap berjalan.
+- **Login dan notifikasi.** Saat logout, `pushToken` dihapus dari akun sebelum `signOut`, dan notifikasi tidak diterima sebelum login kembali. Satu token perangkat hanya melekat pada satu akun.
+- **Penerima notifikasi.** Notifikasi sesi dan jadwal dikirim ke praktikan anggota lab (`keanggotaanLab`), bukan berdasarkan kelas. Asisten tidak menerimanya. Riwayat notifikasi dipisah per akun.
+- **Notifikasi aksi sesi.** Hasil membuat dan menutup sesi (berhasil atau gagal) hanya ditujukan ke Asprak yang melakukan aksi, berupa Toast dan entri di riwayat notifikasi.
+- **Konfirmasi presensi.** Sheet "Lanjut ke Halaman Presensi" dan centang pernyataan kehadiran dihapus. Satu tombol presensi langsung memanggil `markAttendance`, yang tetap memeriksa waktu, lokasi, dan status.
+- **Bahasa.** Teks tampilan memakai `i18next` dan `react-i18next`, mengikuti pilihan bahasa di pengaturan.
+- **Jam operasional.** `jamMulai` paling awal 07.00 dan `jamSelesai` paling lambat 20.00 WIB. Pembuatan, perubahan, dan pembukaan sesi di luar rentang itu ditolak.
 
 ### 2.3 Di luar Sprint 4
 
@@ -82,7 +95,7 @@ Tiga alur yang harus dapat didemonstrasikan:
 | Area | Kode | Pemilik | File utama |
 |---|---|---|---|
 | Fondasi data, backend, rules, notifikasi (pengiriman), config, rilis | PM | Eileen | `src/context/**`, `src/services/**`, `src/utils/**`, `src/data/**`, `server/**`, `firestore.rules`, `app.json`, `eas.json`, `package.json`, `package-lock.json`, `.env.example`, `README.md`, `docs/**` (kecuali DESIGN-SPRINT4.md) |
-| Shell, UI kit, area praktikan, tagihan dan pembayaran, notifikasi klien | P1 | Akmal | `src/app/_layout.tsx`, `src/components/ui/**` (termasuk barrel `index.ts`), `src/theme/**`, `src/app/(praktikan)/**`, `src/components/praktikan/**`, `src/hooks/useNotifications.ts`, `docs/DESIGN-SPRINT4.md`, `src/app/(aslab)/_layout.tsx` dan `src/app/(aslab)/(tabs)/_layout.tsx` |
+| Shell, UI kit, area praktikan, tagihan dan pembayaran, notifikasi klien | P1 | Akmal | `src/app/_layout.tsx`, `src/components/ui/**` (termasuk barrel `index.ts`), `src/theme/**`, `src/app/(praktikan)/**`, `src/components/praktikan/**`, `src/hooks/useNotifications.ts`, `docs/DESIGN-SPRINT4.md`, `src/i18n/**`, `src/app/notifikasi.tsx`, `src/app/(aslab)/_layout.tsx` dan `src/app/(aslab)/(tabs)/_layout.tsx` |
 | Manajemen lab, bulk insert, autentikasi, peta | P2 | Farras | `src/app/(aslab)/lab/**`, `src/app/(aslab)/(tabs)/lab.tsx`, `src/components/aslab/lab/**`, `src/app/kelola-lab.tsx`, `src/app/login.tsx`, `src/app/index.tsx`, `src/app/peta.tsx`, `src/components/peta/**` |
 | Area asprak dan dashboard Aslab | P3 | Nouvella | `src/app/(asisten)/**`, `src/components/asisten/**`, `src/app/(aslab)/(tabs)/beranda-aslab.tsx`, `src/app/(aslab)/dashboard/**`, `src/components/aslab/dashboard/**` |
 
@@ -90,7 +103,7 @@ Tiga alur yang harus dapat didemonstrasikan:
 
 1. Selain pemilik, jangan mengedit file area lain. Butuh perubahan? Ajukan ke pemilik area atau PM.
 2. Pengecualian tunggal: PR skeleton P1 (§5.2) boleh membuat route group `(aslab)` beserta stub layar milik P2 dan P3, serta rute `(praktikan)/tagihan` dan `(praktikan)/riwayat-pembayaran`. PR ini di-merge sebelum yang lain membuat branch kerja.
-3. `package.json`, `package-lock.json`, `app.json`, dan `eas.json` hanya diubah PM. Paket Sprint 4 dipasang PM pada H+0: `expo-document-picker`, `expo-file-system`, `expo-sharing`, `expo-web-browser`, `papaparse`. Paket native baru membutuhkan development build baru; PM mengumumkannya di grup.
+3. `package.json`, `package-lock.json`, `app.json`, dan `eas.json` hanya diubah PM. Paket Sprint 4 dipasang PM pada H+0: `expo-document-picker`, `expo-file-system`, `expo-sharing`, `expo-web-browser`, `papaparse`, `i18next`, `react-i18next`. Paket native baru membutuhkan development build baru; PM mengumumkannya di grup.
 4. Komponen UI baru milik area lain dibuat di folder areanya (misalnya `components/aslab/**`), bukan di `components/ui/**`. Komponen lintas peran (badge status pembayaran, filter rentang) dibuat P1 di `components/ui/**`.
 5. `ImportReviewList` (daftar review baris untuk bulk insert) dibuat P2 di `components/aslab/lab/**` dan dipakai ketiga bulk insert.
 6. Backend `server/**` hanya diubah PM. Rahasia (server key, service account) tidak pernah masuk repo.
@@ -131,6 +144,7 @@ getRingkasanLab(rentang)               // rentang: 'hari' | 'minggu' | 'bulan'
 - `markAttendance`: `SUDAH_IZIN` (izin sudah diterima).
 - `mulaiPembayaran`: `TAGIHAN_TIDAK_DITEMUKAN`, `SUDAH_LUNAS`, `TIDAK_BERHAK`, `JARINGAN`, `SERVER_ERROR`.
 - `pindahAnggota`: `LAB_TUJUAN_TIDAK_DITEMUKAN`, `SUDAH_DI_LAB_TUJUAN`, `TIDAK_BERHAK`, `JARINGAN`.
+- `createSession`, perubahan jadwal, dan `openSession`: `DI_LUAR_JAM_OPERASIONAL`.
 - `createLab`, `createLabsBulk`, `addAnggotaBulk`: `TIDAK_BERHAK`, `DATA_TIDAK_VALID`, `JARINGAN`.
 
 **Skema Firestore (ringkas):**
@@ -282,6 +296,35 @@ Setiap area memiliki hasil, kriteria terima, dan batas. Cara mencapai hasil dise
 **Butir SRS terkait:** FR-34, FR-35, FR-36 (tampilan), FR-40, FR-41.
 
 **Batas:** P3 tidak mengubah `_layout.tsx`, `components/ui/**`, area praktikan, layar manajemen lab (P2), `peta.tsx`, atau `login.tsx`.
+
+### 5.5 Pekerjaan Tambahan
+
+**PM (Eileen)**
+
+- [ ] FR-42: `logout` menghapus `pushToken`; bila penghapusan gagal, pengguna diberi tahu. Setelah logout, perangkat tidak menerima notifikasi.
+- [ ] FR-43: penerima notifikasi diambil dari anggota lab berperan praktikan; praktikan lab lain dan asisten tidak menerima.
+- [ ] FR-45: pesan berhasil dan gagal untuk membuat dan menutup sesi.
+- [ ] FR-46: `markAttendance` menolak presensi yang tidak memenuhi syarat tanpa bergantung pada pemeriksaan di UI.
+- [ ] FR-47: memasang `i18next` dan `react-i18next`.
+- [ ] FR-48: aturan 07.00–20.00 di context dan `firestore.rules` bila memungkinkan; 07.00 dan 20.00 diterima, 06.59 dan 20.01 ditolak.
+
+**P1 (Akmal)**
+
+- [ ] FR-42 dan FR-43: tidak ada notifikasi atau riwayat milik akun lain setelah ganti akun di perangkat yang sama.
+- [ ] FR-44: badge jumlah belum dibaca di `AppHeader`; berkurang setelah dibaca, hilang bila nol, tampil "99+" bila lebih dari 99.
+- [ ] FR-45: hasil aksi sesi tersimpan di riwayat notifikasi.
+- [ ] FR-46: sheet konfirmasi dan centang pernyataan dihapus; tombol nonaktif selama proses agar tidak terkirim ganda.
+- [ ] FR-47: fondasi `src/i18n/**` (id dan en) dan teks area praktikan.
+
+**P2 (Farras)**
+
+- [ ] FR-47: teks login, peta, dan manajemen lab memakai i18n.
+
+**P3 (Nouvella)**
+
+- [ ] FR-45: Toast berhasil dan gagal saat membuat dan menutup sesi.
+- [ ] FR-47: teks area Asprak dan dashboard memakai i18n.
+- [ ] FR-48: pemilih jam hanya menawarkan 07.00–20.00; pesan jelas bila sesi di luar jam operasional.
 
 ---
 
