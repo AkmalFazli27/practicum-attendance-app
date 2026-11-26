@@ -37,7 +37,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test:ai": "node scripts/test-ai.mjs",
+    "test:ai:mock": "node scripts/test-ai.mjs --mock"
   },
   "private": true
 }
