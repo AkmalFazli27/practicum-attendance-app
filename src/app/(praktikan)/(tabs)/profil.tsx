@@ -4,7 +4,9 @@ import { Redirect, useRouter } from 'expo-router';
 import {
   CheckCircle2,
   ChevronRight,
+  History,
   LogOut,
+  ReceiptText,
   Settings,
   UserRound,
 } from 'lucide-react-native';
@@ -23,11 +25,58 @@ import {
 } from '@/theme/tokens';
 import { inisialNama } from '@/utils/format';
 
+interface MenuRowProps {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}
+
+function MenuRow({ icon, title, subtitle, onPress }: MenuRowProps) {
+  const { themeColors } = usePreferences();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.menuCard,
+        {
+          borderColor: themeColors.border,
+          backgroundColor: pressed
+            ? themeColors.surfaceMuted
+            : themeColors.surface,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.menuIconTile,
+          { backgroundColor: themeColors.primarySoft },
+        ]}
+      >
+        {icon}
+      </View>
+      <View style={styles.menuCopy}>
+        <Text style={[styles.menuTitle, { color: themeColors.textPrimary }]}>
+          {title}
+        </Text>
+        <Text style={[styles.menuSub, { color: themeColors.textSecondary }]}>
+          {subtitle}
+        </Text>
+      </View>
+      <ChevronRight size={18} color={themeColors.textMuted} />
+    </Pressable>
+  );
+}
+
 export default function ProfilScreen() {
   const router = useRouter();
   const { currentUser, getKehadiranPraktikan, logout } = useSession();
   const { showToast } = useToast();
-  const { themeColors, t } = usePreferences();
+  const { themeColors, language, t } = usePreferences();
+  const isEn = language === 'en';
   const [sedangKeluar, setSedangKeluar] = useState(false);
 
   if (!currentUser) return <Redirect href="/" />;
@@ -201,6 +250,34 @@ export default function ProfilScreen() {
           <ChevronRight size={18} color={themeColors.textMuted} />
         </Pressable>
 
+        <Text style={[styles.menuGroupLabel, { color: themeColors.textMuted }]}>
+          {isEn ? 'BILLING' : 'KEUANGAN'}
+        </Text>
+
+        <MenuRow
+          icon={<ReceiptText size={20} color={themeColors.textPrimary} />}
+          title={isEn ? 'Bills' : 'Tagihan'}
+          subtitle={
+            isEn
+              ? 'Late-attendance fines and payment status'
+              : 'Denda keterlambatan dan status pembayaran'
+          }
+          onPress={() => router.push('/(praktikan)/tagihan' as any)}
+        />
+
+        <MenuRow
+          icon={<History size={20} color={themeColors.textPrimary} />}
+          title={isEn ? 'Payment history' : 'Riwayat Pembayaran'}
+          subtitle={
+            isEn
+              ? 'All payment transactions'
+              : 'Semua transaksi pembayaranmu'
+          }
+          onPress={() =>
+            router.push('/(praktikan)/riwayat-pembayaran' as any)
+          }
+        />
+
         <Tombol
           variant="danger"
           icon={<LogOut size={18} color={themeColors.errorFg} />}
@@ -211,7 +288,7 @@ export default function ProfilScreen() {
         </Tombol>
 
         <Text style={[styles.version, { color: themeColors.textMuted }]}>
-          TapIn v1.0 · Tap once. You're in.
+          {"TapIn v1.0 · Tap once. You're in."}
         </Text>
       </ScrollView>
     </View>
@@ -339,6 +416,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  menuGroupLabel: {
+    ...type.micro,
+    letterSpacing: 1.1,
+    marginBottom: spacing.s2,
   },
   menuCopy: {
     flex: 1,
