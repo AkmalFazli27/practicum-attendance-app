@@ -9,7 +9,6 @@ import { useSession } from '@/context/SessionContext';
 import { colors, fontFamily, layout, spacing } from '@/theme/tokens';
 import { inisialNama } from '@/utils/format';
 import { Brand } from './Brand';
-import { useToast } from './Toast';
 
 export interface AppHeaderProps {
   onMapPress?: () => void;
@@ -28,8 +27,7 @@ export function AppHeader({
   const router = useRouter();
   const pathname = usePathname();
   const { currentUser } = useSession();
-  const { showToast } = useToast();
-  const { isDark, themeColors, t } = usePreferences();
+  const { isDark, themeColors } = usePreferences();
 
   const isProfile = pathname?.includes('profil');
 
@@ -55,8 +53,13 @@ export function AppHeader({
       return;
     }
     if (!currentUser) return;
+    const peran = currentUser.peran as 'praktikan' | 'asisten' | 'aslab';
+    if (peran === 'aslab') {
+      router.navigate('/(aslab)/(tabs)/beranda-aslab' as any);
+      return;
+    }
     router.navigate(
-      (currentUser.peran === 'asisten'
+      (peran === 'asisten'
         ? '/(asisten)/(tabs)/profil'
         : '/(praktikan)/(tabs)/profil') as any,
     );
