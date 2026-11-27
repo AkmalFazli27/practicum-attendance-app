@@ -49,6 +49,21 @@ export const colors = {
   gpsOffBorder: '#FDE68A',
   lokasiMemuatFg: '#374151',
   lokasiMemuatBg: '#E5E7EB',
+  // Token status pembayaran & kehadiran (Sprint 4)
+  pembayaranUnpaidFg: '#374151',
+  pembayaranUnpaidBg: '#E5E7EB',
+  pembayaranPendingFg: '#1D4ED8',
+  pembayaranPendingBg: '#DBEAFE',
+  pembayaranSuccessFg: '#166534',
+  pembayaranSuccessBg: '#DCFCE7',
+  pembayaranFailedFg: '#991B1B',
+  pembayaranFailedBg: '#FEE2E2',
+  pembayaranDibebaskanFg: '#626A62',
+  pembayaranDibebaskanBg: '#EDF0E9',
+  kehadiranTepatWaktuFg: '#166534',
+  kehadiranTepatWaktuBg: '#DCFCE7',
+  kehadiranTerlambatFg: '#92400E',
+  kehadiranTerlambatBg: '#FEF3C7',
 } as const;
 
 export type ThemeColors = {
@@ -99,6 +114,20 @@ export const darkColors: ThemeColors = {
   gpsOffBorder: '#57421D',
   lokasiMemuatFg: '#D1D5DB',
   lokasiMemuatBg: '#272C2B',
+  pembayaranUnpaidFg: '#D1D5DB',
+  pembayaranUnpaidBg: '#272C2B',
+  pembayaranPendingFg: '#93C5FD',
+  pembayaranPendingBg: '#172554',
+  pembayaranSuccessFg: '#86EFAC',
+  pembayaranSuccessBg: '#143322',
+  pembayaranFailedFg: '#FCA5A5',
+  pembayaranFailedBg: '#3A1919',
+  pembayaranDibebaskanFg: '#9CA3AF',
+  pembayaranDibebaskanBg: '#242928',
+  kehadiranTepatWaktuFg: '#86EFAC',
+  kehadiranTepatWaktuBg: '#143322',
+  kehadiranTerlambatFg: '#FCD34D',
+  kehadiranTerlambatBg: '#382B14',
 };
 
 export const spacing = {

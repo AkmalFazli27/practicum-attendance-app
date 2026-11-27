@@ -5,7 +5,12 @@ import { usePreferences } from '@/context/PreferencesContext';
 import { type StatusIzin, type StatusSesi } from '@/data/dummy';
 import { fontFamily, radius, spacing, type ThemeColors } from '@/theme/tokens';
 
-export type BadgeStatusType = StatusSesi | StatusIzin | 'ALPHA';
+export type BadgeStatusType =
+  | StatusSesi
+  | StatusIzin
+  | 'ALPHA'
+  | 'TEPAT_WAKTU'
+  | 'TERLAMBAT';
 
 export interface StatusBadgeProps {
   status: BadgeStatusType;
@@ -53,6 +58,18 @@ function getBadgeConfig(
         label: isEn ? 'Absent (Alpha)' : 'Alpha',
         bg: tc.errorBg,
         fg: tc.errorFg,
+      };
+    case 'TEPAT_WAKTU':
+      return {
+        label: isEn ? 'On time' : 'Tepat waktu',
+        bg: tc.kehadiranTepatWaktuBg,
+        fg: tc.kehadiranTepatWaktuFg,
+      };
+    case 'TERLAMBAT':
+      return {
+        label: isEn ? 'Late' : 'Terlambat',
+        bg: tc.kehadiranTerlambatBg,
+        fg: tc.kehadiranTerlambatFg,
       };
     case 'TERJADWAL':
     default:

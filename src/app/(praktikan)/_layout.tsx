@@ -5,6 +5,9 @@ import { Redirect, Stack } from 'expo-router';
 import { useSession } from '@/context/SessionContext';
 import { colors } from '@/theme/tokens';
 
+// TODO(sprint4): ganti dengan tipe Peran resmi setelah kontrak PM merge.
+type PeranSprint4 = 'praktikan' | 'asisten' | 'aslab';
+
 export default function PraktikanLayout() {
   const { currentUser, loading } = useSession();
 
@@ -20,8 +23,18 @@ export default function PraktikanLayout() {
     return <Redirect href="/" />;
   }
 
-  if (currentUser.peran !== 'praktikan') {
-    return <Redirect href={'/beranda-asisten' as any} />;
+  const peran = currentUser.peran as PeranSprint4;
+
+  if (peran !== 'praktikan') {
+    return (
+      <Redirect
+        href={
+          (peran === 'aslab'
+            ? '/(aslab)/(tabs)/beranda-aslab'
+            : '/beranda-asisten') as any
+        }
+      />
+    );
   }
 
   return (
