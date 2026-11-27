@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -12,7 +12,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, ReceiptText } from 'lucide-react-native';
 
 import { EmptyState, TagihanCard } from '@/components/ui';
+import { BannerGalat } from '@/components/praktikan/BannerGalat';
 import { formatRupiah } from '@/components/praktikan/formatTagihan';
+import { usePembayaranTagihan } from '@/components/praktikan/usePembayaranTagihan';
 import { useTagihanPraktikan } from '@/components/praktikan/useTagihanPraktikan';
 import { usePreferences } from '@/context/PreferencesContext';
 import {
@@ -36,12 +38,28 @@ export default function TagihanScreen() {
     error,
     retrySync,
   } = useTagihanPraktikan();
+  const { bayar, memproses, galat, clearGalat, tersedia } =
+    usePembayaranTagihan();
+  const [idProses, setIdProses] = useState<string | null>(null);
 
   const bukaDetail = (id: string) =>
     router.push({
       pathname: '/(praktikan)/tagihan/[id]',
       params: { id },
     } as any);
+
+  const handleBayar = async (id: string) => {
+    if (memproses || idProses) return;
+    setIdProses(id);
+    try {
+      await bayar(id);
+    } finally {
+      setIdProses(null);
+    }
+  };
+
+  const bisaBayar = (status: string) =>
+    tersedia && (status === 'UNPAID' || status === 'FAILED');
 
   return (
     <View
@@ -140,6 +158,10 @@ export default function TagihanScreen() {
           </View>
         ) : null}
 
+        {galat ? (
+          <BannerGalat pesan={galat} onTutup={clearGalat} />
+        ) : null}
+
         {error ? (
           <EmptyState
             judul={isEn ? 'Failed to load bills' : 'Gagal memuat tagihan'}
@@ -172,6 +194,12 @@ export default function TagihanScreen() {
                 judul={item.judul}
                 subjudul={item.subjudul}
                 onPress={() => bukaDetail(item.tagihan.id)}
+                onBayar={
+                  bisaBayar(item.tagihan.status)
+                    ? () => handleBayar(item.tagihan.id)
+                    : undefined
+                }
+                loadingBayar={idProses === item.tagihan.id}
               />
             ))}
           </View>
