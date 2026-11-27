@@ -28,7 +28,9 @@ import {
 } from '@/theme/tokens';
 import { formatJam, titikJam } from '@/utils/format';
 import { ScoreRingSvg } from './ScoreRingSvg';
+import { TagihanRingkasCard } from './TagihanRingkasCard';
 import { useJadwalPraktikan } from './useJadwalPraktikan';
+import { useTagihanPraktikan } from './useTagihanPraktikan';
 
 export function BerandaPraktikan() {
   const router = useRouter();
@@ -45,6 +47,7 @@ export function BerandaPraktikan() {
     error,
     retrySync,
   } = useJadwalPraktikan();
+  const { jumlahAktif, totalTertunggak } = useTagihanPraktikan();
 
   if (!currentUser) return null;
 
@@ -192,7 +195,17 @@ export function BerandaPraktikan() {
           </View>
         )}
 
-        {/* 3. Kartu Ringkasan Kehadiran */}
+        {/* 3. Kartu Ringkasan Tagihan */}
+        {jumlahAktif > 0 ? (
+          <TagihanRingkasCard
+            jumlah={jumlahAktif}
+            total={totalTertunggak}
+            onPress={() => router.push('/(praktikan)/tagihan' as any)}
+            style={styles.tagihanRingkas}
+          />
+        ) : null}
+
+        {/* 4. Kartu Ringkasan Kehadiran */}
         <View
           style={[
             styles.summaryCard,
@@ -299,7 +312,7 @@ export function BerandaPraktikan() {
           </View>
         </View>
 
-        {/* 4. Jadwal Mendatang */}
+        {/* 5. Jadwal Mendatang */}
         <SectionHeading
           kicker={isEn ? 'UP NEXT' : 'BERIKUTNYA'}
           title={isEn ? 'Upcoming schedule' : 'Jadwal mendatang'}
@@ -403,6 +416,7 @@ const styles = StyleSheet.create({
   },
   activeInfoText: { ...type.caption, color: colors.textOnDarkMuted, flex: 1 },
   emptyActiveWrap: { marginTop: spacing.s5 },
+  tagihanRingkas: { marginTop: spacing.s5 },
   summaryCard: {
     marginTop: spacing.s4,
     padding: spacing.s4 + 2,
