@@ -24,7 +24,7 @@ type KontrakPembayaran = {
   pembayaran?: PembayaranLokal[];
 };
 
-const URL_SIMULATOR_MIDTRANS = 'https://simulator.sandbox.midtrans.com/';
+const URL_STUB_PEMBAYARAN = 'https://example.com/midtrans-stub';
 
 /**
  * Adapter demo khusus mode dummy (tanpa Firebase).
@@ -34,7 +34,7 @@ const URL_SIMULATOR_MIDTRANS = 'https://simulator.sandbox.midtrans.com/';
 async function mulaiPembayaranDemo(): Promise<HasilMulaiPembayaran> {
   return {
     ok: true,
-    redirectUrl: URL_SIMULATOR_MIDTRANS,
+    redirectUrl: URL_STUB_PEMBAYARAN,
     orderId: `demo-${Date.now()}`,
   };
 }
@@ -117,13 +117,15 @@ export function usePembayaranTagihan() {
 
         orderMenunggu.current = hasil.orderId;
 
+        if (modeDemo) {
+          showToast(
+            isEn
+              ? 'Demo mode: opening a payment stub page.'
+              : 'Mode demo: membuka halaman stub pembayaran.',
+          );
+        }
+
         try {
-          const bisaDibuka = await Linking.canOpenURL(hasil.redirectUrl);
-          if (!bisaDibuka) {
-            orderMenunggu.current = null;
-            tampilkanGalat('SERVER_ERROR');
-            return;
-          }
           await Linking.openURL(hasil.redirectUrl);
         } catch {
           orderMenunggu.current = null;
@@ -137,8 +139,10 @@ export function usePembayaranTagihan() {
       }
     },
     [
+      isEn,
       modeDemo,
       session.mulaiPembayaran,
+      showToast,
       tampilkanGalat,
     ],
   );
@@ -153,17 +157,26 @@ export function usePembayaranTagihan() {
 
       try {
         const berhasil = await sinkron(orderId);
-        if (berhasil) {
+        if (!berhasil) return;
+
+        if (modeDemo) {
           showToast(
-            isEn ? 'Payment status refreshed.' : 'Status pembayaran diperbarui.',
+            isEn
+              ? 'Demo mode: status comes from Firestore in the real build.'
+              : 'Mode demo: status asli hanya berubah lewat Firestore.',
           );
+          return;
         }
+
+        showToast(
+          isEn ? 'Payment status refreshed.' : 'Status pembayaran diperbarui.',
+        );
       } finally {
         memeriksaRef.current = false;
         setMemeriksa(false);
       }
     },
-    [isEn, showToast, sinkron],
+    [isEn, modeDemo, showToast, sinkron],
   );
 
   // Saat pengguna kembali dari browser pembayaran, minta backend
@@ -187,6 +200,5 @@ export function usePembayaranTagihan() {
     galat,
     clearGalat,
     tersedia,
-    modeDemo,
   };
 }
