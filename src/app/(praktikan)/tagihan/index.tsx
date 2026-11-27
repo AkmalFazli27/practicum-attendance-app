@@ -69,7 +69,7 @@ export default function TagihanScreen() {
         </Pressable>
         <View style={styles.headerCopy}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            TAGIHAN
+            {isEn ? 'BILLING' : 'TAGIHAN'}
           </Text>
           <Text
             style={[styles.title, { color: themeColors.textPrimary }]}
