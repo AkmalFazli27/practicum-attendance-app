@@ -177,7 +177,7 @@ export default function DetailTagihanScreen() {
               >
                 {penjelasanStatus(item.tagihan.status)}
                 {item.tagihan.status === 'PAID' && item.tagihan.dibayarPada
-                  ? ` ${formatTanggalTagihan(item.tagihan.dibayarPada, isEn)}`
+                  ? ` ${formatTanggalTagihan(item.tagihan.dibayarPada, isEn)} · ${formatJam(item.tagihan.dibayarPada)}`
                   : ''}
               </Text>
             </View>
@@ -351,10 +351,8 @@ export default function DetailTagihanScreen() {
 
             <Text style={[styles.meta, { color: themeColors.textMuted }]}>
               {isEn ? 'Recorded' : 'Dicatat'}{' '}
-              {formatTanggalTagihan(item.tagihan.dibuatPada, isEn)}
-              {item.sesi?.jamMulai
-                ? ` · ${formatJam(`${item.sesi.tanggal}T${item.sesi.jamMulai}:00`)}`
-                : ''}
+              {formatTanggalTagihan(item.tagihan.dibuatPada, isEn)} ·{' '}
+              {formatJam(item.tagihan.dibuatPada)}
             </Text>
           </>
         )}

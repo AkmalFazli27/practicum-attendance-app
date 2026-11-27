@@ -86,7 +86,7 @@ export default function TagihanScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={loading}
+            refreshing={loading && daftar.length > 0}
             onRefresh={retrySync}
             tintColor={themeColors.textSecondary}
           />
