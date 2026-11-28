@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -35,8 +36,8 @@ import { useTagihanPraktikan } from './useTagihanPraktikan';
 export function BerandaPraktikan() {
   const router = useRouter();
   const { currentUser, getStatusEfektif } = useSession();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
+  const { t } = useTranslation();
   const {
     daftarKelas,
     hadirMap,
@@ -82,7 +83,7 @@ export function BerandaPraktikan() {
           <Text
             style={[styles.welcomeKicker, { color: themeColors.textSecondary }]}
           >
-            {isEn ? 'Welcome back,' : 'Selamat datang,'}
+            {t('beranda.welcomeBack')}
           </Text>
           <Text
             style={[styles.welcomeTitle, { color: themeColors.textPrimary }]}
@@ -92,9 +93,7 @@ export function BerandaPraktikan() {
           <Text
             style={[styles.welcomeSub, { color: themeColors.textSecondary }]}
           >
-            {isEn
-              ? "Ready for today's practicum?"
-              : 'Siap untuk praktikum hari ini?'}
+            {t('beranda.readyPrompt')}
           </Text>
         </View>
 
@@ -102,10 +101,10 @@ export function BerandaPraktikan() {
         {error ? (
           <View style={styles.emptyActiveWrap}>
             <EmptyState
-              judul={isEn ? 'Failed to load data' : 'Gagal memuat data'}
+              judul={t('beranda.loadError')}
               pesan={error}
               aksi={{
-                label: isEn ? 'Try again' : 'Coba lagi',
+                label: t('common.retry'),
                 onPress: retrySync,
               }}
             />
@@ -113,8 +112,8 @@ export function BerandaPraktikan() {
         ) : loading ? (
           <View style={styles.emptyActiveWrap}>
             <EmptyState
-              judul={isEn ? 'Loading data…' : 'Memuat data…'}
-              pesan={isEn ? 'Please wait a moment.' : 'Mohon tunggu sebentar.'}
+              judul={t('beranda.loadingData')}
+              pesan={t('common.pleaseWait')}
             />
           </View>
         ) : sesiBerjalan ? (
@@ -124,7 +123,7 @@ export function BerandaPraktikan() {
               <View style={styles.liveLabelRow}>
                 <View style={styles.liveDot} />
                 <Text style={styles.liveLabelText}>
-                  {isEn ? 'ACTIVE SESSION' : 'SESI AKTIF'}
+                  {t('beranda.activeSession')}
                 </Text>
               </View>
               <MoreHorizontal size={20} color={colors.textOnDarkMuted} />
@@ -167,31 +166,19 @@ export function BerandaPraktikan() {
               onPress={() => bukaDetail(sesiBerjalan.id)}
             >
               {sudahHadirAktif
-                ? isEn
-                  ? 'Already checked in'
-                  : 'Sudah presensi'
+                ? t('presensi.checkedIn')
                 : izinAktifDiterima
-                  ? isEn
-                    ? 'Leave approved'
-                    : 'Izin diterima'
+                  ? t('presensi.excused')
                   : izinAktifStatus === 'MENUNGGU'
-                    ? isEn
-                      ? 'Leave pending · you can still check in'
-                      : 'Izin menunggu · tetap bisa presensi'
-                    : isEn
-                      ? 'Tap to check in'
-                      : 'Tap untuk presensi'}
+                    ? t('presensi.pendingLeave')
+                    : t('presensi.checkIn')}
             </Tombol>
           </View>
         ) : (
           <View style={styles.emptyActiveWrap}>
             <EmptyState
-              judul={isEn ? 'No active sessions' : 'Tidak ada sesi aktif'}
-              pesan={
-                isEn
-                  ? 'Active sessions will appear here once opened by an assistant.'
-                  : 'Sesi aktif akan muncul di sini saat asisten membukanya.'
-              }
+              judul={t('beranda.noActiveSession')}
+              pesan={t('beranda.noActiveSessionBody')}
             />
           </View>
         )}
@@ -219,7 +206,7 @@ export function BerandaPraktikan() {
           <View style={styles.summaryTopRow}>
             <View style={styles.summaryCopy}>
               <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-                {isEn ? 'YOUR SUMMARY' : 'RINGKASANMU'}
+                {t('beranda.summaryKicker')}
               </Text>
               <Text
                 style={[
@@ -227,14 +214,12 @@ export function BerandaPraktikan() {
                   { color: themeColors.textPrimary },
                 ]}
               >
-                {isEn
-                  ? "This semester's attendance"
-                  : 'Kehadiran semester ini'}
+                {t('beranda.summaryTitle')}
               </Text>
             </View>
             <ScoreRingSvg
               value={ringkasan.persen}
-              label={isEn ? 'present' : 'hadir'}
+              label={t('beranda.presentUnit')}
             />
           </View>
 
@@ -253,7 +238,7 @@ export function BerandaPraktikan() {
               <Text
                 style={[styles.statLabel, { color: themeColors.textSecondary }]}
               >
-                {isEn ? 'Present' : 'Hadir'}
+                {t('beranda.statPresent')}
               </Text>
             </View>
             <View
@@ -271,7 +256,7 @@ export function BerandaPraktikan() {
               <Text
                 style={[styles.statLabel, { color: themeColors.textSecondary }]}
               >
-                {isEn ? 'Leave' : 'Izin'}
+                {t('beranda.statLeave')}
               </Text>
             </View>
             <View
@@ -289,7 +274,7 @@ export function BerandaPraktikan() {
               <Text
                 style={[styles.statLabel, { color: themeColors.textSecondary }]}
               >
-                {isEn ? 'Absent' : 'Belum hadir'}
+                {t('beranda.statAbsent')}
               </Text>
             </View>
             <View
@@ -307,7 +292,7 @@ export function BerandaPraktikan() {
               <Text
                 style={[styles.statLabel, { color: themeColors.textSecondary }]}
               >
-                {isEn ? 'Total sessions' : 'Total sesi'}
+                {t('beranda.statTotal')}
               </Text>
             </View>
           </View>
@@ -315,26 +300,20 @@ export function BerandaPraktikan() {
 
         {/* 5. Jadwal Mendatang */}
         <SectionHeading
-          kicker={isEn ? 'UP NEXT' : 'BERIKUTNYA'}
-          title={isEn ? 'Upcoming schedule' : 'Jadwal mendatang'}
+          kicker={t('beranda.upcomingKicker')}
+          title={t('beranda.upcomingTitle')}
           style={styles.sectionHeading}
         />
 
         {loading ? (
           <EmptyState
-            judul={isEn ? 'Loading schedule…' : 'Memuat jadwal…'}
-            pesan={isEn ? 'Please wait a moment.' : 'Mohon tunggu sebentar.'}
+            judul={t('beranda.loadingSchedule')}
+            pesan={t('common.pleaseWait')}
           />
         ) : jadwalMendatang.length === 0 ? (
           <EmptyState
-            judul={
-              isEn ? 'No upcoming schedule' : 'Tidak ada jadwal mendatang'
-            }
-            pesan={
-              isEn
-                ? 'All practicum sessions this week are completed or currently open.'
-                : 'Seluruh jadwal praktikum minggu ini telah selesai atau sedang dibuka.'
-            }
+            judul={t('beranda.noUpcoming')}
+            pesan={t('beranda.noUpcomingBody')}
           />
         ) : (
           <View style={styles.sessionList}>

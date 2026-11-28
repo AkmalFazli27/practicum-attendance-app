@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle, X } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { usePreferences } from '@/context/PreferencesContext';
 import { fontFamily, radius, spacing, type } from '@/theme/tokens';
@@ -12,7 +13,8 @@ export interface BannerGalatProps {
 
 /** Banner error ringkas untuk alur pembayaran tagihan. */
 export function BannerGalat({ pesan, onTutup }: BannerGalatProps) {
-  const { themeColors, language } = usePreferences();
+  const { themeColors } = usePreferences();
+  const { t } = useTranslation();
 
   return (
     <View
@@ -31,7 +33,7 @@ export function BannerGalat({ pesan, onTutup }: BannerGalatProps) {
       </Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={language === 'en' ? 'Dismiss' : 'Tutup'}
+        accessibilityLabel={t('common.close')}
         onPress={onTutup}
         hitSlop={8}
         style={styles.tutup}

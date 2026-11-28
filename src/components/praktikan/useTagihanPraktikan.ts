@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { isFirebaseConfigured } from '@/config/firebase';
 import { usePreferences } from '@/context/PreferencesContext';
@@ -44,6 +45,7 @@ export function useTagihanPraktikan() {
     retrySync,
   } = useSession();
   const { language } = usePreferences();
+  const { t } = useTranslation();
   const isEn = language === 'en';
 
   const sesiMap = useMemo(
@@ -90,14 +92,14 @@ export function useTagihanPraktikan() {
       .map((item): TagihanTampil => {
         const sesiItem = sesiMap.get(item.sesiId);
         const labItem = labMap.get(item.labId);
-        const namaLab = labItem?.nama ?? sesiItem?.lab ?? 'Lab';
+        const namaLab = labItem?.nama ?? sesiItem?.lab ?? t('common.labFallback');
         const tanggal = sesiItem?.tanggal ?? item.dibuatPada;
 
         return {
           tagihan: item,
           sesi: sesiItem,
           lab: labItem,
-          judul: sesiItem?.namaPraktikum ?? 'Sesi praktikum',
+          judul: sesiItem?.namaPraktikum ?? t('tagihan.defaultSession'),
           subjudul: `${formatTanggalTagihan(tanggal, isEn)} · ${namaLab}`,
         };
       })
@@ -128,6 +130,7 @@ export function useTagihanPraktikan() {
     sesiMap,
     labMap,
     isEn,
+    t,
   ]);
 
   return {

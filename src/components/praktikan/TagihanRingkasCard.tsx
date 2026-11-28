@@ -8,6 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { usePreferences } from '@/context/PreferencesContext';
 import {
@@ -32,12 +33,10 @@ export function TagihanRingkasCard({
   onPress,
   style,
 }: TagihanRingkasCardProps) {
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
+  const { t } = useTranslation();
 
-  const judul = isEn
-    ? `${jumlah} outstanding ${jumlah === 1 ? 'bill' : 'bills'}`
-    : `${jumlah} tagihan belum selesai`;
+  const judul = t('tagihan.summaryOutstanding', { count: jumlah });
 
   return (
     <Pressable
@@ -57,7 +56,7 @@ export function TagihanRingkasCard({
     >
       <View style={styles.copy}>
         <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-          {isEn ? 'BILLING' : 'TAGIHAN'}
+          {t('tagihan.kicker')}
         </Text>
         <Text style={[styles.title, { color: themeColors.textPrimary }]}>
           {judul}
@@ -66,7 +65,7 @@ export function TagihanRingkasCard({
           {formatRupiah(total)}
         </Text>
         <Text style={[styles.totalLabel, { color: themeColors.textSecondary }]}>
-          {isEn ? 'Total outstanding' : 'Total tertunggak'}
+          {t('tagihan.totalOutstanding')}
         </Text>
       </View>
 
@@ -77,7 +76,7 @@ export function TagihanRingkasCard({
         ]}
       >
         <Text style={[styles.actionText, { color: themeColors.textPrimary }]}>
-          {isEn ? 'View bills' : 'Lihat tagihan'}
+          {t('tagihan.viewBills')}
         </Text>
         <ArrowRight size={17} color={themeColors.textPrimary} />
       </View>

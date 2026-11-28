@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft } from 'lucide-react-native';
 
 import { PembayaranRow } from '@/components/praktikan/PembayaranRow';
@@ -36,8 +37,8 @@ function waktu(iso: string): number {
 export default function RiwayatPembayaranScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
+  const { t } = useTranslation();
   const {
     pembayaran,
     tagihan,
@@ -106,7 +107,7 @@ export default function RiwayatPembayaranScreen() {
       <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={isEn ? 'Back' : 'Kembali'}
+          accessibilityLabel={t('common.back')}
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.backButton,
@@ -122,13 +123,13 @@ export default function RiwayatPembayaranScreen() {
         </Pressable>
         <View style={styles.headerCopy}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            {isEn ? 'PAYMENT' : 'PEMBAYARAN'}
+            {t('pembayaran.kicker')}
           </Text>
           <Text
             style={[styles.title, { color: themeColors.textPrimary }]}
             numberOfLines={1}
           >
-            {isEn ? 'Payment history' : 'Riwayat Pembayaran'}
+            {t('pembayaran.historyTitle')}
           </Text>
         </View>
         <View style={styles.headerSpacer} />
@@ -146,9 +147,7 @@ export default function RiwayatPembayaranScreen() {
         }
       >
         <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
-          {isEn
-            ? 'All of your late-attendance fine transactions.'
-            : 'Semua transaksi denda keterlambatanmu.'}
+          {t('pembayaran.historySubtitle')}
         </Text>
 
         {error && transaksi.length > 0 ? (
@@ -165,41 +164,29 @@ export default function RiwayatPembayaranScreen() {
               {error}
             </Text>
             <Tombol variant="sekunder" onPress={retrySync}>
-              {isEn ? 'Try again' : 'Coba lagi'}
+              {t('common.retry')}
             </Tombol>
           </View>
         ) : null}
 
         {error && transaksi.length === 0 ? (
           <EmptyState
-            judul={
-              isEn
-                ? 'Failed to load payment history'
-                : 'Gagal memuat riwayat pembayaran'
-            }
+            judul={t('pembayaran.loadError')}
             pesan={error}
             aksi={{
-              label: isEn ? 'Try again' : 'Coba lagi',
+              label: t('common.retry'),
               onPress: retrySync,
             }}
           />
         ) : loading && transaksi.length === 0 ? (
           <EmptyState
-            judul={
-              isEn
-                ? 'Loading payment history…'
-                : 'Memuat riwayat pembayaran…'
-            }
-            pesan={isEn ? 'Please wait a moment.' : 'Mohon tunggu sebentar.'}
+            judul={t('pembayaran.loadingTitle')}
+            pesan={t('common.pleaseWait')}
           />
         ) : transaksi.length === 0 ? (
           <EmptyState
-            judul={isEn ? 'No transactions yet' : 'Belum ada transaksi'}
-            pesan={
-              isEn
-                ? 'Bill payments will appear here.'
-                : 'Pembayaran tagihan akan muncul di sini.'
-            }
+            judul={t('pembayaran.emptyTitle')}
+            pesan={t('pembayaran.emptyBody')}
           />
         ) : (
           <View style={styles.list}>
@@ -209,8 +196,7 @@ export default function RiwayatPembayaranScreen() {
                 ? sesiMap.get(tagihanTerkait.sesiId)
                 : undefined;
               const namaSesi =
-                sesiTerkait?.namaPraktikum ??
-                (isEn ? 'Practicum session' : 'Sesi praktikum');
+                sesiTerkait?.namaPraktikum ?? t('tagihan.defaultSession');
               const tanggalTagihan = tagihanTerkait?.dibuatPada ?? p.dibuatPada;
 
               return (
