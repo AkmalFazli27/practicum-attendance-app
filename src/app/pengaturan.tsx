@@ -290,15 +290,19 @@ export default function PengaturanScreen() {
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Kembali"
+          accessibilityLabel={language === 'en' ? 'Back' : 'Kembali'}
           onPress={() => router.back()}
-          hitSlop={12}
           style={({ pressed }) => [
             styles.backHit,
-            pressed && styles.pressed,
+            {
+              borderColor: themeColors.border,
+              backgroundColor: pressed
+                ? themeColors.surfaceMuted
+                : themeColors.surface,
+            },
           ]}
         >
-          <ChevronLeft size={26} color={themeColors.textPrimary} />
+          <ChevronLeft size={20} color={themeColors.textPrimary} />
         </Pressable>
         <Text
           style={[styles.headerTitle, { color: themeColors.textPrimary }]}
@@ -1120,14 +1124,15 @@ const styles = StyleSheet.create({
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: layout.screenPadding - 4,
+    paddingHorizontal: layout.screenPadding,
     paddingBottom: spacing.s3,
-    gap: spacing.s2,
+    gap: spacing.s3,
   },
   backHit: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
