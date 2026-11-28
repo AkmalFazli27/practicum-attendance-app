@@ -189,6 +189,9 @@ const en: TranslationResources = {
     billsSub: 'Late-attendance fines and payment status',
     paymentHistory: 'Payment history',
     paymentHistorySub: 'All payment transactions',
+    enrolledPracticums: 'Enrolled practicums',
+    classesCount_one: '{{count}} class',
+    classesCount_other: '{{count}} classes',
   },
   beranda: {
     welcomeBack: 'Welcome back,',

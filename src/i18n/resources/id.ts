@@ -180,6 +180,9 @@ const id = {
     billsSub: 'Denda keterlambatan dan status pembayaran',
     paymentHistory: 'Riwayat Pembayaran',
     paymentHistorySub: 'Semua transaksi pembayaranmu',
+    enrolledPracticums: 'Kelas praktikum diikuti',
+    classesCount_one: '{{count}} kelas',
+    classesCount_other: '{{count}} kelas',
   },
   beranda: {
     welcomeBack: 'Selamat datang,',

@@ -266,10 +266,10 @@ export default function ProfilScreen() {
             <Text
               style={[styles.rowLabel, { color: themeColors.textSecondary }]}
             >
-              {isEn ? 'Enrolled practicums' : 'Kelas praktikum diikuti'}
+              {tI18n('profile.enrolledPracticums')}
             </Text>
             <Text style={[styles.rowValue, { color: themeColors.textPrimary }]}>
-              {jumlahKelasDiikuti} {isEn ? 'classes' : 'kelas'}
+              {tI18n('profile.classesCount', { count: jumlahKelasDiikuti })}
             </Text>
           </View>
         </View>
