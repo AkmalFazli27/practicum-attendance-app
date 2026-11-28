@@ -71,12 +71,6 @@ export function BerandaPraktikan() {
   const bukaDetail = (id: string) =>
     router.push({ pathname: '/(praktikan)/sesi/[id]', params: { id } } as any);
 
-  const bukaPresensi = (id: string) =>
-    router.push({
-      pathname: '/(praktikan)/presensi/[id]',
-      params: { id },
-    } as any);
-
   return (
     <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <ScrollView

@@ -43,11 +43,11 @@ export default function DetailSesiPraktikan() {
   } = useSession();
 
   const [izinBuka, setIzinBuka] = useState(false);
-  const [, setTick] = useState(0);
+  const [now, setNow] = useState<number>(() => Date.now());
 
   // Periksa ulang waktu secara berkala setiap 15 detik agar tombol & status otomatis mengikuti PB-06
   useEffect(() => {
-    const timer = setInterval(() => setTick((n) => n + 1), TICK_WAKTU_MS);
+    const timer = setInterval(() => setNow(Date.now()), TICK_WAKTU_MS);
     return () => clearInterval(timer);
   }, []);
 
@@ -101,7 +101,6 @@ export default function DetailSesiPraktikan() {
     );
   }
 
-  const now = Date.now();
   const statusEfektif = getStatusEfektif(s);
   const belumMulai = !sudahMulai(s, now);
   const waktuHabis = sudahLewat(s, now);
@@ -403,7 +402,7 @@ export default function DetailSesiPraktikan() {
             <Text
               style={[styles.izinAlasan, { color: themeColors.textSecondary }]}
             >
-              "{izinSaya.alasan}"
+              {`"${izinSaya.alasan}"`}
             </Text>
 
             <View
