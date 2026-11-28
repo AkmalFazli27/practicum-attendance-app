@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { Building2 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import {
   EmptyState,
@@ -61,9 +62,8 @@ function warnaStatus(tc: ThemeColors, s: StatusKegiatan) {
 }
 
 export default function BerandaAslabScreen() {
-  const { themeColors: tc, language } = usePreferences();
-  const isEn = language === 'en';
-  const tx = (id: string, en: string) => (isEn ? en : id);
+  const { t } = useTranslation();
+  const { themeColors: tc } = usePreferences();
 
   const {
     currentUser,
@@ -124,24 +124,24 @@ export default function BerandaAslabScreen() {
     return (
       <View style={s.tengah}>
         <EmptyState
-          judul={tx('Terjadi kesalahan', 'Something went wrong')}
+          judul={t('common.error')}
           pesan={error}
-          aksi={{ label: tx('Coba lagi', 'Try again'), onPress: retrySync }}
+          aksi={{ label: t('common.retry'), onPress: retrySync }}
         />
       </View>
     );
   }
 
   const namaDepan =
-    currentUser?.nama?.trim().split(/\s+/)[0] || tx('Aslab', 'Aslab');
+    currentUser?.nama?.trim().split(/\s+/)[0] || t('aslab.fallbackName');
   const namaLab = (id?: string, fallback?: string) =>
     labsGabungan.find((l) => l.id === id)?.nama ?? fallback ?? '-';
 
   const labelStatus: Record<StatusKegiatan, string> = {
-    BERLANGSUNG: tx('Berlangsung', 'Ongoing'),
-    TERJADWAL: tx('Terjadwal', 'Scheduled'),
-    SELESAI: tx('Selesai', 'Finished'),
-    TANPA_KEGIATAN: tx('Kosong', 'Idle'),
+    BERLANGSUNG: t('aslab.statusOngoing'),
+    TERJADWAL: t('aslab.statusScheduled'),
+    SELESAI: t('aslab.statusFinished'),
+    TANPA_KEGIATAN: t('aslab.statusIdle'),
   };
 
   const renderSesi = (x: Sesi, tampilJam = true) => (
@@ -164,9 +164,7 @@ export default function BerandaAslabScreen() {
       >
         {/* Sapaan Clean */}
         <View style={s.titleWrap}>
-          <Text style={s.sapaanKecil}>
-            {tx('Halo,', 'Hello,')}
-          </Text>
+          <Text style={s.sapaanKecil}>{t('aslab.hello')}</Text>
           <Text style={s.judul}>{namaDepan} 👋</Text>
         </View>
 
@@ -176,18 +174,16 @@ export default function BerandaAslabScreen() {
         <View style={s.heroCard}>
           <View style={s.heroTopRow}>
             <View style={{ flex: 1, gap: 4 }}>
-              <Text style={s.heroKicker}>
-                {tx('OPERASIONAL LAB', 'LAB OPERATIONS')}
-              </Text>
+              <Text style={s.heroKicker}>{t('aslab.opsKicker')}</Text>
               <Text style={s.heroTitle}>
                 {data.berlangsung.length > 0
-                  ? tx('Sesi sedang aktif', 'Sessions running')
-                  : tx('Semua terkendali', 'All under control')}
+                  ? t('aslab.opsActiveTitle')
+                  : t('aslab.opsIdleTitle')}
               </Text>
             </View>
             <View style={s.heroPill}>
               <View style={s.heroDot} />
-              <Text style={s.heroPillText}>{tx('Aktif', 'Live')}</Text>
+              <Text style={s.heroPillText}>{t('aslab.opsLivePill')}</Text>
             </View>
           </View>
 
@@ -196,22 +192,20 @@ export default function BerandaAslabScreen() {
           <View style={s.heroStatsRow}>
             <View style={s.heroStatCol}>
               <Text style={s.heroStatNum}>{data.jumlahLab}</Text>
-              <Text style={s.heroStatLabel}>
-                {tx('Laboratorium', 'Laboratories')}
-              </Text>
+              <Text style={s.heroStatLabel}>{t('aslab.labsCountLabel')}</Text>
             </View>
             <View style={s.heroVertLine} />
             <View style={s.heroStatCol}>
               <Text style={s.heroStatNum}>{data.jumlahPraktikan}</Text>
               <Text style={s.heroStatLabel}>
-                {tx('Praktikan aktif', 'Active students')}
+                {t('aslab.activeStudentsLabel')}
               </Text>
             </View>
             <View style={s.heroVertLine} />
             <View style={s.heroStatCol}>
               <Text style={s.heroStatNum}>{data.berlangsung.length}</Text>
               <Text style={s.heroStatLabel}>
-                {tx('Sesi berjalan', 'Running sessions')}
+                {t('aslab.runningSessionsLabel')}
               </Text>
             </View>
           </View>
@@ -219,22 +213,17 @@ export default function BerandaAslabScreen() {
 
         {/* Aktivitas Laboratorium Real-Time */}
         <View style={s.liveHeaderRow}>
-          <Text style={s.liveTitle}>
-            {tx('Aktivitas Lab', 'Lab Activity')}
-          </Text>
+          <Text style={s.liveTitle}>{t('aslab.activityTitle')}</Text>
           <View style={s.liveBadge}>
             <View style={s.liveBadgeDot} />
-            <Text style={s.liveBadgeText}>Live</Text>
+            <Text style={s.liveBadgeText}>{t('aslab.liveBadge')}</Text>
           </View>
         </View>
 
         {data.perLab.length === 0 ? (
           <EmptyState
-            judul={tx('Belum ada lab', 'No labs yet')}
-            pesan={tx(
-              'Data laboratorium akan tampil di sini.',
-              'Laboratories will appear here.',
-            )}
+            judul={t('aslab.noLabsTitle')}
+            pesan={t('aslab.noLabsBody')}
           />
         ) : (
           <View style={s.groupedLabBox}>
@@ -280,27 +269,21 @@ export default function BerandaAslabScreen() {
           </View>
         )}
 
-        <SectionHeading title={tx('Akan datang', 'Upcoming')} />
+        <SectionHeading title={t('aslab.upcomingHeading')} />
         {data.akanDatang.length === 0 ? (
           <EmptyState
-            judul={tx('Belum ada jadwal', 'No schedule yet')}
-            pesan={tx(
-              'Tidak ada jadwal akan datang pada rentang ini.',
-              'No upcoming schedule in this range.',
-            )}
+            judul={t('aslab.noUpcomingTitle')}
+            pesan={t('aslab.noUpcomingBody')}
           />
         ) : (
           data.akanDatang.slice(0, 5).map((x) => renderSesi(x))
         )}
 
-        <SectionHeading title={tx('Riwayat kegiatan', 'Activity history')} />
+        <SectionHeading title={t('aslab.historyHeading')} />
         {data.riwayatKegiatan.length === 0 ? (
           <EmptyState
-            judul={tx('Belum ada riwayat', 'No history yet')}
-            pesan={tx(
-              'Belum ada kegiatan selesai pada rentang ini.',
-              'No finished activity in this range.',
-            )}
+            judul={t('aslab.noHistoryTitle')}
+            pesan={t('aslab.noHistoryBody')}
           />
         ) : (
           data.riwayatKegiatan.slice(0, 5).map((x) => renderSesi(x))

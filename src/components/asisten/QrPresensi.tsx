@@ -13,6 +13,7 @@ import {
   RefreshCw,
 } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { useTranslation } from 'react-i18next';
 
 import { Tombol, useToast } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
@@ -34,22 +35,16 @@ function formatCountdown(ms: number): string {
   return `${String(menit).padStart(2, '0')}:${String(detik).padStart(2, '0')}`;
 }
 
-/**
- * QR & Kode Presensi sisi asisten (opsional FR-19).
- * QR & kode berlaku maksimal 15 menit (atau mengikuti sisa waktu praktikum jika < 15 menit).
- * Setelah kedaluwarsa, asisten dapat memperbarui QR & kode selama sesi masih berlangsung.
- */
 export function QrPresensi({ sesi }: QrPresensiProps) {
+  const { t } = useTranslation();
   const { showToast } = useToast();
-  const { themeColors, language } = usePreferences();
+  const { themeColors } = usePreferences();
   const { renewSessionQr } = useSession();
-  const isEn = language === 'en';
 
   const [now, setNow] = useState<number>(() => Date.now());
   const [memperbarui, setMemperbarui] = useState(false);
   const autoInitRef = useRef<string | null>(null);
 
-  // Perbarui countdown setiap 1 detik
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(Date.now());
@@ -72,7 +67,6 @@ export function QrPresensi({ sesi }: QrPresensiProps) {
   const terbatasSisaSesi =
     !isExpired && effectiveExpiresAt === selesaiMs && sisaSesiMs < QR_TTL_MS;
 
-  // Inisialisasi otomatis QR & kode untuk sesi yang sudah dibuka sebelum fitur token aktif
   useEffect(() => {
     if (
       !sesi.qrToken &&
@@ -100,12 +94,8 @@ export function QrPresensi({ sesi }: QrPresensiProps) {
     if (!hasil.ok) {
       showToast(
         hasil.alasan === 'WAKTU_HABIS'
-          ? isEn
-            ? 'Session time has ended. QR cannot be renewed.'
-            : 'Waktu praktikum telah berakhir. QR tidak dapat diperbarui.'
-          : isEn
-            ? 'Failed to renew QR & code. Please try again.'
-            : 'Gagal memperbarui QR & kode. Silakan coba lagi.',
+          ? t('asprak.qrRenewEndedError')
+          : t('asprak.qrRenewFailedError'),
       );
       return;
     }
@@ -114,20 +104,12 @@ export function QrPresensi({ sesi }: QrPresensiProps) {
       15,
       Math.max(1, Math.ceil((selesaiMs - Date.now()) / 60000)),
     );
-    showToast(
-      isEn
-        ? `QR & code renewed (valid for ${sisaMenit} min).`
-        : `QR & kode diperbarui (berlaku ${sisaMenit} menit).`,
-    );
+    showToast(t('asprak.qrRenewToast', { menit: sisaMenit }));
   };
 
   const handleSalinKode = async () => {
     if (isExpired || !kodePresensi) {
-      showToast(
-        isEn
-          ? 'Code has expired. Renew it first.'
-          : 'Kode sudah kedaluwarsa. Perbarui terlebih dahulu.',
-      );
+      showToast(t('asprak.qrCopyExpiredError'));
       return;
     }
 
@@ -135,29 +117,23 @@ export function QrPresensi({ sesi }: QrPresensiProps) {
       try {
         if (typeof navigator !== 'undefined' && navigator.clipboard) {
           await navigator.clipboard.writeText(kodePresensi);
-          showToast(
-            isEn
-              ? `Attendance code ${kodePresensi} copied.`
-              : `Kode presensi ${kodePresensi} berhasil disalin.`,
-          );
+          showToast(t('asprak.qrCopiedToast', { kode: kodePresensi }));
           return;
         }
       } catch {
         // fallback toast
       }
-      showToast(
-        isEn
-          ? `Attendance code: ${kodePresensi}`
-          : `Kode presensi: ${kodePresensi}`,
-      );
+      showToast(t('asprak.qrCodeFallbackToast', { kode: kodePresensi }));
       return;
     }
 
     try {
       await Share.share({
-        message: isEn
-          ? `TapIn attendance code for ${sesi.namaPraktikum} (${sesi.kelas}): ${kodePresensi}`
-          : `Kode presensi TapIn untuk ${sesi.namaPraktikum} (${sesi.kelas}): ${kodePresensi}`,
+        message: t('asprak.qrShareMessage', {
+          praktikum: sesi.namaPraktikum,
+          kelas: sesi.kelas,
+          kode: kodePresensi,
+        }),
       });
     } catch {
       // Pengguna membatalkan share sheet
@@ -185,30 +161,24 @@ export function QrPresensi({ sesi }: QrPresensiProps) {
         },
       ]}
     >
-      {/* Header + Live Countdown Pill */}
       <View style={styles.headerRow}>
         <View style={styles.headerTextWrap}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            {isEn ? 'ATTENDANCE QR' : 'QR PRESENSI'}
+            {t('asprak.qrKicker')}
           </Text>
           <Text style={[styles.title, { color: themeColors.textPrimary }]}>
-            {isEn ? 'Show to students' : 'Tunjukkan ke praktikan'}
+            {t('asprak.qrTitle')}
           </Text>
         </View>
 
         <View style={[styles.timerPill, { backgroundColor: badgeBg }]}>
           <Clock3 size={13} color={badgeFg} />
           <Text style={[styles.timerText, { color: badgeFg }]}>
-            {isExpired
-              ? isEn
-                ? 'Expired'
-                : 'Kedaluwarsa'
-              : formatCountdown(sisaQrMs)}
+            {isExpired ? t('asprak.qrExpired') : formatCountdown(sisaQrMs)}
           </Text>
         </View>
       </View>
 
-      {/* Area QR Code (latar putih kontras tinggi agar mudah dipindai kamera di mode gelap) */}
       <View
         style={[
           styles.qrWrap,
@@ -246,30 +216,21 @@ export function QrPresensi({ sesi }: QrPresensiProps) {
                 style={[styles.expiredTitle, { color: themeColors.errorFg }]}
               >
                 {sesiBerakhir
-                  ? isEn
-                    ? 'Session Ended'
-                    : 'Waktu Sesi Habis'
-                  : isEn
-                    ? 'QR Expired'
-                    : 'QR Kedaluwarsa'}
+                  ? t('asprak.qrSessionEndedTitle')
+                  : t('asprak.qrExpiredTitle')}
               </Text>
               <Text
                 style={[styles.expiredSub, { color: themeColors.textSecondary }]}
               >
                 {sesiBerakhir
-                  ? isEn
-                    ? 'Practicum schedule has ended.'
-                    : 'Jadwal praktikum telah berakhir.'
-                  : isEn
-                    ? 'Renew QR & code to continue attendance.'
-                    : 'Perbarui QR & kode untuk melanjutkan presensi.'}
+                  ? t('asprak.qrSessionEndedSub')
+                  : t('asprak.qrExpiredSub')}
               </Text>
             </View>
           </View>
         )}
       </View>
 
-      {/* Info Masa Berlaku / Tombol Perbarui QR */}
       {isExpired ? (
         !sesiBerakhir ? (
           <Tombol
@@ -279,28 +240,21 @@ export function QrPresensi({ sesi }: QrPresensiProps) {
             onPress={handleRenewQr}
             style={styles.renewBtn}
           >
-            {isEn ? 'Renew QR & Code' : 'Perbarui QR & Kode'}
+            {t('asprak.qrRenewBtn')}
           </Tombol>
         ) : (
           <Text style={[styles.hint, { color: themeColors.errorFg }]}>
-            {isEn
-              ? 'Practicum time has ended. QR & code can no longer be renewed.'
-              : 'Waktu praktikum telah berakhir. QR & kode tidak dapat diperbarui lagi.'}
+            {t('asprak.qrSessionEndedHint')}
           </Text>
         )
       ) : (
         <Text style={[styles.hint, { color: themeColors.textMuted }]}>
           {terbatasSisaSesi
-            ? isEn
-              ? 'Valid until the end of this practicum session. Attendance is still verified by location and session time.'
-              : 'Berlaku mengikuti sisa waktu praktikum. Presensi tetap diperiksa berdasarkan lokasi dan waktu sesi.'
-            : isEn
-              ? 'Valid for 15 minutes. Students can scan this QR or enter the attendance code below.'
-              : 'Berlaku selama 15 menit. Praktikan dapat memindai QR ini atau memasukkan kode presensi di bawah.'}
+            ? t('asprak.qrLimitedHint')
+            : t('asprak.qrValidHint')}
         </Text>
       )}
 
-      {/* Alternatif Presensi via Kode */}
       <View
         style={[
           styles.codeSection,
@@ -310,7 +264,7 @@ export function QrPresensi({ sesi }: QrPresensiProps) {
         <View style={styles.codeHeaderRow}>
           <KeyRound size={14} color={themeColors.textMuted} />
           <Text style={[styles.codeLabel, { color: themeColors.textMuted }]}>
-            {isEn ? 'OR ENTER ATTENDANCE CODE' : 'ATAU MASUKKAN KODE PRESENSI'}
+            {t('asprak.qrCodeDivider')}
           </Text>
         </View>
 
@@ -349,12 +303,8 @@ export function QrPresensi({ sesi }: QrPresensiProps) {
           style={styles.copyBtn}
         >
           {Platform.OS === 'web'
-            ? isEn
-              ? 'Copy attendance code'
-              : 'Salin kode presensi'
-            : isEn
-              ? 'Share attendance code'
-              : 'Bagikan kode presensi'}
+            ? t('asprak.qrCopyCode')
+            : t('asprak.qrShareCode')}
         </Tombol>
       </View>
     </View>

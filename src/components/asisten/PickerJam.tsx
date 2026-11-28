@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
@@ -36,6 +37,7 @@ function Kolom({
   langkah: number;
   onUbah: (n: number) => void;
 }) {
+  const { t } = useTranslation();
   const { themeColors } = usePreferences();
   const [teks, setTeks] = useState(pad(nilai));
   const [fokus, setFokus] = useState(false);
@@ -66,7 +68,7 @@ function Kolom({
   return (
     <View style={styles.kolom}>
       <Pressable
-        accessibilityLabel={`${nama} tambah`}
+        accessibilityLabel={t('asprak.timeIncAria', { label: nama })}
         onPress={tambah}
         style={[styles.btn, { backgroundColor: themeColors.surfaceMuted }]}
       >
@@ -81,8 +83,8 @@ function Kolom({
         maxLength={2}
         selectTextOnFocus
         onFocus={() => setFokus(true)}
-        onChangeText={(t) => {
-          const bersih = t.replace(/\D/g, '');
+        onChangeText={(txt) => {
+          const bersih = txt.replace(/\D/g, '');
           setTeks(bersih);
           if (bersih.length === 2) komit(bersih);
         }}
@@ -95,7 +97,7 @@ function Kolom({
         style={[styles.angka, { color: themeColors.textPrimary }]}
       />
       <Pressable
-        accessibilityLabel={`${nama} kurang`}
+        accessibilityLabel={t('asprak.timeDecAria', { label: nama })}
         onPress={kurang}
         style={[styles.btn, { backgroundColor: themeColors.surfaceMuted }]}
       >
@@ -115,6 +117,7 @@ export function PickerJam({
   maxJam = 20,
   disabled = false,
 }: PickerJamProps) {
+  const { t } = useTranslation();
   const { themeColors } = usePreferences();
   const { j, m } = parse(value);
   const jamTerkunci = Math.min(maxJam, Math.max(minJam, j));
@@ -144,7 +147,7 @@ export function PickerJam({
       >
         <View style={styles.atas}>
           <Kolom
-            nama={`${label} jam`}
+            nama={`${label} ${t('asprak.timeHourSuffix')}`}
             nilai={jamTerkunci}
             min={minJam}
             maks={maxJam}
@@ -155,7 +158,7 @@ export function PickerJam({
             :
           </Text>
           <Kolom
-            nama={`${label} menit`}
+            nama={`${label} ${t('asprak.timeMinuteSuffix')}`}
             nilai={menitTerkunci}
             min={0}
             maks={menitMaks}

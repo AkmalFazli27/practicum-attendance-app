@@ -1,19 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { usePreferences } from '@/context/PreferencesContext';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 
-const NAMA_BULAN_ID = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-];
-const NAMA_BULAN_EN = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-const HARI_ID = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-const HARI_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_KEYS = [
+  'm0', 'm1', 'm2', 'm3', 'm4', 'm5',
+  'm6', 'm7', 'm8', 'm9', 'm10', 'm11',
+] as const;
+const DAY_KEYS = ['d0', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6'] as const;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const keStr = (t: number, b: number, h: number) => `${t}-${pad(b + 1)}-${pad(h)}`;
@@ -45,10 +41,8 @@ export function PickerTanggal({
   minTanggal,
   disabled = false,
 }: PickerTanggalProps) {
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
-  const NAMA_BULAN = isEn ? NAMA_BULAN_EN : NAMA_BULAN_ID;
-  const HARI = isEn ? HARI_EN : HARI_ID;
+  const { t } = useTranslation();
+  const { themeColors } = usePreferences();
   const [terbuka, setTerbuka] = useState(false);
   const awal = parse(value) ?? parse(hariIni())!;
   const [tahun, setTahun] = useState(awal.t);
@@ -82,13 +76,13 @@ export function PickerTanggal({
   const bulanSebelumnyaBoleh =
     keStr(tahun, bulan, 1) > batas.slice(0, 8) + '01';
 
+  const namaBulan = (idx: number) => t(`asprak.months.${MONTH_KEYS[idx]}`);
+
   const tampil = (() => {
     const p = parse(value);
     return p
-      ? `${p.h} ${NAMA_BULAN[p.b]} ${p.t}`
-      : isEn
-        ? 'Select date'
-        : 'Pilih tanggal';
+      ? `${p.h} ${namaBulan(p.b)} ${p.t}`
+      : t('asprak.dateSelectPlaceholder');
   })();
 
   return (
@@ -128,7 +122,7 @@ export function PickerTanggal({
         >
           <View style={styles.nav}>
             <Pressable
-              accessibilityLabel="Bulan sebelumnya"
+              accessibilityLabel={t('asprak.datePrevMonthAria')}
               disabled={!bulanSebelumnyaBoleh}
               onPress={() => geser(-1)}
               style={[
@@ -147,10 +141,10 @@ export function PickerTanggal({
               </Text>
             </Pressable>
             <Text style={[styles.bulan, { color: themeColors.textPrimary }]}>
-              {NAMA_BULAN[bulan]} {tahun}
+              {namaBulan(bulan)} {tahun}
             </Text>
             <Pressable
-              accessibilityLabel="Bulan berikutnya"
+              accessibilityLabel={t('asprak.dateNextMonthAria')}
               onPress={() => geser(1)}
               style={[
                 styles.navBtn,
@@ -164,12 +158,12 @@ export function PickerTanggal({
           </View>
 
           <View style={styles.baris}>
-            {HARI.map((h) => (
+            {DAY_KEYS.map((k) => (
               <Text
-                key={h}
+                key={k}
                 style={[styles.hariHead, { color: themeColors.textMuted }]}
               >
-                {h}
+                {t(`asprak.weekdaysShort.${k}`)}
               </Text>
             ))}
           </View>

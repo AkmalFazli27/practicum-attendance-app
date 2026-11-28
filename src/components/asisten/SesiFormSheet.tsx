@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { SheetModal, Tombol, useToast } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
@@ -27,11 +28,11 @@ export function SesiFormSheet({
   initialSesi = null,
   onClose,
 }: SesiFormSheetProps) {
+  const { t } = useTranslation();
   const { createSession, updateSession } = useSession();
   const { labsSaya } = useSesiAsprak();
   const { showToast } = useToast();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
 
   const isEdit = Boolean(initialSesi);
 
@@ -132,8 +133,8 @@ export function SesiFormSheet({
         }
         showToast(
           hasilUbah.notifGagal
-            ? 'Data sesi praktikum berhasil diperbarui. Namun notifikasi ke praktikan gagal terkirim.'
-            : 'Data sesi praktikum berhasil diperbarui.',
+            ? t('asprak.formUpdatedNotifFailed')
+            : t('asprak.formUpdatedToast'),
         );
         onClose();
       } else {
@@ -143,12 +144,12 @@ export function SesiFormSheet({
           setGalat(hasilBuat.alasan);
           return;
         }
-        showToast('Sesi praktikum baru berhasil ditambahkan.');
+        showToast(t('asprak.formCreatedToast'));
         onClose();
       }
     } catch {
       setMenyimpan(false);
-      setGalat('Terjadi kesalahan saat menyimpan sesi praktikum.');
+      setGalat(t('asprak.formSaveError'));
     }
   };
 
@@ -162,24 +163,8 @@ export function SesiFormSheet({
   return (
     <SheetModal
       visible={visible}
-      kicker={
-        isEdit
-          ? isEn
-            ? 'EDIT SESSION'
-            : 'UBAH DATA SESI'
-          : isEn
-            ? 'MANAGE PRACTICUM'
-            : 'KELOLA PRAKTIKUM'
-      }
-      judul={
-        isEdit
-          ? isEn
-            ? 'Edit Practicum Session'
-            : 'Edit Sesi Praktikum'
-          : isEn
-            ? 'Add New Session'
-            : 'Tambah Sesi Baru'
-      }
+      kicker={isEdit ? t('asprak.formEditKicker') : t('asprak.formNewKicker')}
+      judul={isEdit ? t('asprak.formEditTitle') : t('asprak.formNewTitle')}
       dismissible={!menyimpan}
       onClose={onClose}
       footer={
@@ -207,7 +192,7 @@ export function SesiFormSheet({
               onPress={onClose}
               style={styles.cancelBtn}
             >
-              {isEn ? 'Cancel' : 'Batal'}
+              {t('common.cancel')}
             </Tombol>
             <Tombol
               variant="primer"
@@ -215,13 +200,7 @@ export function SesiFormSheet({
               onPress={handleSimpan}
               style={styles.submitBtn}
             >
-              {isEdit
-                ? isEn
-                  ? 'Save Changes'
-                  : 'Simpan Perubahan'
-                : isEn
-                  ? 'Add Session'
-                  : 'Tambah Sesi'}
+              {isEdit ? t('asprak.formSaveChanges') : t('asprak.formCreateBtn')}
             </Tombol>
           </View>
         </View>
@@ -229,14 +208,12 @@ export function SesiFormSheet({
     >
       <View style={styles.fieldGroup}>
         <Text style={[styles.label, labelDynamicStyle]}>
-          {isEn ? 'Practicum name' : 'Nama praktikum'}
+          {t('asprak.formPracticumLabel')}
         </Text>
         <TextInput
           value={namaPraktikum}
           onChangeText={setNamaPraktikum}
-          placeholder={
-            isEn ? 'Example: Web Programming' : 'Contoh: Pemrograman Web'
-          }
+          placeholder={t('asprak.formPracticumPlaceholder')}
           placeholderTextColor={themeColors.textMuted}
           style={[styles.input, inputDynamicStyle]}
         />
@@ -244,16 +221,12 @@ export function SesiFormSheet({
 
       <View style={styles.fieldGroup}>
         <Text style={[styles.label, labelDynamicStyle]}>
-          {isEn ? 'Meeting topic' : 'Topik pertemuan'}
+          {t('asprak.formTopicLabel')}
         </Text>
         <TextInput
           value={topik}
           onChangeText={setTopik}
-          placeholder={
-            isEn
-              ? 'Example: Firebase Auth & Cloud Firestore'
-              : 'Contoh: Firebase Auth & Cloud Firestore'
-          }
+          placeholder={t('asprak.formTopicPlaceholder')}
           placeholderTextColor={themeColors.textMuted}
           style={[styles.input, inputDynamicStyle]}
         />
@@ -261,12 +234,12 @@ export function SesiFormSheet({
 
       <View style={styles.fieldGroup}>
         <Text style={[styles.label, labelDynamicStyle]}>
-          {isEn ? 'Class' : 'Kelas'}
+          {t('asprak.formClassLabel')}
         </Text>
         <TextInput
           value={kelas}
           onChangeText={setKelas}
-          placeholder="IF-2A"
+          placeholder={t('asprak.formClassPlaceholder')}
           placeholderTextColor={themeColors.textMuted}
           autoCapitalize="characters"
           style={[styles.input, inputDynamicStyle]}
@@ -284,10 +257,10 @@ export function SesiFormSheet({
       />
 
       <PickerTanggal
-        label={isEn ? 'Date' : 'Tanggal'}
+        label={t('asprak.formDateLabel')}
         value={tanggal}
-        onChange={(t) => {
-          setTanggal(t);
+        onChange={(tgl) => {
+          setTanggal(tgl);
           setGalat(null);
         }}
         minTanggal={
@@ -300,7 +273,7 @@ export function SesiFormSheet({
 
       <View style={styles.row}>
         <PickerJam
-          label={isEn ? 'Start time' : 'Jam mulai'}
+          label={t('asprak.formStartLabel')}
           value={jamMulai}
           minJam={7}
           maxJam={20}
@@ -311,7 +284,7 @@ export function SesiFormSheet({
           disabled={menyimpan}
         />
         <PickerJam
-          label={isEn ? 'End time' : 'Jam selesai'}
+          label={t('asprak.formEndLabel')}
           value={jamSelesai}
           minJam={7}
           maxJam={20}
@@ -325,7 +298,7 @@ export function SesiFormSheet({
 
       <View style={styles.fieldGroup}>
         <Text style={[styles.label, labelDynamicStyle]}>
-          {isEn ? 'Capacity' : 'Kapasitas'}
+          {t('asprak.formCapacityLabel')}
         </Text>
         <TextInput
           value={kapasitas}
@@ -339,16 +312,12 @@ export function SesiFormSheet({
 
       <View style={styles.fieldGroup}>
         <Text style={[styles.label, labelDynamicStyle]}>
-          {isEn ? 'Session description' : 'Deskripsi materi'}
+          {t('asprak.formDescLabel')}
         </Text>
         <TextInput
           value={deskripsi}
           onChangeText={setDeskripsi}
-          placeholder={
-            isEn
-              ? 'Summary of activities and learning goals for this session...'
-              : 'Ringkasan kegiatan dan capaian praktikum pada sesi ini...'
-          }
+          placeholder={t('asprak.formDescPlaceholder')}
           placeholderTextColor={themeColors.textMuted}
           multiline
           numberOfLines={3}

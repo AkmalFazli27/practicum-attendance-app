@@ -12,6 +12,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { BadgeKehadiran } from '@/components/asisten/BadgeKehadiran';
 import { formatJarak } from '@/components/asisten/formatJarak';
@@ -36,6 +37,7 @@ import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/token
 import { formatJam, formatTanggalSingkat, titikJam } from '@/utils/format';
 
 export default function DetailSesiScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const {
@@ -52,8 +54,7 @@ export default function DetailSesiScreen() {
     retrySync,
   } = useSession();
   const { bolehKelola } = useSesiAsprak();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
   const { showToast } = useToast();
   const { mulai, sheet } = useAksiSesi();
   const { statusEfektif, aksiUtama } = useStatusSesi();
@@ -75,9 +76,7 @@ export default function DetailSesiScreen() {
     if (loading) {
       return (
         <View style={[styles.root, { backgroundColor: themeColors.background }]}>
-          <LoadingBlock
-            pesan={isEn ? 'Loading session...' : 'Memuat detail sesi...'}
-          />
+          <LoadingBlock pesan={t('asprak.loadingSession')} />
         </View>
       );
     }
@@ -91,14 +90,10 @@ export default function DetailSesiScreen() {
     return (
       <View style={[styles.root, styles.centerPad, { backgroundColor: themeColors.background }]}>
         <EmptyState
-          judul={isEn ? 'Session not found' : 'Sesi tidak ditemukan'}
-          pesan={
-            isEn
-              ? 'The session may have been deleted or belongs to another lab.'
-              : 'Sesi mungkin sudah dihapus atau berasal dari lab lain.'
-          }
+          judul={t('asprak.sessionNotFound')}
+          pesan={t('asprak.sessionNotFoundBody')}
           aksi={{
-            label: isEn ? 'Back' : 'Kembali',
+            label: t('common.back'),
             onPress: () => router.back(),
           }}
         />
@@ -110,14 +105,10 @@ export default function DetailSesiScreen() {
     return (
       <View style={[styles.root, styles.centerPad, { backgroundColor: themeColors.background }]}>
         <EmptyState
-          judul={isEn ? 'Access denied' : 'Akses dibatasi'}
-          pesan={
-            isEn
-              ? 'You are not registered as an assistant for this lab.'
-              : 'Kamu tidak terdaftar sebagai asisten pada laboratorium sesi ini.'
-          }
+          judul={t('asprak.accessDenied')}
+          pesan={t('asprak.accessDeniedBody')}
           aksi={{
-            label: isEn ? 'Back' : 'Kembali',
+            label: t('common.back'),
             onPress: () => router.back(),
           }}
         />
@@ -147,20 +138,12 @@ export default function DetailSesiScreen() {
     setHapusVisible(false);
 
     if (berhasil) {
-      showToast(
-        isEn
-          ? 'Session deleted successfully.'
-          : 'Sesi praktikum berhasil dihapus.',
-      );
+      showToast(t('asprak.deleteSessionSuccess'));
       router.back();
       return;
     }
 
-    showToast(
-      isEn
-        ? 'Failed to delete session. Please try again.'
-        : 'Gagal menghapus sesi. Silakan coba lagi.',
-    );
+    showToast(t('asprak.deleteSessionError'));
   };
 
   return (
@@ -172,7 +155,7 @@ export default function DetailSesiScreen() {
         {/* Tombol Kembali */}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={isEn ? 'Back' : 'Kembali'}
+          accessibilityLabel={t('common.back')}
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.backBtn,
@@ -236,8 +219,10 @@ export default function DetailSesiScreen() {
             <View style={styles.metaRow}>
               <Users size={15} color={themeColors.textMuted} />
               <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>
-                {daftarHadir.length}/{s.kapasitas ?? 32}{' '}
-                {isEn ? 'students attended' : 'praktikan hadir'}
+                {t('asprak.studentsAttended', {
+                  hadir: daftarHadir.length,
+                  total: s.kapasitas ?? 32,
+                })}
               </Text>
             </View>
           </View>
@@ -258,7 +243,7 @@ export default function DetailSesiScreen() {
                   icon={<Play size={16} color={themeColors.onPrimary} />}
                   onPress={() => mulai(s.id, 'buka')}
                 >
-                  {isEn ? 'Open session' : 'Buka sesi'}
+                  {t('asprak.openSessionBtn')}
                 </Tombol>
                 {!aksi.aktif && aksi.keterangan ? (
                   <Text style={[styles.actionHint, { color: themeColors.textMuted }]}>
@@ -274,7 +259,7 @@ export default function DetailSesiScreen() {
                 icon={<Lock size={16} color={themeColors.errorFg} />}
                 onPress={() => mulai(s.id, 'tutup')}
               >
-                {isEn ? 'Close session' : 'Tutup sesi'}
+                {t('asprak.closeSessionBtn')}
               </Tombol>
             )}
 
@@ -286,7 +271,7 @@ export default function DetailSesiScreen() {
                   onPress={() => setEditVisible(true)}
                   style={styles.flexBtn}
                 >
-                  {isEn ? 'Edit' : 'Ubah'}
+                  {t('asprak.editBtn')}
                 </Tombol>
               )}
               <Tombol
@@ -295,7 +280,7 @@ export default function DetailSesiScreen() {
                 onPress={() => setHapusVisible(true)}
                 style={styles.flexBtn}
               >
-                {isEn ? 'Delete' : 'Hapus'}
+                {t('asprak.deleteBtn')}
               </Tombol>
             </View>
           </View>
@@ -315,12 +300,13 @@ export default function DetailSesiScreen() {
           ]}
         >
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            {isEn ? 'ATTENDANCE SUMMARY' : 'RINGKASAN PRESENSI'}
+            {t('asprak.summaryKicker')}
           </Text>
           <Text style={[styles.panelTitle, { color: themeColors.textPrimary }]}>
-            {isEn
-              ? `Present (${daftarHadir.length}/${s.kapasitas ?? 32})`
-              : `Daftar hadir (${daftarHadir.length}/${s.kapasitas ?? 32})`}
+            {t('asprak.presentListTitle', {
+              hadir: daftarHadir.length,
+              total: s.kapasitas ?? 32,
+            })}
           </Text>
 
           <View style={styles.statGrid}>
@@ -337,7 +323,7 @@ export default function DetailSesiScreen() {
                 {ringkasan.tepatWaktu}
               </Text>
               <Text style={[styles.statLbl, { color: themeColors.textMuted }]}>
-                {isEn ? 'On time' : 'Tepat waktu'}
+                {t('asprak.statOnTime')}
               </Text>
             </View>
             <View
@@ -353,7 +339,7 @@ export default function DetailSesiScreen() {
                 {ringkasan.terlambat}
               </Text>
               <Text style={[styles.statLbl, { color: themeColors.textMuted }]}>
-                {isEn ? 'Late' : 'Terlambat'}
+                {t('asprak.statLate')}
               </Text>
             </View>
             <View
@@ -369,7 +355,7 @@ export default function DetailSesiScreen() {
                 {ringkasan.izin}
               </Text>
               <Text style={[styles.statLbl, { color: themeColors.textMuted }]}>
-                {isEn ? 'Excused' : 'Izin'}
+                {t('asprak.statExcused')}
               </Text>
             </View>
             <View
@@ -385,7 +371,7 @@ export default function DetailSesiScreen() {
                 {ringkasan.belumHadir}
               </Text>
               <Text style={[styles.statLbl, { color: themeColors.textMuted }]}>
-                {isEn ? 'Absent' : 'Belum hadir'}
+                {t('asprak.statAbsent')}
               </Text>
             </View>
           </View>
@@ -400,15 +386,13 @@ export default function DetailSesiScreen() {
                 },
               ]}
             >
-              {isEn
-                ? 'No students have checked in for this session yet.'
-                : 'Belum ada praktikan yang melakukan presensi pada sesi ini.'}
+              {t('asprak.emptyPresentList')}
             </Text>
           ) : (
             <View style={styles.attendeeList}>
               {daftarHadir.map((k) => {
                 const user = petaUser.get(k.praktikanId);
-                const nama = k.namaPraktikan || user?.nama || 'Praktikan';
+                const nama = k.namaPraktikan || user?.nama || t('asprak.studentLabel');
                 const nim = k.nimPraktikan || user?.nim || '-';
                 return (
                   <View
@@ -463,15 +447,11 @@ export default function DetailSesiScreen() {
 
       <ConfirmSheet
         visible={hapusVisible}
-        title={isEn ? 'Delete this session?' : 'Hapus sesi ini?'}
-        body={
-          isEn
-            ? 'Session data will be permanently removed.'
-            : 'Data sesi praktikum akan dihapus permanen.'
-        }
+        title={t('asprak.deleteSessionTitle')}
+        body={t('asprak.deleteSessionBody')}
         danger
         loading={menghapus}
-        confirmLabel={isEn ? 'Yes, delete' : 'Ya, hapus'}
+        confirmLabel={t('asprak.deleteSessionConfirm')}
         onConfirm={konfirmasiHapus}
         onClose={() => {
           if (!menghapus) setHapusVisible(false);

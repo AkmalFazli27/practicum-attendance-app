@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Redirect } from 'expo-router';
 import { Clock, Receipt, Wallet } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import {
   EmptyState,
@@ -41,9 +42,8 @@ type FilterStatusTagihan = 'ALL' | Tagihan['status'];
  * Tab Denda & Keuangan Aslab (dipisahkan dari Beranda ke Navbar utama).
  */
 export default function DendaAslabScreen() {
-  const { themeColors: tc, language } = usePreferences();
-  const isEn = language === 'en';
-  const tx = (id: string, en: string) => (isEn ? en : id);
+  const { t } = useTranslation();
+  const { themeColors: tc } = usePreferences();
 
   const {
     currentUser,
@@ -95,20 +95,20 @@ export default function DendaAslabScreen() {
     return (
       <View style={s.tengah}>
         <EmptyState
-          judul={tx('Terjadi kesalahan', 'Something went wrong')}
+          judul={t('common.error')}
           pesan={error}
-          aksi={{ label: tx('Coba lagi', 'Try again'), onPress: retrySync }}
+          aksi={{ label: t('common.retry'), onPress: retrySync }}
         />
       </View>
     );
   }
 
   const opsiFilter: { key: FilterStatusTagihan; label: string }[] = [
-    { key: 'ALL', label: tx('Semua', 'All') },
-    { key: 'UNPAID', label: tx('Belum Bayar', 'Unpaid') },
-    { key: 'PENDING', label: tx('Menunggu', 'Pending') },
-    { key: 'PAID', label: tx('Lunas', 'Paid') },
-    { key: 'DIBEBASKAN', label: tx('Dibebaskan', 'Waived') },
+    { key: 'ALL', label: t('aslab.filterAll') },
+    { key: 'UNPAID', label: t('aslab.filterUnpaid') },
+    { key: 'PENDING', label: t('aslab.filterPending') },
+    { key: 'PAID', label: t('aslab.filterPaid') },
+    { key: 'DIBEBASKAN', label: t('aslab.filterWaived') },
   ];
 
   return (
@@ -117,9 +117,7 @@ export default function DendaAslabScreen() {
         contentContainerStyle={s.isi}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.judul}>
-          {tx('Denda Praktikum', 'Practicum Fines')}
-        </Text>
+        <Text style={s.judul}>{t('aslab.finesTitle')}</Text>
 
         <FilterRentang value={rentang} onChange={setRentang} />
 
@@ -128,13 +126,13 @@ export default function DendaAslabScreen() {
           <MetricCard
             icon={<Wallet size={20} color={tc.textPrimary} />}
             value={rupiah(data.keuangan.totalTerbayar)}
-            label={tx('Terbayar', 'Paid')}
+            label={t('aslab.paidMetric')}
           />
           <MetricCard
             dark
             icon={<Clock size={20} color={tc.onPrimary} />}
             value={rupiah(data.keuangan.totalTertunggak)}
-            label={tx('Tertunggak', 'Outstanding')}
+            label={t('aslab.outstandingMetric')}
           />
         </View>
 
@@ -154,17 +152,12 @@ export default function DendaAslabScreen() {
           ))}
         </ScrollView>
 
-        <SectionHeading
-          title={tx('Daftar Tagihan Denda', 'Late Fine Invoices')}
-        />
+        <SectionHeading title={t('aslab.invoicesHeading')} />
 
         {barisTerfilter.length === 0 ? (
           <EmptyState
-            judul={tx('Belum ada data denda', 'No fines recorded')}
-            pesan={tx(
-              'Tagihan denda keterlambatan pada rentang & status ini akan muncul di sini.',
-              'Late fine invoices matching this range and status will appear here.',
-            )}
+            judul={t('aslab.noFinesTitle')}
+            pesan={t('aslab.noFinesBody')}
           />
         ) : (
           barisTerfilter.map(({ tagihan: tg, namaPraktikan, namaSesi }) => (
@@ -179,8 +172,7 @@ export default function DendaAslabScreen() {
                 {namaSesi} · {rupiah(tg.nominal)}
               </Text>
               <Text style={s.metaTeks}>
-                {tx('Terlambat', 'Late')} {tg.menitTerlambat}{' '}
-                {tx('menit', 'min')} ·{' '}
+                {t('aslab.lateMinutesLine', { menit: tg.menitTerlambat })} ·{' '}
                 {formatTanggalSingkat(tg.dibuatPada.slice(0, 10))}
               </Text>
             </View>
@@ -189,9 +181,7 @@ export default function DendaAslabScreen() {
 
         {pembayaran.length > 0 ? (
           <>
-            <SectionHeading
-              title={tx('Log Transaksi Pembayaran', 'Payment Transactions')}
-            />
+            <SectionHeading title={t('aslab.paymentLogsHeading')} />
             {pembayaran.map((p) => {
               const mhs = users.find((u) => u.id === p.praktikanId);
               return (

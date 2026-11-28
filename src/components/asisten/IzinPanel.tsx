@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Check, ShieldCheck, Sparkles, X } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { ConfirmSheet, StatusBadge, Tombol, useToast } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
@@ -19,64 +20,28 @@ type Target = { izinId: string; keputusan: Keputusan };
 
 const SEMUA = 'SEMUA';
 
-/** Kategori untuk filter; izin tanpa hasil AI dianggap "Belum Terklasifikasi". */
 const kategoriIzin = (i: Izin): string =>
   !i.kategoriAi || i.kategoriAi === KATEGORI_FALLBACK
     ? KATEGORI_FALLBACK
     : i.kategoriAi;
 
-function formatSentimen(sentimen?: string, isEn = false): string {
-  const s = (sentimen ?? '').trim().toLowerCase();
-  if (!s) return isEn ? 'Sentiment unavailable' : 'Sentimen tidak tersedia';
-  if (s.includes('positif') || s.includes('positive')) {
-    return isEn ? 'Positive' : 'Positif';
-  }
-  if (s.includes('negatif') || s.includes('negative')) {
-    return isEn ? 'Negative' : 'Negatif';
-  }
-  if (s.includes('netral') || s.includes('neutral')) {
-    return isEn ? 'Neutral' : 'Netral';
-  }
-  return sentimen!.trim();
-}
-
-const COPY_ID: Record<Keputusan, { judul: string; isi: string; ya: string; toast: string }> = {
-  DITERIMA: {
-    judul: 'Terima pengajuan izin?',
-    isi: 'Praktikan tercatat tidak hadir dengan izin dan bebas denda pada sesi ini.',
-    ya: 'Ya, terima izin',
-    toast: 'Pengajuan izin diterima (bebas denda).',
-  },
-  DITOLAK: {
-    judul: 'Tolak pengajuan izin?',
-    isi: 'Praktikan akan melihat pengajuannya ditolak dan aturan presensi normal tetap berlaku.',
-    ya: 'Ya, tolak izin',
-    toast: 'Pengajuan izin praktikan ditolak.',
-  },
-};
-
-const COPY_EN: Record<Keputusan, { judul: string; isi: string; ya: string; toast: string }> = {
-  DITERIMA: {
-    judul: 'Approve leave request?',
-    isi: 'Student will be recorded as excused absence with no fine for this session.',
-    ya: 'Yes, approve leave',
-    toast: 'Leave request approved (no fine).',
-  },
-  DITOLAK: {
-    judul: 'Reject leave request?',
-    isi: 'Student will see their request rejected and standard attendance rules apply.',
-    ya: 'Yes, reject leave',
-    toast: 'Leave request rejected.',
-  },
-};
-
-/** Penanda hasil klasifikasi & sentimen AI; AI hanya informasi pendukung, bukan keputusan. */
 function AiInfo({ item }: { item: Izin }) {
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { t, i18n } = useTranslation();
+  const { themeColors } = usePreferences();
+  const isEn = i18n.language === 'en';
   const infoAi = formatLabelKategoriAi(item.kategoriAi, item.ringkasanAi, isEn);
   const tidakTersedia = !infoAi.terklasifikasi;
-  const labelSentimen = formatSentimen(item.sentimenAi, isEn);
+
+  const s = (item.sentimenAi ?? '').trim().toLowerCase();
+  const labelSentimen = !s
+    ? t('asprak.sentimentUnavailable')
+    : s.includes('positif') || s.includes('positive')
+      ? t('asprak.sentimentPositive')
+      : s.includes('negatif') || s.includes('negative')
+        ? t('asprak.sentimentNegative')
+        : s.includes('netral') || s.includes('neutral')
+          ? t('asprak.sentimentNeutral')
+          : item.sentimenAi!.trim();
 
   return (
     <View
@@ -107,15 +72,16 @@ function AiInfo({ item }: { item: Izin }) {
           ]}
         >
           {tidakTersedia
-            ? isEn
-              ? 'AI: Unclassified (fallback)'
-              : 'AI: Belum terklasifikasi (fallback)'
-            : `AI: ${infoAi.label} · ${isEn ? 'Sentiment' : 'Sentimen'}: ${labelSentimen}`}
+            ? t('asprak.leaveAiUnclassified')
+            : t('asprak.leaveAiLabelWithSentiment', {
+                label: infoAi.label,
+                sentiment: labelSentimen,
+              })}
         </Text>
       </View>
       {tidakTersedia && (
         <Text style={[styles.aiSummary, { color: themeColors.textMuted }]}>
-          {isEn ? 'Sentiment' : 'Sentimen'}: {labelSentimen}
+          {t('asprak.leaveSentimentLine', { sentiment: labelSentimen })}
         </Text>
       )}
       {item.ringkasanAi ? (
@@ -126,20 +92,18 @@ function AiInfo({ item }: { item: Izin }) {
         </Text>
       ) : null}
       <Text style={[styles.aiFootnote, { color: themeColors.textMuted }]}>
-        {isEn
-          ? 'Supporting information — decision is made by the assistant.'
-          : 'Informasi pendukung — keputusan ditetapkan oleh asisten.'}
+        {t('izin.supportingNote')}
       </Text>
     </View>
   );
 }
 
 export function IzinPanel({ sesiId }: { sesiId: string }) {
+  const { t, i18n } = useTranslation();
   const { users, error, clearError, getIzinSesi, reviewIzin } = useSession();
   const { showToast } = useToast();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
-  const COPY = isEn ? COPY_EN : COPY_ID;
+  const { themeColors } = usePreferences();
+  const isEn = i18n.language === 'en';
 
   const [target, setTarget] = useState<Target | null>(null);
   const [loading, setLoading] = useState(false);
@@ -174,15 +138,30 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
     return (item: Izin) => {
       const user = peta.get(item.praktikanId);
       return {
-        nama: item.namaPraktikan || user?.nama || 'Praktikan',
+        nama: item.namaPraktikan || user?.nama || t('asprak.studentLabel'),
         nim: item.nimPraktikan || user?.nim || '-',
       };
     };
-  }, [users]);
+  }, [users, t]);
+
+  const copyMap: Record<Keputusan, { judul: string; isi: string; ya: string; toast: string }> = {
+    DITERIMA: {
+      judul: t('asprak.approveConfirmTitle'),
+      isi: t('asprak.approveConfirmBody'),
+      ya: t('asprak.approveConfirmBtn'),
+      toast: t('asprak.approveToast'),
+    },
+    DITOLAK: {
+      judul: t('asprak.rejectConfirmTitle'),
+      isi: t('asprak.rejectConfirmBody'),
+      ya: t('asprak.rejectConfirmBtn'),
+      toast: t('asprak.rejectToast'),
+    },
+  };
 
   const tampil = target ?? terakhir.current;
   const izinTampil = tampil ? daftarIzin.find((i) => i.id === tampil.izinId) : undefined;
-  const copy = tampil ? COPY[tampil.keputusan] : COPY.DITERIMA;
+  const copy = tampil ? copyMap[tampil.keputusan] : copyMap.DITERIMA;
   const tolak = tampil?.keputusan === 'DITOLAK';
 
   const batal = () => {
@@ -197,11 +176,7 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
     const saatIni = getIzinSesi(sesiId).find((i) => i.id === izinId);
     if (!saatIni || saatIni.status !== 'MENUNGGU') {
       setTarget(null);
-      showToast(
-        isEn
-          ? 'This request has already been reviewed or was not found.'
-          : 'Pengajuan ini sudah diputuskan atau tidak ditemukan.',
-      );
+      showToast(t('asprak.leaveAlreadyReviewed'));
       return;
     }
 
@@ -214,20 +189,13 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
     if (hasil.ok) {
       showToast(
         hasil.notifGagal
-          ? isEn
-            ? `${COPY[keputusan].toast} However, notification to the student failed.`
-            : `${COPY[keputusan].toast} Namun notifikasi ke praktikan gagal terkirim.`
-          : COPY[keputusan].toast,
+          ? `${copyMap[keputusan].toast}${t('asprak.leaveNotifFailedSuffix')}`
+          : copyMap[keputusan].toast,
       );
       return;
     }
     await new Promise((r) => setTimeout(r, 60));
-    showToast(
-      errorRef.current ??
-        (isEn
-          ? 'Decision could not be saved. Reload and try again.'
-          : 'Keputusan belum tersimpan. Muat ulang halaman lalu coba lagi.'),
-    );
+    showToast(errorRef.current ?? t('asprak.leaveSaveFailed'));
   };
 
   const menunggu = daftarIzin.filter((i) => i.status === 'MENUNGGU').length;
@@ -244,14 +212,12 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
     >
       <View style={styles.header}>
         <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-          {isEn ? 'LEAVE & AI REVIEW' : 'PEMERIKSAAN IZIN & AI'}
+          {t('asprak.leavePanelKicker')}
         </Text>
         <Text style={[styles.title, { color: themeColors.textPrimary }]}>
-          {isEn
-            ? `Leave requests (${daftarIzin.length})`
-            : `Pengajuan izin (${daftarIzin.length})`}
+          {t('asprak.leavePanelTitle', { count: daftarIzin.length })}
           {menunggu > 0
-            ? ` · ${menunggu} ${isEn ? 'pending' : 'menunggu'}`
+            ? t('asprak.leavePanelPending', { count: menunggu })
             : ''}
         </Text>
       </View>
@@ -270,9 +236,9 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
               k === SEMUA ? daftarIzin.length : jumlahPerKategori.get(k) ?? 0;
             const label =
               k === SEMUA
-                ? isEn ? 'All' : 'Semua'
+                ? t('common.all')
                 : k === KATEGORI_FALLBACK
-                  ? isEn ? 'Unclassified' : 'Belum terklasifikasi'
+                  ? t('asprak.leaveUnclassified')
                   : k;
             return (
               <Pressable
@@ -317,9 +283,7 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
             },
           ]}
         >
-          {isEn
-            ? 'No leave requests from students for this session yet.'
-            : 'Belum ada pengajuan izin dari praktikan pada sesi ini.'}
+          {t('asprak.leaveEmpty')}
         </Text>
       ) : (
         <View style={styles.list}>
@@ -340,8 +304,10 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
                     <Text
                       style={[styles.nim, { color: themeColors.textMuted }]}
                     >
-                      {mhs.nim} · {isEn ? 'Submitted' : 'Diajukan'}{' '}
-                      {titikJam(formatJam(item.waktuPengajuan))}
+                      {t('asprak.leaveSubmittedAt', {
+                        nim: mhs.nim,
+                        jam: titikJam(formatJam(item.waktuPengajuan)),
+                      })}
                     </Text>
                   </View>
                   <StatusBadge status={item.status} />
@@ -372,9 +338,7 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
                         { color: themeColors.kehadiranTepatWaktuFg },
                       ]}
                     >
-                      {isEn
-                        ? 'Excused absence · no fine'
-                        : 'Tidak hadir dengan izin · bebas denda'}
+                      {t('izin.excused')}
                     </Text>
                   </View>
                 )}
@@ -389,7 +353,7 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
                         setTarget({ izinId: item.id, keputusan: 'DITOLAK' })
                       }
                     >
-                      {isEn ? 'Reject' : 'Tolak'}
+                      {t('asprak.rejectBtn')}
                     </Tombol>
                     <Tombol
                       variant="primer"
@@ -399,7 +363,7 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
                         setTarget({ izinId: item.id, keputusan: 'DITERIMA' })
                       }
                     >
-                      {isEn ? 'Approve leave' : 'Terima izin'}
+                      {t('asprak.approveLeaveBtn')}
                     </Tombol>
                   </View>
                 )}
@@ -420,18 +384,17 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
           izinTampil
             ? [
                 {
-                  label: isEn ? 'Student' : 'Praktikan',
+                  label: t('asprak.studentLabel'),
                   value: infoPraktikan(izinTampil).nama,
                 },
                 {
-                  label: isEn ? 'AI Analysis' : 'Analisis AI',
-                  value: `${
+                  label: t('asprak.aiAnalysisLabel'),
+                  value:
                     formatLabelKategoriAi(
                       izinTampil.kategoriAi,
                       izinTampil.ringkasanAi,
                       isEn,
-                    ).label
-                  } · ${formatSentimen(izinTampil.sentimenAi, isEn)}`,
+                    ).label,
                 },
               ]
             : []

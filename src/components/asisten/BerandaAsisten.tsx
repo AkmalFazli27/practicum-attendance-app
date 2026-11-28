@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowRight, DoorOpen, Plus, Users } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import {
   EmptyState,
@@ -20,11 +21,11 @@ import { useSesiAsprak } from './useSesiAsprak';
 import { useStatusSesi } from './useStatusSesi';
 
 export function BerandaAsisten() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { currentUser, getKehadiranSesi, getIzinSesi } = useSession();
   const { sesiSaya } = useSesiAsprak();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
   const [tambahVisible, setTambahVisible] = useState(false);
   const { statusEfektif } = useStatusSesi();
 
@@ -58,7 +59,7 @@ export function BerandaAsisten() {
           <Text
             style={[styles.welcomeKicker, { color: themeColors.textSecondary }]}
           >
-            {isEn ? 'Assistant panel,' : 'Panel asisten,'}
+            {t('asprak.panelKicker')}
           </Text>
           <Text
             style={[styles.welcomeTitle, { color: themeColors.textPrimary }]}
@@ -68,9 +69,7 @@ export function BerandaAsisten() {
           <Text
             style={[styles.welcomeSub, { color: themeColors.textSecondary }]}
           >
-            {isEn
-              ? "Manage sessions and monitor today's attendance."
-              : 'Kelola sesi dan pantau kehadiran hari ini.'}
+            {t('asprak.panelSub')}
           </Text>
         </View>
 
@@ -80,12 +79,12 @@ export function BerandaAsisten() {
             <MetricCard
               icon={<DoorOpen size={20} color={themeColors.textPrimary} />}
               value={jumlahAktif}
-              label={isEn ? 'Active sessions' : 'Sesi aktif'}
+              label={t('asprak.statActiveSessions')}
             />
             <MetricCard
               icon={<Users size={20} color={themeColors.textPrimary} />}
               value={totalHadir}
-              label={isEn ? 'Total attended' : 'Total hadir'}
+              label={t('asprak.statTotalPresent')}
             />
           </View>
 
@@ -101,7 +100,7 @@ export function BerandaAsisten() {
               ]}
             >
               <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-                {isEn ? 'IN PROGRESS' : 'SEDANG BERLANGSUNG'}
+                {t('asprak.ongoingKicker')}
               </Text>
               <View style={styles.activeMainRow}>
                 <View style={styles.activeInfoLeft}>
@@ -155,33 +154,27 @@ export function BerandaAsisten() {
                 onPress={() => bukaDetail(sesiAktif.id)}
                 rightIcon={<ArrowRight size={18} color={themeColors.onPrimary} />}
               >
-                {isEn ? 'Manage session' : 'Kelola sesi'}
+                {t('asprak.manageSessionBtn')}
               </Tombol>
             </View>
           ) : (
             <View style={styles.noActiveWrapper}>
               <EmptyState
-                judul={isEn ? 'No active sessions' : 'Tidak ada sesi aktif'}
-                pesan={
-                  isEn
-                    ? 'Open a scheduled session when the practicum starts.'
-                    : 'Buka salah satu sesi terjadwal saat kegiatan praktikum dimulai.'
-                }
+                judul={t('beranda.noActiveSession')}
+                pesan={t('asprak.noActiveSessionBody')}
               />
             </View>
           )}
 
           {/* 4. Daftar Sesi Kamu */}
           <SectionHeading
-            kicker={isEn ? 'TODAY & UPCOMING' : 'HARI INI & MENDATANG'}
-            title={isEn ? 'Your sessions' : 'Sesi kamu'}
+            kicker={t('asprak.todayUpcomingKicker')}
+            title={t('asprak.yourSessions')}
             style={styles.sectionHeading}
             right={
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={
-                  isEn ? 'Add new practicum session' : 'Tambah sesi praktikum baru'
-                }
+                accessibilityLabel={t('asprak.addSessionAria')}
                 onPress={() => setTambahVisible(true)}
                 style={({ pressed }) => [
                   styles.addChip,
@@ -199,7 +192,7 @@ export function BerandaAsisten() {
                     { color: themeColors.textPrimary },
                   ]}
                 >
-                  {isEn ? 'New Session' : 'Sesi Baru'}
+                  {t('asprak.newSessionBtn')}
                 </Text>
               </Pressable>
             }
@@ -207,14 +200,10 @@ export function BerandaAsisten() {
 
           {sesiSaya.length === 0 ? (
             <EmptyState
-              judul={isEn ? 'No sessions yet' : 'Belum ada sesi'}
-              pesan={
-                isEn
-                  ? 'Add a new practicum session to start managing attendance.'
-                  : 'Tambahkan sesi praktikum baru untuk mulai mengelola kehadiran.'
-              }
+              judul={t('asprak.emptySessionsTitle')}
+              pesan={t('asprak.emptySessionsBody')}
               aksi={{
-                label: isEn ? 'Add New Session' : 'Tambah Sesi Baru',
+                label: t('asprak.addNewSessionBtn'),
                 onPress: () => setTambahVisible(true),
               }}
             />

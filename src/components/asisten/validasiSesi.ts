@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+
 export type FormSesiMentah = {
   namaPraktikum: string;
   topik: string;
@@ -81,46 +83,46 @@ export function validasiFormSesi(
   const lab = f.lab.trim();
   const tanggal = f.tanggal.trim();
 
-  if (!namaPraktikum) return { ok: false, pesan: 'Nama praktikum wajib diisi.' };
+  if (!namaPraktikum) return { ok: false, pesan: i18n.t('asprak.valNameRequired') };
   if (namaPraktikum.length > 80) {
-    return { ok: false, pesan: 'Nama praktikum maksimal 80 karakter.' };
+    return { ok: false, pesan: i18n.t('asprak.valNameMax') };
   }
-  if (!kelas) return { ok: false, pesan: 'Kelas wajib diisi.' };
-  if (!lab) return { ok: false, pesan: 'Laboratorium wajib dipilih.' };
-  if (!tanggal) return { ok: false, pesan: 'Tanggal wajib diisi.' };
+  if (!kelas) return { ok: false, pesan: i18n.t('asprak.valClassRequired') };
+  if (!lab) return { ok: false, pesan: i18n.t('asprak.valLabRequired') };
+  if (!tanggal) return { ok: false, pesan: i18n.t('asprak.valDateRequired') };
   if (!tanggalValid(tanggal)) {
     return {
       ok: false,
-      pesan: 'Tanggal tidak valid. Gunakan format YYYY-MM-DD, contoh 2026-11-20.',
+      pesan: i18n.t('asprak.valDateInvalid'),
     };
   }
 
   if (tanggal < hariIniLokal() && tanggal !== jadwalAwal?.tanggal) {
     return {
       ok: false,
-      pesan: 'Tanggal sesi tidak boleh sebelum hari ini.',
+      pesan: i18n.t('asprak.valDatePast'),
     };
   }
 
   const jamMulai = normalisasiJam(f.jamMulai);
   const jamSelesai = normalisasiJam(f.jamSelesai);
   if (!f.jamMulai.trim() || !f.jamSelesai.trim()) {
-    return { ok: false, pesan: 'Jam mulai dan jam selesai wajib diisi.' };
+    return { ok: false, pesan: i18n.t('asprak.valTimeRequired') };
   }
   if (!jamMulai || !jamSelesai) {
     return {
       ok: false,
-      pesan: 'Format jam tidak valid. Gunakan HH:mm antara 00:00 dan 23:59, contoh 08:00.',
+      pesan: i18n.t('asprak.valTimeInvalid'),
     };
   }
   if (jamMulai < '07:00' || jamSelesai > '20:00') {
     return {
       ok: false,
-      pesan: 'Sesi hanya dapat dijadwalkan dalam jam operasional lab (07.00–20.00 WIB).',
+      pesan: i18n.t('asprak.valTimeOperational'),
     };
   }
   if (jamSelesai <= jamMulai) {
-    return { ok: false, pesan: 'Jam selesai harus lebih akhir dari jam mulai.' };
+    return { ok: false, pesan: i18n.t('asprak.valEndAfterStart') };
   }
 
   const jadwalBerubah =
@@ -131,29 +133,29 @@ export function validasiFormSesi(
   if (jadwalBerubah && sudahBerakhir(tanggal, jamSelesai)) {
     return {
       ok: false,
-      pesan: 'Jadwal sudah lewat dari waktu sekarang. Pilih tanggal atau jam yang belum berakhir.',
+      pesan: i18n.t('asprak.valSchedulePast'),
     };
   }
 
   const kapasitasMentah = f.kapasitas.trim();
   if (!/^\d+$/.test(kapasitasMentah)) {
-    return { ok: false, pesan: 'Kapasitas harus berupa angka bulat.' };
+    return { ok: false, pesan: i18n.t('asprak.valCapInt') };
   }
   const kapasitas = Number(kapasitasMentah);
   if (kapasitas < 1 || kapasitas > KAPASITAS_MAKS) {
-    return { ok: false, pesan: `Kapasitas harus antara 1 dan ${KAPASITAS_MAKS}.` };
+    return { ok: false, pesan: i18n.t('asprak.valCapRange', { max: KAPASITAS_MAKS }) };
   }
 
   const deskripsi = f.deskripsi.trim();
   if (deskripsi.length > 500) {
-    return { ok: false, pesan: 'Deskripsi maksimal 500 karakter.' };
+    return { ok: false, pesan: i18n.t('asprak.valDescMax') };
   }
 
   return {
     ok: true,
     data: {
       namaPraktikum,
-      topik: f.topik.trim() || 'Materi Praktikum',
+      topik: f.topik.trim() || i18n.t('asprak.defaultTopic'),
       kelas,
       lab,
       tanggal,
@@ -161,7 +163,8 @@ export function validasiFormSesi(
       jamSelesai,
       kapasitas,
       deskripsi:
-        deskripsi || `Pertemuan praktikum ${namaPraktikum} untuk kelas ${kelas}.`,
+        deskripsi ||
+        i18n.t('asprak.defaultDesc', { nama: namaPraktikum, kelas }),
     },
   };
 }
