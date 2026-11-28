@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import {
   BookOpen,
@@ -40,15 +41,18 @@ export function SessionCard({
   onPress,
   style,
 }: SessionCardProps) {
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
+  const { t } = useTranslation();
   const kapasitas = attendanceTotal ?? session.kapasitas ?? 32;
   const topik = session.topik ?? session.deskripsi;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${session.namaPraktikum}, status ${session.status}`}
+      accessibilityLabel={t('sessionCard.cardAria', {
+        nama: session.namaPraktikum,
+        status: session.status,
+      })}
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
@@ -127,7 +131,7 @@ export function SessionCard({
                 <Text
                   style={[styles.izinAlertText, { color: themeColors.izinFg }]}
                 >
-                  {pendingIzinCount} {isEn ? 'leave' : 'izin'}
+                  {t('sessionCard.leaveCount', { count: pendingIzinCount })}
                 </Text>
               </View>
             )}
@@ -164,7 +168,7 @@ export function SessionCard({
                 { color: themeColors.sesiDibukaFg },
               ]}
             >
-              {isEn ? 'Present' : 'Hadir'} {attendedTime}
+              {t('sessionCard.presentWithTime', { jam: attendedTime })}
             </Text>
           </View>
         )}
@@ -204,16 +208,10 @@ export function SessionCard({
               ]}
             >
               {izinStatus === 'DITERIMA'
-                ? isEn
-                  ? 'Leave Approved'
-                  : 'Izin Diterima'
+                ? t('sessionCard.leaveApproved')
                 : izinStatus === 'DITOLAK'
-                  ? isEn
-                    ? 'Leave Rejected'
-                    : 'Izin Ditolak'
-                  : isEn
-                    ? 'Leave Pending'
-                    : 'Izin Menunggu'}
+                  ? t('sessionCard.leaveRejected')
+                  : t('sessionCard.leavePending')}
             </Text>
           </View>
         )}

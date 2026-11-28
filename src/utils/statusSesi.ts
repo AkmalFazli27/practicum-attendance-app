@@ -8,11 +8,24 @@ const RE_JAM = /^([01]\d|2[0-3]):[0-5]\d$/;
 /** Masa berlaku maksimal QR presensi: 15 menit. */
 export const QR_TTL_MS = 15 * 60 * 1000;
 
+/** Jam operasional lab (WIB). Batas awal dan akhir sama-sama inklusif. */
+export const JAM_OPERASIONAL = { buka: '07:00', tutup: '20:00' } as const;
+
+/** Format HH:mm membuat perbandingan string setara dengan perbandingan waktu. */
+export function dalamJamOperasional(
+  j: Pick<Sesi, 'jamMulai' | 'jamSelesai'>,
+): boolean {
+  return j.jamMulai >= JAM_OPERASIONAL.buka && j.jamSelesai <= JAM_OPERASIONAL.tutup;
+}
+
 const keMs = (tanggal: string, jam: string) =>
   new Date(`${tanggal}T${jam}:00+07:00`).getTime();
 
 export const waktuSelesaiMs = (s: Jadwal): number =>
   keMs(s.tanggal, s.jamSelesai);
+
+export const waktuMulaiMs = (s: Jadwal): number =>
+  keMs(s.tanggal, s.jamMulai);
 
 export const sudahMulai = (s: Jadwal, now = Date.now()) =>
   now >= keMs(s.tanggal, s.jamMulai);
@@ -112,6 +125,12 @@ export function validasiJadwal(
   }
   if (j.jamSelesai <= j.jamMulai) {
     return { ok: false, alasan: 'Jam selesai harus setelah jam mulai.' };
+  }
+  if (!dalamJamOperasional(j)) {
+    return {
+      ok: false,
+      alasan: 'Sesi hanya dapat dijadwalkan pada jam operasional lab, 07.00–20.00 WIB.',
+    };
   }
   return { ok: true };
 }

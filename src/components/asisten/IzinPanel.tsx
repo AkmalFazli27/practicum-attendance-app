@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Check, Sparkles, X } from 'lucide-react-native';
+import { Check, ShieldCheck, Sparkles, X } from 'lucide-react-native';
 
 import { ConfirmSheet, StatusBadge, Tombol, useToast } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
@@ -25,27 +25,59 @@ const kategoriIzin = (i: Izin): string =>
     ? KATEGORI_FALLBACK
     : i.kategoriAi;
 
-const COPY: Record<Keputusan, { judul: string; isi: string; ya: string; toast: string }> = {
+function formatSentimen(sentimen?: string, isEn = false): string {
+  const s = (sentimen ?? '').trim().toLowerCase();
+  if (!s) return isEn ? 'Sentiment unavailable' : 'Sentimen tidak tersedia';
+  if (s.includes('positif') || s.includes('positive')) {
+    return isEn ? 'Positive' : 'Positif';
+  }
+  if (s.includes('negatif') || s.includes('negative')) {
+    return isEn ? 'Negative' : 'Negatif';
+  }
+  if (s.includes('netral') || s.includes('neutral')) {
+    return isEn ? 'Neutral' : 'Netral';
+  }
+  return sentimen!.trim();
+}
+
+const COPY_ID: Record<Keputusan, { judul: string; isi: string; ya: string; toast: string }> = {
   DITERIMA: {
     judul: 'Terima pengajuan izin?',
-    isi: 'Praktikan akan tercatat izin pada sesi ini dan melihat statusnya langsung.',
+    isi: 'Praktikan tercatat tidak hadir dengan izin dan bebas denda pada sesi ini.',
     ya: 'Ya, terima izin',
-    toast: 'Pengajuan izin praktikan diterima.',
+    toast: 'Pengajuan izin diterima (bebas denda).',
   },
   DITOLAK: {
     judul: 'Tolak pengajuan izin?',
-    isi: 'Praktikan akan melihat pengajuannya ditolak. Keputusan ini tidak dapat diubah.',
+    isi: 'Praktikan akan melihat pengajuannya ditolak dan aturan presensi normal tetap berlaku.',
     ya: 'Ya, tolak izin',
     toast: 'Pengajuan izin praktikan ditolak.',
   },
 };
 
-/** Penanda hasil klasifikasi AI (Sakit / Izin); AI hanya informasi pendukung, bukan keputusan. */
+const COPY_EN: Record<Keputusan, { judul: string; isi: string; ya: string; toast: string }> = {
+  DITERIMA: {
+    judul: 'Approve leave request?',
+    isi: 'Student will be recorded as excused absence with no fine for this session.',
+    ya: 'Yes, approve leave',
+    toast: 'Leave request approved (no fine).',
+  },
+  DITOLAK: {
+    judul: 'Reject leave request?',
+    isi: 'Student will see their request rejected and standard attendance rules apply.',
+    ya: 'Yes, reject leave',
+    toast: 'Leave request rejected.',
+  },
+};
+
+/** Penanda hasil klasifikasi & sentimen AI; AI hanya informasi pendukung, bukan keputusan. */
 function AiInfo({ item }: { item: Izin }) {
   const { themeColors, language } = usePreferences();
   const isEn = language === 'en';
   const infoAi = formatLabelKategoriAi(item.kategoriAi, item.ringkasanAi, isEn);
   const tidakTersedia = !infoAi.terklasifikasi;
+  const labelSentimen = formatSentimen(item.sentimenAi, isEn);
+
   return (
     <View
       style={[
@@ -76,11 +108,16 @@ function AiInfo({ item }: { item: Izin }) {
         >
           {tidakTersedia
             ? isEn
-              ? 'AI: Unclassified'
-              : 'AI: Belum terklasifikasi'
-            : `AI: ${infoAi.label}`}
+              ? 'AI: Unclassified (fallback)'
+              : 'AI: Belum terklasifikasi (fallback)'
+            : `AI: ${infoAi.label} · ${isEn ? 'Sentiment' : 'Sentimen'}: ${labelSentimen}`}
         </Text>
       </View>
+      {tidakTersedia && (
+        <Text style={[styles.aiSummary, { color: themeColors.textMuted }]}>
+          {isEn ? 'Sentiment' : 'Sentimen'}: {labelSentimen}
+        </Text>
+      )}
       {item.ringkasanAi ? (
         <Text
           style={[styles.aiSummary, { color: themeColors.textSecondary }]}
@@ -102,16 +139,15 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
   const { showToast } = useToast();
   const { themeColors, language } = usePreferences();
   const isEn = language === 'en';
+  const COPY = isEn ? COPY_EN : COPY_ID;
 
   const [target, setTarget] = useState<Target | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<string>(SEMUA);
 
-  // Pesan error terbaru dari context (mis. 'Akses ditolak oleh server').
   const errorRef = useRef<string | null>(null);
   errorRef.current = error;
 
-  // Simpan target terakhir agar isi sheet tidak berkedip saat animasi tutup.
   const terakhir = useRef<Target | null>(null);
   if (target) terakhir.current = target;
 
@@ -161,11 +197,14 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
     const saatIni = getIzinSesi(sesiId).find((i) => i.id === izinId);
     if (!saatIni || saatIni.status !== 'MENUNGGU') {
       setTarget(null);
-      showToast('Pengajuan ini sudah diputuskan atau tidak ditemukan.');
+      showToast(
+        isEn
+          ? 'This request has already been reviewed or was not found.'
+          : 'Pengajuan ini sudah diputuskan atau tidak ditemukan.',
+      );
       return;
     }
 
-    // Hapus error lama agar pesan yang tampil benar-benar dari aksi ini.
     clearError();
     setLoading(true);
     const hasil = await reviewIzin(izinId, keputusan);
@@ -175,16 +214,19 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
     if (hasil.ok) {
       showToast(
         hasil.notifGagal
-          ? `${COPY[keputusan].toast} Namun notifikasi ke praktikan gagal terkirim.`
+          ? isEn
+            ? `${COPY[keputusan].toast} However, notification to the student failed.`
+            : `${COPY[keputusan].toast} Namun notifikasi ke praktikan gagal terkirim.`
           : COPY[keputusan].toast,
       );
       return;
     }
-    // Beri waktu agar pesan error dari context ter-render, lalu tampilkan alasannya.
     await new Promise((r) => setTimeout(r, 60));
     showToast(
       errorRef.current ??
-      'Keputusan belum tersimpan. Muat ulang halaman lalu coba lagi.',
+        (isEn
+          ? 'Decision could not be saved. Reload and try again.'
+          : 'Keputusan belum tersimpan. Muat ulang halaman lalu coba lagi.'),
     );
   };
 
@@ -313,6 +355,30 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
 
                 <AiInfo item={item} />
 
+                {item.status === 'DITERIMA' && (
+                  <View
+                    style={[
+                      styles.excusedBanner,
+                      { backgroundColor: themeColors.kehadiranTepatWaktuBg },
+                    ]}
+                  >
+                    <ShieldCheck
+                      size={14}
+                      color={themeColors.kehadiranTepatWaktuFg}
+                    />
+                    <Text
+                      style={[
+                        styles.excusedText,
+                        { color: themeColors.kehadiranTepatWaktuFg },
+                      ]}
+                    >
+                      {isEn
+                        ? 'Excused absence · no fine'
+                        : 'Tidak hadir dengan izin · bebas denda'}
+                    </Text>
+                  </View>
+                )}
+
                 {item.status === 'MENUNGGU' && (
                   <View style={styles.actions}>
                     <Tombol
@@ -358,12 +424,14 @@ export function IzinPanel({ sesiId }: { sesiId: string }) {
                   value: infoPraktikan(izinTampil).nama,
                 },
                 {
-                  label: isEn ? 'AI Label' : 'Prediksi AI',
-                  value: formatLabelKategoriAi(
-                    izinTampil.kategoriAi,
-                    izinTampil.ringkasanAi,
-                    isEn,
-                  ).label,
+                  label: isEn ? 'AI Analysis' : 'Analisis AI',
+                  value: `${
+                    formatLabelKategoriAi(
+                      izinTampil.kategoriAi,
+                      izinTampil.ringkasanAi,
+                      isEn,
+                    ).label
+                  } · ${formatSentimen(izinTampil.sentimenAi, isEn)}`,
                 },
               ]
             : []
@@ -463,9 +531,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
     gap: 4,
   },
-  aiBoxMuted: {
-    backgroundColor: colors.surfaceMuted,
-  },
   aiRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -477,9 +542,6 @@ const styles = StyleSheet.create({
     color: colors.sesiDibukaFg,
     flex: 1,
   },
-  aiTitleMuted: {
-    color: colors.textSecondary,
-  },
   aiSummary: {
     fontSize: 11,
     fontFamily: fontFamily.medium,
@@ -490,6 +552,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: fontFamily.regular,
     color: colors.textSecondary,
+  },
+  excusedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.s3,
+    paddingVertical: spacing.s2,
+    borderRadius: radius.button,
+  },
+  excusedText: {
+    ...type.micro,
+    fontFamily: fontFamily.bold,
   },
   actions: {
     flexDirection: 'row',

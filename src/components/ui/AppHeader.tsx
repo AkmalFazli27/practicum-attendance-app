@@ -3,9 +3,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, MapPin, Settings } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { colors, fontFamily, layout, spacing } from '@/theme/tokens';
 import { inisialNama } from '@/utils/format';
 import { Brand } from './Brand';
@@ -27,7 +29,9 @@ export function AppHeader({
   const router = useRouter();
   const pathname = usePathname();
   const { currentUser } = useSession();
+  const unread = useUnreadNotificationCount(currentUser?.id);
   const { isDark, themeColors } = usePreferences();
+  const { t } = useTranslation();
 
   const isProfile = pathname?.includes('profil');
 
@@ -91,7 +95,7 @@ export function AppHeader({
         <View style={styles.actions}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Buka peta laboratorium"
+            accessibilityLabel={t('common.openMapAria')}
             onPress={handleMap}
             style={({ pressed }) => [
               styles.iconButton,
@@ -108,10 +112,11 @@ export function AppHeader({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Notifikasi"
+            accessibilityLabel={t('notifikasi.unread', { count: unread })}
             onPress={handleBell}
             style={({ pressed }) => [
               styles.iconButton,
+              styles.iconButtonRelative,
               {
                 borderColor: themeColors.border,
                 backgroundColor: pressed
@@ -121,12 +126,33 @@ export function AppHeader({
             ]}
           >
             <Bell size={20} color={themeColors.textPrimary} />
+            {unread > 0 ? (
+              <View
+                style={[
+                  styles.notifBadge,
+                  { backgroundColor: themeColors.errorFg },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.notifBadgeText,
+                    {
+                      color: isDark
+                        ? themeColors.onPrimary
+                        : themeColors.onGraphite,
+                    },
+                  ]}
+                >
+                  {unread > 99 ? '99+' : String(unread)}
+                </Text>
+              </View>
+            ) : null}
           </Pressable>
 
           {isProfile ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Buka pengaturan"
+              accessibilityLabel={t('common.openSettingsAria')}
               onPress={handleSettings}
               style={({ pressed }) => [
                 styles.iconButton,
@@ -143,7 +169,7 @@ export function AppHeader({
           ) : (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Buka profil"
+              accessibilityLabel={t('common.openProfileAria')}
               onPress={handleAvatar}
               style={({ pressed }) => [
                 styles.avatar,
@@ -182,14 +208,34 @@ const styles = StyleSheet.create({
     gap: spacing.s2 + 1,
   },
   iconButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 13,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconButtonRelative: {
+    position: 'relative',
+    overflow: 'visible',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifBadgeText: {
+    fontSize: 10,
+    fontFamily: fontFamily.bold,
+    lineHeight: 12,
   },
   settingsButtonActive: {
     borderColor: colors.textPrimary,
@@ -198,8 +244,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   avatar: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 13,
     backgroundColor: colors.graphite,
     alignItems: 'center',

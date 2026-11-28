@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,10 +12,17 @@ import {
   Compass,
   FileText,
   MapPin,
+  ReceiptText,
   Sparkles,
   Users,
 } from 'lucide-react-native';
 
+import { formatRupiah } from '@/components/praktikan/formatTagihan';
+import {
+  formatSentimenAi,
+  labelStatusIzin,
+  resolveSentimenAi,
+} from '@/components/praktikan/formatIzin';
 import { IzinSheet } from '@/components/praktikan/IzinSheet';
 import { EmptyState, StatusBadge, Tombol } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
@@ -30,11 +38,13 @@ export default function DetailSesiPraktikan() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
+  const { t, i18n } = useTranslation();
+  const isEn = i18n.language === 'en';
   const {
     currentUser,
     labs,
+    tagihan,
     getSesiById,
     getStatusEfektif,
     sudahPresensi,
@@ -43,11 +53,11 @@ export default function DetailSesiPraktikan() {
   } = useSession();
 
   const [izinBuka, setIzinBuka] = useState(false);
-  const [, setTick] = useState(0);
+  const [now, setNow] = useState<number>(() => Date.now());
 
   // Periksa ulang waktu secara berkala setiap 15 detik agar tombol & status otomatis mengikuti PB-06
   useEffect(() => {
-    const timer = setInterval(() => setTick((n) => n + 1), TICK_WAKTU_MS);
+    const timer = setInterval(() => setNow(Date.now()), TICK_WAKTU_MS);
     return () => clearInterval(timer);
   }, []);
 
@@ -74,7 +84,7 @@ export default function DetailSesiPraktikan() {
         >
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Kembali"
+            accessibilityLabel={t('common.back')}
             onPress={() => router.back()}
             style={[
               styles.iconBtn,
@@ -89,11 +99,15 @@ export default function DetailSesiPraktikan() {
         </View>
         <View style={styles.emptyWrap}>
           <EmptyState
-            judul={loading ? 'Memuat sesi…' : 'Sesi tidak ditemukan'}
+            judul={
+              loading
+                ? t('sesiDetail.loadingTitle')
+                : t('sesiDetail.notFoundTitle')
+            }
             pesan={
               loading
-                ? 'Mohon tunggu sebentar.'
-                : 'Sesi ini tidak tersedia untuk kelasmu.'
+                ? t('common.pleaseWait')
+                : t('sesiDetail.notFoundBody')
             }
           />
         </View>
@@ -101,7 +115,6 @@ export default function DetailSesiPraktikan() {
     );
   }
 
-  const now = Date.now();
   const statusEfektif = getStatusEfektif(s);
   const belumMulai = !sudahMulai(s, now);
   const waktuHabis = sudahLewat(s, now);
@@ -111,42 +124,62 @@ export default function DetailSesiPraktikan() {
 
   const hadir = sudahPresensi(s.id, currentUser.id);
   const waktuHadir = hadir ? titikJam(formatJam(hadir.waktuHadir)) : null;
+  const statusKehadiranTampil = hadir?.statusKehadiran;
+  const terlambatHadir = statusKehadiranTampil === 'TERLAMBAT';
+  const tagihanIdTampil = hadir?.tagihanId;
+  const tagihanTerkait = tagihanIdTampil
+    ? tagihan.find((t) => t.id === tagihanIdTampil)
+    : undefined;
+  const nominalDendaTampil = tagihanTerkait?.nominal ?? labSesi?.dendaNominal;
   const izinSaya = getIzinBySesiPraktikan(s.id, currentUser.id);
 
-  // Sama dengan aturan di context: izin apa pun (termasuk DITOLAK) memblokir presensi.
+  // Hanya izin DITERIMA yang memblokir presensi; MENUNGGU/DITOLAK tetap boleh presensi.
+  const izinDiterima = izinSaya?.status === 'DITERIMA';
   const bisaPresensi =
-    statusEfektif === 'DIBUKA' && !belumMulai && !waktuHabis && !hadir && !izinSaya;
+    statusEfektif === 'DIBUKA' &&
+    !belumMulai &&
+    !waktuHabis &&
+    !hadir &&
+    !izinDiterima;
   const bisaAjukanIzin = !hadir && !izinSaya && statusEfektif !== 'SELESAI';
 
   const actionLabel = hadir
-    ? `Hadir · ${waktuHadir}`
-    : izinSaya?.status === 'DITERIMA'
-      ? 'Izin telah diterima'
-      : izinSaya?.status === 'MENUNGGU'
-        ? 'Izin menunggu keputusan'
-        : izinSaya?.status === 'DITOLAK'
-          ? 'Izin ditolak'
-          : waktuHabis
-            ? 'Waktu presensi telah berakhir'
-            : s.status === 'SELESAI' || statusEfektif === 'SELESAI'
-              ? 'Sesi telah ditutup'
-              : belumMulai
-                ? 'Sesi belum dimulai'
-                : statusEfektif === 'DIBUKA'
-                  ? 'Tap untuk presensi'
-                  : 'Sesi belum dibuka asisten';
+    ? t('sesiDetail.checkedInAction', { jam: waktuHadir ?? '-' })
+    : izinDiterima
+      ? t('presensi.excused')
+      : waktuHabis
+        ? t('sesiDetail.endedAction')
+        : s.status === 'SELESAI' || statusEfektif === 'SELESAI'
+          ? t('sesiDetail.closedAction')
+          : belumMulai
+            ? t('sesiDetail.notStartedAction')
+            : statusEfektif !== 'DIBUKA'
+              ? t('sesiDetail.notOpenedAction')
+              : izinSaya?.status === 'MENUNGGU'
+                ? t('presensi.pendingLeave')
+                : t('presensi.checkIn');
 
   const infoAi = formatLabelKategoriAi(
     izinSaya?.kategoriAi,
     izinSaya?.ringkasanAi,
     isEn,
   );
-  const aiTidakTersedia = !infoAi.terklasifikasi;
+  const aiTidakTersedia =
+    !infoAi.terklasifikasi || !(izinSaya?.ringkasanAi ?? '').trim();
+  const sentimenEfektif = resolveSentimenAi(
+    izinSaya?.sentimenAi,
+    izinSaya?.alasan,
+    infoAi.terklasifikasi,
+  );
+  const sentimenInfo = formatSentimenAi(sentimenEfektif, isEn);
+  const statusIzinInfo = izinSaya
+    ? labelStatusIzin(izinSaya.status, isEn)
+    : null;
 
-  const bukaHalamanPresensi = () => {
+  const bukaKameraPresensi = () => {
     router.push({
-      pathname: '/(praktikan)/presensi/[id]',
-      params: { id: s.id },
+      pathname: '/scan-qr',
+      params: { sesiId: s.id },
     } as any);
   };
 
@@ -163,7 +196,7 @@ export default function DetailSesiPraktikan() {
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Kembali"
+          accessibilityLabel={t('common.back')}
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.iconBtn,
@@ -180,7 +213,7 @@ export default function DetailSesiPraktikan() {
 
         <View style={styles.headerCenter}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            {isEn ? 'SESSION DETAIL' : 'DETAIL SESI'}
+            {t('sesiDetail.kicker')}
           </Text>
           <Text
             style={[styles.headerTitle, { color: themeColors.textPrimary }]}
@@ -234,7 +267,7 @@ export default function DetailSesiPraktikan() {
               <Text
                 style={[styles.gridLabel, { color: themeColors.textMuted }]}
               >
-                {isEn ? 'Date' : 'Tanggal'}
+                {t('sesiDetail.date')}
               </Text>
               <Text
                 style={[styles.gridValue, { color: themeColors.textPrimary }]}
@@ -258,7 +291,7 @@ export default function DetailSesiPraktikan() {
               <Text
                 style={[styles.gridLabel, { color: themeColors.textMuted }]}
               >
-                {isEn ? 'Time' : 'Waktu'}
+                {t('sesiDetail.time')}
               </Text>
               <Text
                 style={[styles.gridValue, { color: themeColors.textPrimary }]}
@@ -282,7 +315,7 @@ export default function DetailSesiPraktikan() {
               <Text
                 style={[styles.gridLabel, { color: themeColors.textMuted }]}
               >
-                {isEn ? 'Location' : 'Lokasi'}
+                {t('sesiDetail.location')}
               </Text>
               <Text
                 style={[styles.gridValue, { color: themeColors.textPrimary }]}
@@ -307,7 +340,7 @@ export default function DetailSesiPraktikan() {
               <Text
                 style={[styles.gridLabel, { color: themeColors.textMuted }]}
               >
-                {isEn ? 'Class' : 'Kelas'}
+                {t('sesiDetail.classLabel')}
               </Text>
               <Text
                 style={[styles.gridValue, { color: themeColors.textPrimary }]}
@@ -318,38 +351,148 @@ export default function DetailSesiPraktikan() {
           </View>
         </View>
 
-        {/* Kartu Bukti Presensi & Jarak ke Lab (FR-20) */}
+        {/* Kartu Bukti Presensi, Status Keterlambatan & Jarak ke Lab (FR-20, FR-36) */}
         {hadir ? (
           <View
             style={[
               styles.hadirCard,
               {
-                backgroundColor: themeColors.radiusInsideBg,
-                borderColor: themeColors.radiusInsideBorder,
+                backgroundColor: terlambatHadir
+                  ? themeColors.kehadiranTerlambatBg
+                  : themeColors.radiusInsideBg,
+                borderColor: terlambatHadir
+                  ? themeColors.gpsOffBorder
+                  : themeColors.radiusInsideBorder,
               },
             ]}
           >
             <View style={styles.hadirTopRow}>
-              <CheckCircle2 size={18} color={themeColors.radiusInsideFg} />
+              <CheckCircle2
+                size={18}
+                color={
+                  terlambatHadir
+                    ? themeColors.kehadiranTerlambatFg
+                    : themeColors.radiusInsideFg
+                }
+              />
               <Text
                 style={[
                   styles.hadirTitle,
-                  { color: themeColors.radiusInsideFg },
+                  {
+                    color: terlambatHadir
+                      ? themeColors.kehadiranTerlambatFg
+                      : themeColors.radiusInsideFg,
+                  },
                 ]}
               >
-                Presensi tercatat pukul {waktuHadir} WIB
+                {t('sesiDetail.checkedInTitle', { jam: waktuHadir ?? '-' })}
               </Text>
+              {statusKehadiranTampil ? (
+                <StatusBadge status={statusKehadiranTampil} />
+              ) : null}
             </View>
+
+            {statusKehadiranTampil ? (
+              <View
+                style={[
+                  styles.hadirStatusBox,
+                  {
+                    borderTopColor: terlambatHadir
+                      ? themeColors.gpsOffBorder
+                      : themeColors.radiusInsideBorder,
+                  },
+                ]}
+              >
+                {terlambatHadir ? (
+                  <>
+                    {typeof hadir.menitTerlambat === 'number' &&
+                    hadir.menitTerlambat > 0 ? (
+                      <Text
+                        style={[
+                          styles.hadirDistanceText,
+                          { color: themeColors.kehadiranTerlambatFg },
+                        ]}
+                      >
+                        {t('presensi.minutesLate', {
+                          menit: hadir.menitTerlambat,
+                        })}
+                      </Text>
+                    ) : null}
+                    <Text
+                      style={[
+                        styles.hadirFineText,
+                        { color: themeColors.kehadiranTerlambatFg },
+                      ]}
+                    >
+                      {typeof nominalDendaTampil === 'number' &&
+                      nominalDendaTampil > 0
+                        ? t('presensi.fine', {
+                            nominal: formatRupiah(nominalDendaTampil),
+                          })
+                        : t('sesiDetail.fineDefault')}
+                    </Text>
+                    {tagihanIdTampil ? (
+                      <Tombol
+                        variant="sekunder"
+                        icon={
+                          <ReceiptText
+                            size={16}
+                            color={themeColors.textPrimary}
+                          />
+                        }
+                        rightIcon={
+                          <ArrowRight
+                            size={16}
+                            color={themeColors.textPrimary}
+                          />
+                        }
+                        onPress={() =>
+                          router.push({
+                            pathname: '/(praktikan)/tagihan/[id]',
+                            params: { id: tagihanIdTampil },
+                          } as any)
+                        }
+                      >
+                        {t('presensi.viewBill')}
+                      </Tombol>
+                    ) : null}
+                  </>
+                ) : (
+                  <Text
+                    style={[
+                      styles.hadirDistanceText,
+                      { color: themeColors.radiusInsideFg },
+                    ]}
+                  >
+                    {t('presensi.noFine')}
+                  </Text>
+                )}
+              </View>
+            ) : null}
+
             {typeof hadir.jarak === 'number' ? (
               <View style={styles.hadirDistanceRow}>
-                <Compass size={14} color={themeColors.radiusInsideFg} />
+                <Compass
+                  size={14}
+                  color={
+                    terlambatHadir
+                      ? themeColors.kehadiranTerlambatFg
+                      : themeColors.radiusInsideFg
+                  }
+                />
                 <Text
                   style={[
                     styles.hadirDistanceText,
-                    { color: themeColors.radiusInsideFg },
+                    {
+                      color: terlambatHadir
+                        ? themeColors.kehadiranTerlambatFg
+                        : themeColors.radiusInsideFg,
+                    },
                   ]}
                 >
-                  Jarak ke laboratorium saat presensi: {Math.round(hadir.jarak)} m
+                  {t('sesiDetail.distanceAtCheckIn', {
+                    jarak: Math.round(hadir.jarak),
+                  })}
                 </Text>
               </View>
             ) : null}
@@ -370,12 +513,14 @@ export default function DetailSesiPraktikan() {
             <View style={styles.izinHeaderRow}>
               <View>
                 <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-                  STATUS PENGAJUAN IZIN
+                  {t('izin.statusTitle')}
                 </Text>
                 <Text
                   style={[styles.izinTitle, { color: themeColors.textPrimary }]}
                 >
-                  Diajukan pukul {titikJam(formatJam(izinSaya.waktuPengajuan))}
+                  {t('sesiDetail.submittedAt', {
+                    jam: titikJam(formatJam(izinSaya.waktuPengajuan)),
+                  })}
                 </Text>
               </View>
               <StatusBadge status={izinSaya.status} />
@@ -384,8 +529,59 @@ export default function DetailSesiPraktikan() {
             <Text
               style={[styles.izinAlasan, { color: themeColors.textSecondary }]}
             >
-              "{izinSaya.alasan}"
+              {`"${izinSaya.alasan}"`}
             </Text>
+
+            <View
+              style={[
+                styles.izinNoticeBox,
+                {
+                  backgroundColor:
+                    izinSaya.status === 'DITERIMA'
+                      ? themeColors.sesiDibukaBg
+                      : izinSaya.status === 'DITOLAK'
+                        ? themeColors.surfaceMuted
+                        : themeColors.izinBg,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.izinNoticeTitle,
+                  {
+                    color:
+                      izinSaya.status === 'DITERIMA'
+                        ? themeColors.sesiDibukaFg
+                        : izinSaya.status === 'DITOLAK'
+                          ? themeColors.textSecondary
+                          : themeColors.izinFg,
+                  },
+                ]}
+              >
+                {izinSaya.status === 'DITERIMA'
+                  ? t('izin.excused')
+                  : izinSaya.status === 'DITOLAK'
+                    ? t('izin.rejectedShort')
+                    : t('izin.pendingShort')}
+              </Text>
+              <Text
+                style={[
+                  styles.izinNoticeSub,
+                  {
+                    color:
+                      izinSaya.status === 'DITERIMA'
+                        ? themeColors.sesiDibukaFg
+                        : izinSaya.status === 'DITOLAK'
+                          ? themeColors.textSecondary
+                          : themeColors.izinFg,
+                  },
+                ]}
+              >
+                {izinSaya.status === 'DITERIMA'
+                  ? t('sesiDetail.excusedDetail')
+                  : statusIzinInfo?.keterangan}
+              </Text>
+            </View>
 
             <View
               style={[
@@ -394,6 +590,9 @@ export default function DetailSesiPraktikan() {
                   backgroundColor: aiTidakTersedia
                     ? themeColors.gpsOffBg
                     : themeColors.primarySoft,
+                  borderColor: aiTidakTersedia
+                    ? themeColors.gpsOffBorder
+                    : themeColors.radiusInsideBorder,
                 },
               ]}
             >
@@ -416,10 +615,28 @@ export default function DetailSesiPraktikan() {
                     },
                   ]}
                 >
-                  {isEn ? `AI Label: ${infoAi.label}` : `Label AI: ${infoAi.label}`}
+                  {aiTidakTersedia
+                    ? t('izin.aiUnavailable')
+                    : t('sesiDetail.aiLabel', { label: infoAi.label })}
                 </Text>
               </View>
-              {izinSaya.ringkasanAi ? (
+              {!aiTidakTersedia ? (
+                <Text
+                  style={[
+                    styles.aiSentimentText,
+                    {
+                      color: sentimenInfo.tersedia
+                        ? themeColors.sesiDibukaFg
+                        : themeColors.gpsOffFg,
+                    },
+                  ]}
+                >
+                  {sentimenInfo.tersedia
+                    ? t('izin.sentiment', { label: sentimenInfo.label })
+                    : t('izin.sentimentUnavailable')}
+                </Text>
+              ) : null}
+              {!aiTidakTersedia && izinSaya.ringkasanAi ? (
                 <Text
                   style={[
                     styles.aiSummaryText,
@@ -429,37 +646,34 @@ export default function DetailSesiPraktikan() {
                   {izinSaya.ringkasanAi}
                 </Text>
               ) : null}
+              <Text
+                style={[styles.aiFootnote, { color: themeColors.textMuted }]}
+              >
+                {t('izin.supportingNote')}
+              </Text>
             </View>
           </View>
         ) : null}
 
         {/* Tombol Aksi */}
         <View style={styles.actionsGroup}>
-          <Tombol
-            variant="primer"
-            disabled={!bisaPresensi}
-            icon={
-              hadir ? (
-                <CheckCircle2 size={19} color={themeColors.disabledText} />
-              ) : undefined
-            }
-            rightIcon={
-              bisaPresensi ? (
-                <ArrowRight size={19} color={themeColors.onPrimary} />
-              ) : undefined
-            }
-            onPress={bukaHalamanPresensi}
-          >
-            {actionLabel}
-          </Tombol>
-
-          {!bisaPresensi && !hadir && !izinSaya && statusEfektif === 'DIBUKA' ? (
+          {!izinDiterima ? (
             <Tombol
-              variant="sekunder"
-              onPress={bukaHalamanPresensi}
-              icon={<MapPin size={17} color={themeColors.textPrimary} />}
+              variant="primer"
+              disabled={!bisaPresensi}
+              icon={
+                hadir ? (
+                  <CheckCircle2 size={19} color={themeColors.disabledText} />
+                ) : undefined
+              }
+              rightIcon={
+                bisaPresensi ? (
+                  <ArrowRight size={19} color={themeColors.onPrimary} />
+                ) : undefined
+              }
+              onPress={bukaKameraPresensi}
             >
-              Periksa halaman lokasi & presensi
+              {actionLabel}
             </Tombol>
           ) : null}
 
@@ -469,7 +683,7 @@ export default function DetailSesiPraktikan() {
               icon={<FileText size={17} color={themeColors.textPrimary} />}
               onPress={() => setIzinBuka(true)}
             >
-              Berhalangan hadir? Ajukan izin
+              {t('sesiDetail.requestLeaveCta')}
             </Tombol>
           )}
         </View>
@@ -498,10 +712,10 @@ const styles = StyleSheet.create({
   },
   headerCenter: { flex: 1 },
   headerTitle: { ...type.h2, color: colors.textPrimary },
-  headerSpacer: { width: 42 },
+  headerSpacer: { width: 44 },
   iconBtn: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 13,
     borderWidth: 1,
     borderColor: colors.border,
@@ -583,6 +797,16 @@ const styles = StyleSheet.create({
     ...type.caption,
     fontFamily: fontFamily.bold,
     color: colors.radiusInsideFg,
+    flex: 1,
+  },
+  hadirStatusBox: {
+    gap: spacing.s2,
+    paddingTop: spacing.s2,
+    borderTopWidth: 1,
+  },
+  hadirFineText: {
+    ...type.bodyStrong,
+    fontFamily: fontFamily.bold,
   },
   hadirDistanceRow: {
     flexDirection: 'row',
@@ -619,6 +843,22 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 18,
   },
+  izinNoticeBox: {
+    gap: 2,
+    paddingHorizontal: spacing.s3,
+    paddingVertical: spacing.s2 + 2,
+    borderRadius: 10,
+  },
+  izinNoticeTitle: {
+    ...type.caption,
+    fontFamily: fontFamily.bold,
+    lineHeight: 18,
+  },
+  izinNoticeSub: {
+    ...type.micro,
+    fontFamily: fontFamily.regular,
+    lineHeight: 16,
+  },
   aiBadgeBox: {
     gap: 4,
     paddingHorizontal: spacing.s3,
@@ -650,6 +890,14 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
     color: colors.textSecondary,
     lineHeight: 15,
+  },
+  aiSentimentText: {
+    ...type.micro,
+    fontFamily: fontFamily.bold,
+  },
+  aiFootnote: {
+    fontSize: 10,
+    fontFamily: fontFamily.regular,
   },
   actionsGroup: { marginTop: spacing.s5, gap: spacing.s3 },
 });

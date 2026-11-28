@@ -12,10 +12,11 @@ import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
 import { colors, layout, spacing, type } from '@/theme/tokens';
+import { useSesiAsprak } from '@/components/asisten/useSesiAsprak';
 
 export default function SesiAsistenScreen() {
   const router = useRouter();
-  const { currentUser, sesi, getKehadiranSesi, getIzinSesi } = useSession();
+  const { currentUser, getKehadiranSesi, getIzinSesi } = useSession();
   const { themeColors, language } = usePreferences();
   const isEn = language === 'en';
   const { mulai, sheet } = useAksiSesi();
@@ -23,16 +24,7 @@ export default function SesiAsistenScreen() {
 
   const [formVisible, setFormVisible] = useState(false);
   const [sesiDiedit, setSesiDiedit] = useState<Sesi | null>(null);
-
-  const sesiSaya = useMemo(
-    () =>
-      sesi
-        .filter((s) => s.asistenId === currentUser?.id)
-        .sort((a, b) =>
-          `${a.tanggal} ${a.jamMulai}`.localeCompare(`${b.tanggal} ${b.jamMulai}`),
-        ),
-    [sesi, currentUser?.id],
-  );
+  const { sesiSaya } = useSesiAsprak();
 
   if (!currentUser) return null;
 

@@ -1,37 +1,23 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { isFirebaseConfigured } from '@/config/firebase';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
-import type { Kehadiran, Lab, Sesi } from '@/data/dummy';
+import type { Kehadiran, Lab, Pembayaran, Sesi, Tagihan } from '@/data/dummy';
 
 import { formatTanggalTagihan } from './formatTagihan';
-import {
-  PEMBAYARAN_STUB,
-  TAGIHAN_STUB,
-  type PembayaranLokal,
-  type TagihanLokal,
-} from './tagihanStub';
+import { PEMBAYARAN_STUB, TAGIHAN_STUB } from './tagihanStub';
 
 export type TagihanTampil = {
-  tagihan: TagihanLokal;
+  tagihan: Tagihan;
   sesi?: Sesi;
   lab?: Lab;
   judul: string;
   subjudul: string;
 };
 
-/**
- * Bridge sementara ke kontrak PM yang belum merge.
- * TODO(sprint4): hapus cast ini setelah `tagihan`/`pembayaran`
- * tersedia resmi di `SessionContextValue`.
- */
-type TagihanKonteks = {
-  tagihan?: TagihanLokal[];
-  pembayaran?: PembayaranLokal[];
-};
-
-const PRIORITAS_STATUS: Record<TagihanLokal['status'], number> = {
+const PRIORITAS_STATUS: Record<Tagihan['status'], number> = {
   UNPAID: 0,
   PENDING: 1,
   FAILED: 2,
@@ -39,7 +25,7 @@ const PRIORITAS_STATUS: Record<TagihanLokal['status'], number> = {
   DIBEBASKAN: 4,
 };
 
-const STATUS_AKTIF: TagihanLokal['status'][] = ['UNPAID', 'PENDING', 'FAILED'];
+const STATUS_AKTIF: Tagihan['status'][] = ['UNPAID', 'PENDING', 'FAILED'];
 
 function waktu(iso: string): number {
   const nilai = new Date(iso).getTime();
@@ -47,11 +33,19 @@ function waktu(iso: string): number {
 }
 
 export function useTagihanPraktikan() {
-  const session = useSession() as ReturnType<typeof useSession> &
-    TagihanKonteks;
-  const { currentUser, sesi, labs, kehadiran, loading, error, retrySync } =
-    session;
+  const {
+    currentUser,
+    sesi,
+    labs,
+    kehadiran,
+    tagihan,
+    pembayaran,
+    loading,
+    error,
+    retrySync,
+  } = useSession();
   const { language } = usePreferences();
+  const { t } = useTranslation();
   const isEn = language === 'en';
 
   const sesiMap = useMemo(
@@ -71,24 +65,21 @@ export function useTagihanPraktikan() {
         daftar: [] as TagihanTampil[],
         totalTertunggak: 0,
         jumlahAktif: 0,
-        pembayaran: [] as PembayaranLokal[],
+        pembayaran: [] as Pembayaran[],
         kehadiran: [] as Kehadiran[],
       };
     }
 
-    const tagihanKonteks = session.tagihan ?? [];
-    const pembayaranKonteks = session.pembayaran ?? [];
-    const memakaiStub =
-      !isFirebaseConfigured && tagihanKonteks.length === 0;
+    const memakaiStub = !isFirebaseConfigured && tagihan.length === 0;
 
     // Mode dummy: tampilkan contoh tagihan agar alur baca bisa diuji.
     // Mode Firebase tidak pernah memakai stub supaya empty state asli terlihat.
-    const sumberTagihan = memakaiStub
+    const sumberTagihan: Tagihan[] = memakaiStub
       ? TAGIHAN_STUB.map((item) => ({ ...item, praktikanId: uid }))
-      : tagihanKonteks;
-    const sumberPembayaran = memakaiStub
+      : tagihan;
+    const sumberPembayaran: Pembayaran[] = memakaiStub
       ? PEMBAYARAN_STUB.map((item) => ({ ...item, praktikanId: uid }))
-      : pembayaranKonteks;
+      : pembayaran;
 
     const milikSaya = sumberTagihan.filter(
       (item) => item.praktikanId === uid,
@@ -101,14 +92,14 @@ export function useTagihanPraktikan() {
       .map((item): TagihanTampil => {
         const sesiItem = sesiMap.get(item.sesiId);
         const labItem = labMap.get(item.labId);
-        const namaLab = labItem?.nama ?? sesiItem?.lab ?? 'Lab';
+        const namaLab = labItem?.nama ?? sesiItem?.lab ?? t('common.labFallback');
         const tanggal = sesiItem?.tanggal ?? item.dibuatPada;
 
         return {
           tagihan: item,
           sesi: sesiItem,
           lab: labItem,
-          judul: sesiItem?.namaPraktikum ?? 'Sesi praktikum',
+          judul: sesiItem?.namaPraktikum ?? t('tagihan.defaultSession'),
           subjudul: `${formatTanggalTagihan(tanggal, isEn)} · ${namaLab}`,
         };
       })
@@ -133,12 +124,13 @@ export function useTagihanPraktikan() {
     };
   }, [
     currentUser?.id,
-    session.tagihan,
-    session.pembayaran,
+    tagihan,
+    pembayaran,
     kehadiran,
     sesiMap,
     labMap,
     isEn,
+    t,
   ]);
 
   return {

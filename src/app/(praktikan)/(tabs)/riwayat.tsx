@@ -1,7 +1,13 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AlertCircle, Check, FileText, Sparkles } from 'lucide-react-native';
 
+import {
+  formatSentimenAi,
+  labelStatusIzin,
+  resolveSentimenAi,
+} from '@/components/praktikan/formatIzin';
 import { EmptyState, StatusBadge } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
@@ -17,13 +23,16 @@ type Catatan = {
   waktu: string;
   jarak?: number;
   statusIzin?: StatusIzin;
+  alasan?: string;
   kategoriAi?: string;
   ringkasanAi?: string;
+  sentimenAi?: string;
 };
 
 export default function RiwayatScreen() {
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
+  const { t, i18n } = useTranslation();
+  const isEn = i18n.language === 'en';
   const {
     currentUser,
     sesi,
@@ -59,8 +68,10 @@ export default function RiwayatScreen() {
         sesiId: i.sesiId,
         waktu: i.waktuPengajuan,
         statusIzin: i.status,
+        alasan: i.alasan,
         kategoriAi: i.kategoriAi,
         ringkasanAi: i.ringkasanAi,
+        sentimenAi: i.sentimenAi,
       }));
 
     const sesiTercatat = new Set<string>([
@@ -100,40 +111,34 @@ export default function RiwayatScreen() {
       >
         <View style={styles.pageTitle}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            {isEn ? 'YOUR RECORDS' : 'CATATANMU'}
+            {t('riwayat.kicker')}
           </Text>
           <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
-            {isEn ? 'Attendance history' : 'Riwayat kehadiran'}
+            {t('riwayat.title')}
           </Text>
           <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
-            {isEn
-              ? 'All your check-ins and leave requests.'
-              : 'Semua presensi dan status pengajuan izinmu.'}
+            {t('riwayat.subtitle')}
           </Text>
         </View>
 
         {error ? (
           <EmptyState
-            judul={isEn ? 'Failed to load history' : 'Gagal memuat riwayat'}
+            judul={t('riwayat.loadError')}
             pesan={error}
             aksi={{
-              label: isEn ? 'Try again' : 'Coba lagi',
+              label: t('common.retry'),
               onPress: retrySync,
             }}
           />
         ) : loading ? (
           <EmptyState
-            judul={isEn ? 'Loading history…' : 'Memuat riwayat…'}
-            pesan={isEn ? 'Please wait a moment.' : 'Mohon tunggu sebentar.'}
+            judul={t('riwayat.loadingTitle')}
+            pesan={t('common.pleaseWait')}
           />
         ) : daftarCatatan.length === 0 ? (
           <EmptyState
-            judul={isEn ? 'No history yet' : 'Belum ada riwayat'}
-            pesan={
-              isEn
-                ? 'Completed check-ins and leave requests will appear here.'
-                : 'Presensi berhasil dan pengajuan izin akan muncul di halaman ini.'
-            }
+            judul={t('riwayat.emptyTitle')}
+            pesan={t('riwayat.emptyBody')}
           />
         ) : (
           <View style={styles.historyList}>
@@ -148,7 +153,17 @@ export default function RiwayatScreen() {
                 item.ringkasanAi,
                 isEn,
               );
-              const aiTidakTersedia = !infoAi.terklasifikasi;
+              const aiTidakTersedia =
+                !infoAi.terklasifikasi || !(item.ringkasanAi ?? '').trim();
+              const sentimenEfektif = resolveSentimenAi(
+                item.sentimenAi,
+                item.alasan,
+                infoAi.terklasifikasi,
+              );
+              const sentimen = formatSentimenAi(sentimenEfektif, isEn);
+              const statusInfo = item.statusIzin
+                ? labelStatusIzin(item.statusIzin, isEn)
+                : null;
 
               return (
                 <View
@@ -208,37 +223,108 @@ export default function RiwayatScreen() {
                         : ''}
                     </Text>
                     {!isHadir && !isAlpha ? (
-                      <View
-                        style={[
-                          styles.aiChip,
-                          {
-                            backgroundColor: aiTidakTersedia
-                              ? themeColors.gpsOffBg
-                              : themeColors.primarySoft,
-                          },
-                        ]}
-                      >
-                        <Sparkles
-                          size={11}
-                          color={
-                            aiTidakTersedia
-                              ? themeColors.gpsOffFg
-                              : themeColors.sesiDibukaFg
-                          }
-                        />
-                        <Text
-                          style={[
-                            styles.aiChipText,
-                            {
-                              color: aiTidakTersedia
-                                ? themeColors.gpsOffFg
-                                : themeColors.sesiDibukaFg,
-                            },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {`AI: ${infoAi.label}`}
-                        </Text>
+                      <View style={styles.izinMetaGroup}>
+                        {statusInfo ? (
+                          <Text
+                            style={[
+                              styles.izinStatusNote,
+                              item.statusIzin === 'DITERIMA' &&
+                                styles.izinStatusNoteBold,
+                              {
+                                color:
+                                  item.statusIzin === 'DITERIMA'
+                                    ? themeColors.sesiDibukaFg
+                                    : item.statusIzin === 'MENUNGGU'
+                                      ? themeColors.izinFg
+                                      : themeColors.textSecondary,
+                              },
+                            ]}
+                          >
+                            {item.statusIzin === 'DITERIMA'
+                              ? t('izin.excused')
+                              : item.statusIzin === 'MENUNGGU'
+                                ? t('riwayat.pendingNote')
+                                : statusInfo.keterangan}
+                          </Text>
+                        ) : null}
+
+                        {aiTidakTersedia ? (
+                          <View
+                            style={[
+                              styles.aiChip,
+                              { backgroundColor: themeColors.gpsOffBg },
+                            ]}
+                          >
+                            <Sparkles size={11} color={themeColors.gpsOffFg} />
+                            <Text
+                              style={[
+                                styles.aiChipText,
+                                { color: themeColors.gpsOffFg },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {t('izin.aiUnavailable')}
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={styles.aiChipsRow}>
+                            <View
+                              style={[
+                                styles.aiChip,
+                                { backgroundColor: themeColors.primarySoft },
+                              ]}
+                            >
+                              <Sparkles
+                                size={11}
+                                color={themeColors.sesiDibukaFg}
+                              />
+                              <Text
+                                style={[
+                                  styles.aiChipText,
+                                  { color: themeColors.sesiDibukaFg },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {t('riwayat.aiLabelChip', { label: infoAi.label })}
+                              </Text>
+                            </View>
+
+                            <View
+                              style={[
+                                styles.aiChip,
+                                {
+                                  backgroundColor: sentimen.tersedia
+                                    ? themeColors.primarySoft
+                                    : themeColors.gpsOffBg,
+                                },
+                              ]}
+                            >
+                              <Sparkles
+                                size={11}
+                                color={
+                                  sentimen.tersedia
+                                    ? themeColors.sesiDibukaFg
+                                    : themeColors.gpsOffFg
+                                }
+                              />
+                              <Text
+                                style={[
+                                  styles.aiChipText,
+                                  {
+                                    color: sentimen.tersedia
+                                      ? themeColors.sesiDibukaFg
+                                      : themeColors.gpsOffFg,
+                                  },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {sentimen.tersedia
+                                  ? t('izin.sentiment', { label: sentimen.label })
+                                  : t('izin.sentimentUnavailable')}
+                              </Text>
+                            </View>
+                          </View>
+                        )}
                       </View>
                     ) : null}
                   </View>
@@ -256,7 +342,7 @@ export default function RiwayatScreen() {
                           { color: themeColors.sesiDibukaFg },
                         ]}
                       >
-                        {isEn ? 'Present' : 'Hadir'}
+                        {t('riwayat.presentBadge')}
                       </Text>
                     </View>
                   ) : isAlpha ? (
@@ -319,6 +405,22 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   historyMeta: { ...type.caption, color: colors.textMuted },
+  izinMetaGroup: {
+    gap: 4,
+    marginTop: 2,
+  },
+  izinStatusNote: {
+    ...type.micro,
+    lineHeight: 15,
+  },
+  izinStatusNoteBold: {
+    fontFamily: fontFamily.bold,
+  },
+  aiChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
   aiChip: {
     flexDirection: 'row',
     alignItems: 'center',

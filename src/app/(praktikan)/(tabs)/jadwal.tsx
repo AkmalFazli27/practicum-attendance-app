@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 
 import { EmptyState, FilterChip, SessionCard } from '@/components/ui';
 import { useJadwalPraktikan } from '@/components/praktikan/useJadwalPraktikan';
+import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { colors, layout, spacing, type } from '@/theme/tokens';
@@ -14,32 +15,35 @@ type Filter = 'SEMUA' | 'HADIR' | 'IZIN';
 
 const FILTERS: Filter[] = ['SEMUA', 'HADIR', 'IZIN'];
 
-const EMPTY_COPY: Record<Filter, { judul: string; pesan: string }> = {
-  SEMUA: { judul: 'Belum ada jadwal', pesan: 'Jadwal praktikum akan tampil di sini.' },
-  HADIR: { judul: 'Belum ada sesi', pesan: 'Kamu belum menghadiri sesi apa pun.' },
-  IZIN: { judul: 'Belum ada izin', pesan: 'Kamu belum mengajukan izin untuk sesi apa pun.' },
-};
-
 export default function JadwalScreen() {
   const router = useRouter();
   const { currentUser } = useSession();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
+  const { t } = useTranslation();
   const { daftarKelas, hadirMap, izinMap, loading, error, retrySync } = useJadwalPraktikan();
 
   const [filter, setFilter] = useState<Filter>('SEMUA');
 
-  const filterLabels: Record<Filter, string> = isEn
-    ? { SEMUA: 'All', HADIR: 'Attended', IZIN: 'Leave' }
-    : { SEMUA: 'Semua', HADIR: 'Dihadiri', IZIN: 'Izin' };
+  const filterLabels: Record<Filter, string> = {
+    SEMUA: t('jadwal.filterAll'),
+    HADIR: t('jadwal.filterAttended'),
+    IZIN: t('jadwal.filterLeave'),
+  };
 
-  const emptyCopy: Record<Filter, { judul: string; pesan: string }> = isEn
-    ? {
-        SEMUA: { judul: 'No schedule yet', pesan: 'Practicum schedules will appear here.' },
-        HADIR: { judul: 'No attended sessions', pesan: 'You have not attended any sessions yet.' },
-        IZIN: { judul: 'No leave requests', pesan: 'You have not submitted any leave requests yet.' },
-      }
-    : EMPTY_COPY;
+  const emptyCopy: Record<Filter, { judul: string; pesan: string }> = {
+    SEMUA: {
+      judul: t('jadwal.emptyAllTitle'),
+      pesan: t('jadwal.emptyAllBody'),
+    },
+    HADIR: {
+      judul: t('jadwal.emptyAttendedTitle'),
+      pesan: t('jadwal.emptyAttendedBody'),
+    },
+    IZIN: {
+      judul: t('jadwal.emptyLeaveTitle'),
+      pesan: t('jadwal.emptyLeaveBody'),
+    },
+  };
 
   const data = useMemo(
     () =>
@@ -65,15 +69,13 @@ export default function JadwalScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.pageTitle}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            {isEn ? 'SCHEDULE' : 'JADWAL'}
+            {t('jadwal.kicker')}
           </Text>
           <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
-            {isEn ? 'Practicum schedule' : 'Jadwal praktikum'}
+            {t('jadwal.title')}
           </Text>
           <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
-            {isEn
-              ? 'Find your sessions and attendance status.'
-              : 'Temukan sesi dan status presensimu.'}
+            {t('jadwal.subtitle')}
           </Text>
         </View>
 
@@ -94,17 +96,17 @@ export default function JadwalScreen() {
 
         {error ? (
           <EmptyState
-            judul={isEn ? 'Failed to load schedule' : 'Gagal memuat jadwal'}
+            judul={t('jadwal.loadError')}
             pesan={error}
             aksi={{
-              label: isEn ? 'Try again' : 'Coba lagi',
+              label: t('common.retry'),
               onPress: retrySync,
             }}
           />
         ) : loading ? (
           <EmptyState
-            judul={isEn ? 'Loading schedule…' : 'Memuat jadwal…'}
-            pesan={isEn ? 'Please wait a moment.' : 'Mohon tunggu sebentar.'}
+            judul={t('jadwal.loadingTitle')}
+            pesan={t('common.pleaseWait')}
           />
         ) : data.length === 0 ? (
           <EmptyState
@@ -113,7 +115,7 @@ export default function JadwalScreen() {
             aksi={
               filter !== 'SEMUA'
                 ? {
-                    label: isEn ? 'Show all' : 'Tampilkan semua',
+                    label: t('common.showAll'),
                     onPress: () => setFilter('SEMUA'),
                   }
                 : undefined
@@ -128,7 +130,7 @@ export default function JadwalScreen() {
                   {tampilkanPemisah && index === indeksSelesai && (
                     <View style={styles.separator}>
                       <Text style={[styles.separatorText, { color: themeColors.textMuted }]}>
-                        {isEn ? 'COMPLETED' : 'SUDAH SELESAI'}
+                        {t('jadwal.completedSeparator')}
                       </Text>
                       <View style={[styles.separatorLine, { backgroundColor: themeColors.border }]} />
                     </View>

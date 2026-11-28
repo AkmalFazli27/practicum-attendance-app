@@ -16,19 +16,23 @@ export interface PickerJamProps {
   label: string;
   value: string; // HH:mm
   onChange: (jam: string) => void;
+  minJam?: number;
+  maxJam?: number;
   disabled?: boolean;
 }
 
 function Kolom({
   nama,
   nilai,
+  min = 0,
   maks,
   langkah,
   onUbah,
 }: {
   nama: string;
   nilai: number;
-  maks: number; // 23 atau 59
+  min?: number;
+  maks: number;
   langkah: number;
   onUbah: (n: number) => void;
 }) {
@@ -40,17 +44,30 @@ function Kolom({
     if (!fokus) setTeks(pad(nilai));
   }, [nilai, fokus]);
 
-  const total = maks + 1;
+  const jepit = (n: number) => Math.min(maks, Math.max(min, n));
+
   const komit = (t: string) => {
     const n = Number(t.replace(/\D/g, ''));
-    onUbah(Number.isNaN(n) ? nilai : Math.min(maks, n));
+    onUbah(Number.isNaN(n) ? nilai : jepit(n));
+  };
+
+  const tambah = () => {
+    if (maks <= min) return onUbah(min);
+    const berikut = nilai + langkah;
+    onUbah(berikut > maks ? min : berikut);
+  };
+
+  const kurang = () => {
+    if (maks <= min) return onUbah(min);
+    const sebelum = nilai - langkah;
+    onUbah(sebelum < min ? maks : sebelum);
   };
 
   return (
     <View style={styles.kolom}>
       <Pressable
         accessibilityLabel={`${nama} tambah`}
-        onPress={() => onUbah((nilai + langkah) % total)}
+        onPress={tambah}
         style={[styles.btn, { backgroundColor: themeColors.surfaceMuted }]}
       >
         <Text style={[styles.btnText, { color: themeColors.textPrimary }]}>
@@ -71,14 +88,15 @@ function Kolom({
         }}
         onBlur={() => {
           setFokus(false);
+          const hasil = Number.isNaN(Number(teks)) ? nilai : jepit(Number(teks));
           komit(teks);
-          setTeks(pad(Math.min(maks, Number(teks) || 0)));
+          setTeks(pad(hasil));
         }}
         style={[styles.angka, { color: themeColors.textPrimary }]}
       />
       <Pressable
         accessibilityLabel={`${nama} kurang`}
-        onPress={() => onUbah((nilai - langkah + total) % total)}
+        onPress={kurang}
         style={[styles.btn, { backgroundColor: themeColors.surfaceMuted }]}
       >
         <Text style={[styles.btnText, { color: themeColors.textPrimary }]}>
@@ -89,10 +107,25 @@ function Kolom({
   );
 }
 
-export function PickerJam({ label, value, onChange, disabled = false }: PickerJamProps) {
+export function PickerJam({
+  label,
+  value,
+  onChange,
+  minJam = 7,
+  maxJam = 20,
+  disabled = false,
+}: PickerJamProps) {
   const { themeColors } = usePreferences();
   const { j, m } = parse(value);
-  const set = (jj: number, mm: number) => onChange(`${pad(jj)}:${pad(mm)}`);
+  const jamTerkunci = Math.min(maxJam, Math.max(minJam, j));
+  const menitMaks = jamTerkunci >= maxJam ? 0 : 59;
+  const menitTerkunci = Math.min(menitMaks, m);
+
+  const set = (jj: number, mm: number) => {
+    const jValid = Math.min(maxJam, Math.max(minJam, jj));
+    const mValid = jValid >= maxJam ? 0 : Math.min(59, Math.max(0, mm));
+    onChange(`${pad(jValid)}:${pad(mValid)}`);
+  };
 
   return (
     <View style={styles.group} pointerEvents={disabled ? 'none' : 'auto'}>
@@ -110,11 +143,25 @@ export function PickerJam({ label, value, onChange, disabled = false }: PickerJa
         ]}
       >
         <View style={styles.atas}>
-          <Kolom nama={`${label} jam`} nilai={j} maks={23} langkah={1} onUbah={(n) => set(n, m)} />
+          <Kolom
+            nama={`${label} jam`}
+            nilai={jamTerkunci}
+            min={minJam}
+            maks={maxJam}
+            langkah={1}
+            onUbah={(n) => set(n, menitTerkunci)}
+          />
           <Text style={[styles.titikDua, { color: themeColors.textPrimary }]}>
             :
           </Text>
-          <Kolom nama={`${label} menit`} nilai={m} maks={59} langkah={5} onUbah={(n) => set(j, n)} />
+          <Kolom
+            nama={`${label} menit`}
+            nilai={menitTerkunci}
+            min={0}
+            maks={menitMaks}
+            langkah={5}
+            onUbah={(n) => set(jamTerkunci, n)}
+          />
         </View>
       </View>
     </View>

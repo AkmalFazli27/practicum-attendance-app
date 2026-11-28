@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -12,8 +12,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, ReceiptText } from 'lucide-react-native';
 
 import { EmptyState, TagihanCard } from '@/components/ui';
+import { BannerGalat } from '@/components/praktikan/BannerGalat';
 import { formatRupiah } from '@/components/praktikan/formatTagihan';
+import { usePembayaranTagihan } from '@/components/praktikan/usePembayaranTagihan';
 import { useTagihanPraktikan } from '@/components/praktikan/useTagihanPraktikan';
+import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/context/PreferencesContext';
 import {
   layout,
@@ -26,8 +29,8 @@ import {
 export default function TagihanScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
+  const { t } = useTranslation();
   const {
     daftar,
     totalTertunggak,
@@ -36,12 +39,27 @@ export default function TagihanScreen() {
     error,
     retrySync,
   } = useTagihanPraktikan();
+  const { bayar, memproses, galat, clearGalat } = usePembayaranTagihan();
+  const [idProses, setIdProses] = useState<string | null>(null);
 
   const bukaDetail = (id: string) =>
     router.push({
       pathname: '/(praktikan)/tagihan/[id]',
       params: { id },
     } as any);
+
+  const handleBayar = async (id: string) => {
+    if (memproses || idProses) return;
+    setIdProses(id);
+    try {
+      await bayar(id);
+    } finally {
+      setIdProses(null);
+    }
+  };
+
+  const bisaBayar = (status: string) =>
+    status === 'UNPAID' || status === 'FAILED';
 
   return (
     <View
@@ -53,7 +71,7 @@ export default function TagihanScreen() {
       <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={isEn ? 'Back' : 'Kembali'}
+          accessibilityLabel={t('common.back')}
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.backButton,
@@ -69,13 +87,13 @@ export default function TagihanScreen() {
         </Pressable>
         <View style={styles.headerCopy}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            {isEn ? 'BILLING' : 'TAGIHAN'}
+            {t('tagihan.kicker')}
           </Text>
           <Text
             style={[styles.title, { color: themeColors.textPrimary }]}
             numberOfLines={1}
           >
-            {isEn ? 'Bills' : 'Tagihan'}
+            {t('tagihan.title')}
           </Text>
         </View>
         <View style={styles.headerSpacer} />
@@ -93,9 +111,7 @@ export default function TagihanScreen() {
         }
       >
         <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
-          {isEn
-            ? 'Your late-attendance bills'
-            : 'Tagihan denda keterlambatanmu'}
+          {t('tagihan.subtitle')}
         </Text>
 
         {!error && (!loading || daftar.length > 0) ? (
@@ -120,7 +136,7 @@ export default function TagihanScreen() {
               <Text
                 style={[styles.summaryLabel, { color: themeColors.textSecondary }]}
               >
-                {isEn ? 'Total outstanding' : 'Total tertunggak'}
+                {t('tagihan.totalOutstanding')}
               </Text>
               <Text
                 style={[styles.summaryAmount, { color: themeColors.textPrimary }]}
@@ -129,39 +145,35 @@ export default function TagihanScreen() {
               </Text>
               <Text style={[styles.summaryNote, { color: themeColors.textMuted }]}>
                 {jumlahAktif === 0
-                  ? isEn
-                    ? 'No active bills'
-                    : 'Tidak ada tagihan aktif'
-                  : isEn
-                    ? `${jumlahAktif} active ${jumlahAktif === 1 ? 'bill' : 'bills'}`
-                    : `${jumlahAktif} tagihan aktif`}
+                  ? t('tagihan.noActiveBills')
+                  : t('tagihan.activeBills', { count: jumlahAktif })}
               </Text>
             </View>
           </View>
         ) : null}
 
+        {galat ? (
+          <BannerGalat pesan={galat} onTutup={clearGalat} />
+        ) : null}
+
         {error ? (
           <EmptyState
-            judul={isEn ? 'Failed to load bills' : 'Gagal memuat tagihan'}
+            judul={t('tagihan.loadError')}
             pesan={error}
             aksi={{
-              label: isEn ? 'Try again' : 'Coba lagi',
+              label: t('common.retry'),
               onPress: retrySync,
             }}
           />
         ) : loading && daftar.length === 0 ? (
           <EmptyState
-            judul={isEn ? 'Loading bills…' : 'Memuat tagihan…'}
-            pesan={isEn ? 'Please wait a moment.' : 'Mohon tunggu sebentar.'}
+            judul={t('tagihan.loadingTitle')}
+            pesan={t('common.pleaseWait')}
           />
         ) : daftar.length === 0 ? (
           <EmptyState
-            judul={isEn ? 'No bills yet' : 'Belum ada tagihan'}
-            pesan={
-              isEn
-                ? 'Bills will appear here if you check in late.'
-                : 'Tagihan akan muncul jika kamu terlambat presensi.'
-            }
+            judul={t('tagihan.emptyTitle')}
+            pesan={t('tagihan.emptyBody')}
           />
         ) : (
           <View style={styles.list}>
@@ -172,6 +184,12 @@ export default function TagihanScreen() {
                 judul={item.judul}
                 subjudul={item.subjudul}
                 onPress={() => bukaDetail(item.tagihan.id)}
+                onBayar={
+                  bisaBayar(item.tagihan.status)
+                    ? () => handleBayar(item.tagihan.id)
+                    : undefined
+                }
+                loadingBayar={idProses === item.tagihan.id}
               />
             ))}
           </View>
@@ -195,8 +213,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 13,
     borderWidth: 1,
     alignItems: 'center',
@@ -214,7 +232,7 @@ const styles = StyleSheet.create({
     ...type.h2,
   },
   headerSpacer: {
-    width: 42,
+    width: 44,
   },
   content: {
     paddingHorizontal: layout.screenPadding,

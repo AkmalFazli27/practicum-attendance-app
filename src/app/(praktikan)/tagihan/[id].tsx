@@ -4,14 +4,18 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Clock3, MapPin, ReceiptText } from 'lucide-react-native';
 
-import { EmptyState, StatusPembayaranBadge } from '@/components/ui';
+import { EmptyState, StatusPembayaranBadge, Tombol } from '@/components/ui';
+import { BannerGalat } from '@/components/praktikan/BannerGalat';
 import {
   formatRupiah,
   formatTanggalTagihan,
 } from '@/components/praktikan/formatTagihan';
+import { usePembayaranTagihan } from '@/components/praktikan/usePembayaranTagihan';
 import { useTagihanPraktikan } from '@/components/praktikan/useTagihanPraktikan';
+import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/context/PreferencesContext';
 import {
+  fontFamily,
   layout,
   radius,
   shadows,
@@ -25,9 +29,12 @@ export default function DetailTagihanScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { themeColors, language } = usePreferences();
+  const { t } = useTranslation();
   const isEn = language === 'en';
   const { daftar, pembayaran, kehadiran, loading, error, retrySync } =
     useTagihanPraktikan();
+  const { bayar, cekStatus, memproses, memeriksa, galat, clearGalat } =
+    usePembayaranTagihan();
 
   const item = daftar.find((x) => x.tagihan.id === id);
   const kehadiranItem = item
@@ -42,29 +49,23 @@ export default function DetailTagihanScreen() {
             new Date(a.dibuatPada).getTime(),
         )
     : [];
+  const orderPending = transaksi.find((p) => p.status === 'pending')?.id;
+  const statusTagihan = item?.tagihan.status;
+  const bisaBayarSekarang =
+    statusTagihan === 'UNPAID' || statusTagihan === 'FAILED';
 
   const penjelasanStatus = (status: string): string => {
     switch (status) {
       case 'UNPAID':
-        return isEn
-          ? 'Unpaid — please pay before the deadline.'
-          : 'Belum dibayar — bayar sebelum batas yang ditentukan.';
+        return t('tagihan.statusUnpaidDesc');
       case 'PENDING':
-        return isEn
-          ? 'Payment is being processed. The status will update automatically.'
-          : 'Pembayaran sedang diproses. Status akan berubah otomatis.';
+        return t('tagihan.statusPendingDesc');
       case 'PAID':
-        return isEn
-          ? 'Paid.'
-          : 'Lunas.';
+        return t('tagihan.paidAt');
       case 'FAILED':
-        return isEn
-          ? 'Payment failed. You can try again.'
-          : 'Pembayaran gagal. Kamu dapat mencoba lagi.';
+        return t('tagihan.statusFailedDesc');
       case 'DIBEBASKAN':
-        return isEn
-          ? 'Bill waived because your leave was accepted.'
-          : 'Tagihan dibebaskan karena izin diterima.';
+        return t('tagihan.waivedReason');
       default:
         return '';
     }
@@ -80,7 +81,7 @@ export default function DetailTagihanScreen() {
       <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={isEn ? 'Back' : 'Kembali'}
+          accessibilityLabel={t('common.back')}
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.backButton,
@@ -96,13 +97,13 @@ export default function DetailTagihanScreen() {
         </Pressable>
         <View style={styles.headerCopy}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            {isEn ? 'BILLING' : 'TAGIHAN'}
+            {t('tagihan.kicker')}
           </Text>
           <Text
             style={[styles.title, { color: themeColors.textPrimary }]}
             numberOfLines={1}
           >
-            {isEn ? 'Bill details' : 'Detail tagihan'}
+            {t('tagihan.detailTitle')}
           </Text>
         </View>
         <View style={styles.headerSpacer} />
@@ -112,30 +113,30 @@ export default function DetailTagihanScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {galat ? (
+          <BannerGalat pesan={galat} onTutup={clearGalat} />
+        ) : null}
+
         {error ? (
           <EmptyState
-            judul={isEn ? 'Failed to load bill' : 'Gagal memuat tagihan'}
+            judul={t('tagihan.loadError')}
             pesan={error}
             aksi={{
-              label: isEn ? 'Try again' : 'Coba lagi',
+              label: t('common.retry'),
               onPress: retrySync,
             }}
           />
         ) : loading && !item ? (
           <EmptyState
-            judul={isEn ? 'Loading details…' : 'Memuat detail…'}
-            pesan={isEn ? 'Please wait a moment.' : 'Mohon tunggu sebentar.'}
+            judul={t('tagihan.loadingDetailTitle')}
+            pesan={t('common.pleaseWait')}
           />
         ) : !item ? (
           <EmptyState
-            judul={isEn ? 'Bill not found' : 'Tagihan tidak ditemukan'}
-            pesan={
-              isEn
-                ? 'This bill may have been removed or belongs to another account.'
-                : 'Tagihan ini mungkin sudah dihapus atau milik akun lain.'
-            }
+            judul={t('tagihan.notFound')}
+            pesan={t('tagihan.notFoundBody')}
             aksi={{
-              label: isEn ? 'Back to bills' : 'Kembali ke daftar',
+              label: t('tagihan.backToList'),
               onPress: () =>
                 router.replace('/(praktikan)/tagihan' as any),
             }}
@@ -156,7 +157,7 @@ export default function DetailTagihanScreen() {
                   <Text
                     style={[styles.heroLabel, { color: themeColors.textMuted }]}
                   >
-                    {isEn ? 'FINE AMOUNT' : 'NOMINAL DENDA'}
+                    {t('tagihan.nominal')}
                   </Text>
                   <Text
                     style={[
@@ -194,7 +195,7 @@ export default function DetailTagihanScreen() {
               <Text
                 style={[styles.sectionTitle, { color: themeColors.textPrimary }]}
               >
-                {isEn ? 'Session details' : 'Rincian sesi'}
+                {t('tagihan.sessionDetails')}
               </Text>
 
               <View style={styles.detailRow}>
@@ -230,7 +231,7 @@ export default function DetailTagihanScreen() {
                       { color: themeColors.textPrimary },
                     ]}
                   >
-                    {item.lab?.nama ?? item.sesi?.lab ?? 'Lab'}
+                    {item.lab?.nama ?? item.sesi?.lab ?? t('common.labFallback')}
                   </Text>
                   {item.sesi ? (
                     <Text
@@ -239,7 +240,7 @@ export default function DetailTagihanScreen() {
                         { color: themeColors.textSecondary },
                       ]}
                     >
-                      {isEn ? 'Class' : 'Kelas'} {item.sesi.kelas}
+                      {t('common.classWithValue', { kelas: item.sesi.kelas })}
                     </Text>
                   ) : null}
                 </View>
@@ -255,12 +256,10 @@ export default function DetailTagihanScreen() {
                     ]}
                   >
                     {item.tagihan.menitTerlambat > 0
-                      ? isEn
-                        ? `Late by ${item.tagihan.menitTerlambat} minutes`
-                        : `Terlambat ${item.tagihan.menitTerlambat} menit`
-                      : isEn
-                        ? 'On time'
-                        : 'Tepat waktu'}
+                      ? t('tagihan.lateMinutes', {
+                          menit: item.tagihan.menitTerlambat,
+                        })
+                      : t('presensi.onTime')}
                   </Text>
                   <Text
                     style={[
@@ -269,10 +268,10 @@ export default function DetailTagihanScreen() {
                     ]}
                   >
                     {kehadiranItem
-                      ? `${isEn ? 'Checked in at' : 'Dicatat pada'} ${formatJam(kehadiranItem.waktuHadir)}`
-                      : isEn
-                        ? 'Fine is calculated from your check-in time.'
-                        : 'Denda dihitung dari waktu presensimu.'}
+                      ? t('tagihan.checkedInAt', {
+                          jam: formatJam(kehadiranItem.waktuHadir),
+                        })
+                      : t('tagihan.fineCalculated')}
                   </Text>
                 </View>
               </View>
@@ -290,7 +289,7 @@ export default function DetailTagihanScreen() {
               <Text
                 style={[styles.sectionTitle, { color: themeColors.textPrimary }]}
               >
-                {isEn ? 'Transaction history' : 'Riwayat transaksi'}
+                {t('tagihan.transactionHistory')}
               </Text>
 
               {transaksi.length === 0 ? (
@@ -300,7 +299,7 @@ export default function DetailTagihanScreen() {
                     { color: themeColors.textSecondary },
                   ]}
                 >
-                  {isEn ? 'No transactions yet.' : 'Belum ada transaksi.'}
+                  {t('pembayaran.noTransaction')}
                 </Text>
               ) : (
                 <View style={styles.transactionList}>
@@ -349,10 +348,126 @@ export default function DetailTagihanScreen() {
               )}
             </View>
 
+            {item.tagihan.status === 'PENDING' ? (
+              <View
+                style={[
+                  styles.footerCard,
+                  {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.footerNote,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  {t('tagihan.pendingNote')}
+                </Text>
+                {orderPending ? (
+                  <Tombol
+                    variant="sekunder"
+                    loading={memeriksa}
+                    onPress={() => cekStatus(orderPending)}
+                  >
+                    {t('tagihan.checkStatus')}
+                  </Tombol>
+                ) : null}
+              </View>
+            ) : statusTagihan === 'PAID' ? (
+              <View
+                style={[
+                  styles.footerCard,
+                  {
+                    backgroundColor: themeColors.pembayaranSuccessBg,
+                    borderColor: themeColors.pembayaranSuccessFg,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.footerTitle,
+                    { color: themeColors.pembayaranSuccessFg },
+                  ]}
+                >
+                  {t('tagihan.paidSuccessTitle')}
+                </Text>
+                {item.tagihan.dibayarPada ? (
+                  <Text
+                    style={[
+                      styles.footerNote,
+                      { color: themeColors.pembayaranSuccessFg },
+                    ]}
+                  >
+                    {formatTanggalTagihan(item.tagihan.dibayarPada, isEn)} ·{' '}
+                    {formatJam(item.tagihan.dibayarPada)}
+                  </Text>
+                ) : null}
+              </View>
+            ) : statusTagihan === 'DIBEBASKAN' ? (
+              <View
+                style={[
+                  styles.footerCard,
+                  {
+                    backgroundColor: themeColors.pembayaranDibebaskanBg,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.footerTitle,
+                    { color: themeColors.pembayaranDibebaskanFg },
+                  ]}
+                >
+                  {t('tagihan.waivedTitle')}
+                </Text>
+                <Text
+                  style={[
+                    styles.footerNote,
+                    { color: themeColors.pembayaranDibebaskanFg },
+                  ]}
+                >
+                  {t('tagihan.waivedBody')}
+                </Text>
+              </View>
+            ) : bisaBayarSekarang ? (
+              <View
+                style={[
+                  styles.footerCard,
+                  {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.footerNote,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  {t('tagihan.payNote')}
+                </Text>
+                <Tombol
+                  variant="primer"
+                  loading={memproses}
+                  onPress={() => bayar(item.tagihan.id)}
+                >
+                  {statusTagihan === 'FAILED'
+                    ? t('tagihan.payAgain')
+                    : t('tagihan.payNow')}
+                </Tombol>
+              </View>
+            ) : null}
+
             <Text style={[styles.meta, { color: themeColors.textMuted }]}>
-              {isEn ? 'Recorded' : 'Dicatat'}{' '}
-              {formatTanggalTagihan(item.tagihan.dibuatPada, isEn)} ·{' '}
-              {formatJam(item.tagihan.dibuatPada)}
+              {t('tagihan.recordedAt', {
+                tanggal: formatTanggalTagihan(item.tagihan.dibuatPada, isEn),
+                jam: formatJam(item.tagihan.dibuatPada),
+              })}
             </Text>
           </>
         )}
@@ -375,8 +490,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 13,
     borderWidth: 1,
     alignItems: 'center',
@@ -394,7 +509,7 @@ const styles = StyleSheet.create({
     ...type.h2,
   },
   headerSpacer: {
-    width: 42,
+    width: 44,
   },
   content: {
     paddingHorizontal: layout.screenPadding,
@@ -471,6 +586,19 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   emptyTransaction: {
+    ...type.caption,
+  },
+  footerCard: {
+    padding: spacing.s4,
+    borderRadius: radius.cardLg,
+    borderWidth: 1,
+    gap: spacing.s2,
+  },
+  footerTitle: {
+    ...type.bodyStrong,
+    fontFamily: fontFamily.bold,
+  },
+  footerNote: {
     ...type.caption,
   },
   meta: {

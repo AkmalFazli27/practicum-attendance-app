@@ -1,5 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 import { usePreferences } from '@/context/PreferencesContext';
 import { type StatusIzin, type StatusSesi } from '@/data/dummy';
@@ -20,61 +22,61 @@ export interface StatusBadgeProps {
 function getBadgeConfig(
   status: BadgeStatusType,
   tc: ThemeColors,
-  isEn: boolean,
+  t: TFunction,
 ): { label: string; bg: string; fg: string } {
   switch (status) {
     case 'DIBUKA':
       return {
-        label: isEn ? 'Open now' : 'Sedang dibuka',
+        label: t('status.openNow'),
         bg: tc.sesiDibukaBg,
         fg: tc.sesiDibukaFg,
       };
     case 'SELESAI':
       return {
-        label: isEn ? 'Completed' : 'Selesai',
+        label: t('status.completed'),
         bg: tc.sesiSelesaiBg,
         fg: tc.sesiSelesaiFg,
       };
     case 'MENUNGGU':
       return {
-        label: isEn ? 'Pending' : 'Menunggu',
+        label: t('status.leavePending'),
         bg: tc.izinBg,
         fg: tc.izinFg,
       };
     case 'DITERIMA':
       return {
-        label: isEn ? 'Leave Approved' : 'Izin Diterima',
+        label: t('status.leaveApproved'),
         bg: tc.sesiDibukaBg,
         fg: tc.sesiDibukaFg,
       };
     case 'DITOLAK':
       return {
-        label: isEn ? 'Leave Rejected' : 'Izin Ditolak',
+        label: t('status.leaveRejected'),
         bg: tc.errorBg,
         fg: tc.errorFg,
       };
     case 'ALPHA':
       return {
-        label: isEn ? 'Absent (Alpha)' : 'Alpha',
+        label: t('status.alpha'),
         bg: tc.errorBg,
         fg: tc.errorFg,
       };
     case 'TEPAT_WAKTU':
       return {
-        label: isEn ? 'On time' : 'Tepat waktu',
+        label: t('status.tepatWaktu'),
         bg: tc.kehadiranTepatWaktuBg,
         fg: tc.kehadiranTepatWaktuFg,
       };
     case 'TERLAMBAT':
       return {
-        label: isEn ? 'Late' : 'Terlambat',
+        label: t('status.terlambat'),
         bg: tc.kehadiranTerlambatBg,
         fg: tc.kehadiranTerlambatFg,
       };
     case 'TERJADWAL':
     default:
       return {
-        label: isEn ? 'Scheduled' : 'Terjadwal',
+        label: t('status.scheduled'),
         bg: tc.sesiTerjadwalBg,
         fg: tc.sesiTerjadwalFg,
       };
@@ -82,8 +84,9 @@ function getBadgeConfig(
 }
 
 export function StatusBadge({ status, style }: StatusBadgeProps) {
-  const { themeColors, language } = usePreferences();
-  const config = getBadgeConfig(status, themeColors, language === 'en');
+  const { themeColors } = usePreferences();
+  const { t } = useTranslation();
+  const config = getBadgeConfig(status, themeColors, t);
 
   return (
     <View
