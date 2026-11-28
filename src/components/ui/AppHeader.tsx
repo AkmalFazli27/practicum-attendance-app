@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, MapPin, Settings } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
@@ -29,8 +30,8 @@ export function AppHeader({
   const pathname = usePathname();
   const { currentUser } = useSession();
   const unread = useUnreadNotificationCount(currentUser?.id);
-  const { isDark, themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { isDark, themeColors } = usePreferences();
+  const { t } = useTranslation();
 
   const isProfile = pathname?.includes('profil');
 
@@ -94,7 +95,7 @@ export function AppHeader({
         <View style={styles.actions}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Buka peta laboratorium"
+            accessibilityLabel={t('common.openMapAria')}
             onPress={handleMap}
             style={({ pressed }) => [
               styles.iconButton,
@@ -111,11 +112,7 @@ export function AppHeader({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={
-              isEn
-                ? `Notifications, ${unread} unread`
-                : `Notifikasi, ${unread} belum dibaca`
-            }
+            accessibilityLabel={t('notifikasi.unread', { count: unread })}
             onPress={handleBell}
             style={({ pressed }) => [
               styles.iconButton,
@@ -155,7 +152,7 @@ export function AppHeader({
           {isProfile ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Buka pengaturan"
+              accessibilityLabel={t('common.openSettingsAria')}
               onPress={handleSettings}
               style={({ pressed }) => [
                 styles.iconButton,
@@ -172,7 +169,7 @@ export function AppHeader({
           ) : (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Buka profil"
+              accessibilityLabel={t('common.openProfileAria')}
               onPress={handleAvatar}
               style={({ pressed }) => [
                 styles.avatar,

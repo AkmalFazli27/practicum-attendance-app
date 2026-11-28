@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { Sparkles } from 'lucide-react-native';
 
 import { SheetModal, Tombol, useToast } from '@/components/ui';
+import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
@@ -24,6 +25,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
   } = useSession();
   const { showToast } = useToast();
   const { themeColors, language } = usePreferences();
+  const { t } = useTranslation();
   const isEn = language === 'en';
 
   const [alasan, setAlasan] = useState('');
@@ -31,39 +33,30 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
   const [mengirim, setMengirim] = useState(false);
 
   const visible = sesi !== null;
+  const sesiKey = sesi?.id ?? null;
+  const [prevSesiKey, setPrevSesiKey] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (visible) {
+  if (sesiKey !== prevSesiKey) {
+    setPrevSesiKey(sesiKey);
+    if (sesiKey !== null) {
       setAlasan('');
       setGalat(null);
       setMengirim(false);
     }
-  }, [visible]);
+  }
 
   const handleKirim = async () => {
     if (!sesi || mengirim) return;
     if (getStatusEfektif(sesi) === 'SELESAI') {
-      setGalat(
-        isEn
-          ? 'Cannot submit a leave request because this session has ended.'
-          : 'Tidak dapat mengajukan izin karena waktu sesi telah selesai.',
-      );
+      setGalat(t('izinSheet.errEnded'));
       return;
     }
     if (alasan.trim().length < 10) {
-      setGalat(
-        isEn
-          ? 'Please enter a leave reason of at least 10 characters.'
-          : 'Tuliskan alasan ketidakhadiran minimal 10 karakter.',
-      );
+      setGalat(t('izinSheet.errMinLength'));
       return;
     }
     if (currentUser && getIzinBySesiPraktikan(sesi.id, currentUser.id)) {
-      setGalat(
-        isEn
-          ? 'You have already submitted a leave request for this session.'
-          : 'Kamu sudah mengajukan izin untuk sesi ini.',
-      );
+      setGalat(t('izinSheet.errAlreadySubmitted'));
       return;
     }
 
@@ -84,27 +77,18 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
         hasil.izin.ringkasanAi,
         isEn,
       );
-      showToast(
-        isEn
-          ? `Leave submitted (AI Label: ${infoAi.label}). Waiting for assistant review.`
-          : `Izin diajukan (Label AI: ${infoAi.label}). Menunggu pemeriksaan asisten.`,
-      );
+      showToast(t('izinSheet.submittedToast', { label: infoAi.label }));
     } catch (e: any) {
       setMengirim(false);
-      setGalat(
-        e?.message ||
-          (isEn
-            ? 'Failed to submit leave request. Check your connection.'
-            : 'Gagal mengirimkan pengajuan izin. Periksa koneksimu.'),
-      );
+      setGalat(e?.message || t('izinSheet.errSendFailed'));
     }
   };
 
   return (
     <SheetModal
       visible={visible}
-      kicker={isEn ? 'LEAVE REQUEST' : 'PENGAJUAN IZIN'}
-      judul={isEn ? 'Request Practicum Leave' : 'Ajukan Izin Praktikum'}
+      kicker={t('izinSheet.kicker')}
+      judul={t('izinSheet.title')}
       dismissible={!mengirim}
       onClose={onClose}
       footer={
@@ -115,7 +99,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
             onPress={onClose}
             style={styles.cancelBtn}
           >
-            {isEn ? 'Cancel' : 'Batal'}
+            {t('common.cancel')}
           </Tombol>
           <Tombol
             variant="primer"
@@ -124,13 +108,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
             onPress={handleKirim}
             style={styles.submitBtn}
           >
-            {mengirim
-              ? isEn
-                ? 'Analyzing & Sending...'
-                : 'Menganalisis & Mengirim...'
-              : isEn
-                ? 'Submit Request'
-                : 'Kirim Pengajuan'}
+            {mengirim ? t('izinSheet.submitting') : t('izinSheet.submit')}
           </Tombol>
         </View>
       }
@@ -150,7 +128,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
               <Text
                 style={[styles.summaryLabel, { color: themeColors.textMuted }]}
               >
-                {isEn ? 'Practicum' : 'Praktikum'}
+                {t('izinSheet.practicum')}
               </Text>
               <Text
                 style={[styles.summaryVal, { color: themeColors.textPrimary }]}
@@ -168,7 +146,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
               <Text
                 style={[styles.summaryLabel, { color: themeColors.textMuted }]}
               >
-                {isEn ? 'Schedule' : 'Jadwal'}
+                {t('izinSheet.schedule')}
               </Text>
               <Text
                 style={[styles.summaryVal, { color: themeColors.textPrimary }]}
@@ -187,7 +165,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
               <Text
                 style={[styles.summaryLabel, { color: themeColors.textMuted }]}
               >
-                {isEn ? 'Student' : 'Praktikan'}
+                {t('izinSheet.student')}
               </Text>
               <Text
                 style={[styles.summaryVal, { color: themeColors.textPrimary }]}
@@ -199,7 +177,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
 
           <View style={styles.fieldGroup}>
             <Text style={[styles.label, { color: themeColors.textPrimary }]}>
-              {isEn ? 'Reason for absence' : 'Alasan ketidakhadiran'}
+              {t('izinSheet.reasonLabel')}
             </Text>
             <TextInput
               value={alasan}
@@ -207,11 +185,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
                 setAlasan(txt);
                 if (galat) setGalat(null);
               }}
-              placeholder={
-                isEn
-                  ? 'Explain why you cannot attend (e.g., fever and medical rest, or campus competition)...'
-                  : 'Jelaskan alasan kamu berhalangan hadir (misal: sakit demam dan istirahat medis, atau delegasi lomba kampus)...'
-              }
+              placeholder={t('izinSheet.reasonPlaceholder')}
               placeholderTextColor={themeColors.textMuted}
               multiline
               numberOfLines={4}
@@ -246,9 +220,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
                   { color: themeColors.sesiDibukaFg },
                 ]}
               >
-                {isEn
-                  ? 'Automatic AI Classification'
-                  : 'Klasifikasi Otomatis Model AI'}
+                {t('izinSheet.aiTitle')}
               </Text>
             </View>
             <Text
@@ -257,9 +229,7 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
                 { color: themeColors.textPrimary },
               ]}
             >
-              {isEn
-                ? 'Your reason will be automatically labeled into one of the following categories as a reference for the assistant (final decision is made by the assistant):'
-                : 'Alasanmu akan diklasifikasikan ke salah satu kategori berikut sebagai referensi pendukung bagi asisten (keputusan akhir tetap oleh asisten):'}
+              {t('izinSheet.aiDesc')}
             </Text>
             <View style={styles.categoryChipWrap}>
               {KATEGORI_IZIN_RESMI.map((kat) => (
@@ -279,7 +249,9 @@ export function IzinSheet({ sesi, onClose }: IzinSheetProps) {
                       { color: themeColors.textPrimary },
                     ]}
                   >
-                    {isEn ? (kat === 'Sakit' ? 'Sick' : 'Excused Leave') : kat}
+                    {kat === 'Sakit'
+                      ? t('izinSheet.catSick')
+                      : t('izinSheet.catLeave')}
                   </Text>
                 </View>
               ))}

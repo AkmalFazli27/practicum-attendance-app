@@ -12,6 +12,7 @@ import {
 } from '@/components/praktikan/formatTagihan';
 import { usePembayaranTagihan } from '@/components/praktikan/usePembayaranTagihan';
 import { useTagihanPraktikan } from '@/components/praktikan/useTagihanPraktikan';
+import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/context/PreferencesContext';
 import {
   fontFamily,
@@ -28,6 +29,7 @@ export default function DetailTagihanScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { themeColors, language } = usePreferences();
+  const { t } = useTranslation();
   const isEn = language === 'en';
   const { daftar, pembayaran, kehadiran, loading, error, retrySync } =
     useTagihanPraktikan();
@@ -55,25 +57,15 @@ export default function DetailTagihanScreen() {
   const penjelasanStatus = (status: string): string => {
     switch (status) {
       case 'UNPAID':
-        return isEn
-          ? 'Unpaid — please pay before the deadline.'
-          : 'Belum dibayar — bayar sebelum batas yang ditentukan.';
+        return t('tagihan.statusUnpaidDesc');
       case 'PENDING':
-        return isEn
-          ? 'Payment is being processed. The status will update automatically.'
-          : 'Pembayaran sedang diproses. Status akan berubah otomatis.';
+        return t('tagihan.statusPendingDesc');
       case 'PAID':
-        return isEn
-          ? 'Paid.'
-          : 'Lunas.';
+        return t('tagihan.paidAt');
       case 'FAILED':
-        return isEn
-          ? 'Payment failed. You can try again.'
-          : 'Pembayaran gagal. Kamu dapat mencoba lagi.';
+        return t('tagihan.statusFailedDesc');
       case 'DIBEBASKAN':
-        return isEn
-          ? 'Bill waived because your leave was accepted.'
-          : 'Tagihan dibebaskan karena izin diterima.';
+        return t('tagihan.waivedReason');
       default:
         return '';
     }
@@ -89,7 +81,7 @@ export default function DetailTagihanScreen() {
       <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={isEn ? 'Back' : 'Kembali'}
+          accessibilityLabel={t('common.back')}
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.backButton,
@@ -105,13 +97,13 @@ export default function DetailTagihanScreen() {
         </Pressable>
         <View style={styles.headerCopy}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            {isEn ? 'BILLING' : 'TAGIHAN'}
+            {t('tagihan.kicker')}
           </Text>
           <Text
             style={[styles.title, { color: themeColors.textPrimary }]}
             numberOfLines={1}
           >
-            {isEn ? 'Bill details' : 'Detail tagihan'}
+            {t('tagihan.detailTitle')}
           </Text>
         </View>
         <View style={styles.headerSpacer} />
@@ -127,28 +119,24 @@ export default function DetailTagihanScreen() {
 
         {error ? (
           <EmptyState
-            judul={isEn ? 'Failed to load bill' : 'Gagal memuat tagihan'}
+            judul={t('tagihan.loadError')}
             pesan={error}
             aksi={{
-              label: isEn ? 'Try again' : 'Coba lagi',
+              label: t('common.retry'),
               onPress: retrySync,
             }}
           />
         ) : loading && !item ? (
           <EmptyState
-            judul={isEn ? 'Loading details…' : 'Memuat detail…'}
-            pesan={isEn ? 'Please wait a moment.' : 'Mohon tunggu sebentar.'}
+            judul={t('tagihan.loadingDetailTitle')}
+            pesan={t('common.pleaseWait')}
           />
         ) : !item ? (
           <EmptyState
-            judul={isEn ? 'Bill not found' : 'Tagihan tidak ditemukan'}
-            pesan={
-              isEn
-                ? 'This bill may have been removed or belongs to another account.'
-                : 'Tagihan ini mungkin sudah dihapus atau milik akun lain.'
-            }
+            judul={t('tagihan.notFound')}
+            pesan={t('tagihan.notFoundBody')}
             aksi={{
-              label: isEn ? 'Back to bills' : 'Kembali ke daftar',
+              label: t('tagihan.backToList'),
               onPress: () =>
                 router.replace('/(praktikan)/tagihan' as any),
             }}
@@ -169,7 +157,7 @@ export default function DetailTagihanScreen() {
                   <Text
                     style={[styles.heroLabel, { color: themeColors.textMuted }]}
                   >
-                    {isEn ? 'FINE AMOUNT' : 'NOMINAL DENDA'}
+                    {t('tagihan.nominal')}
                   </Text>
                   <Text
                     style={[
@@ -207,7 +195,7 @@ export default function DetailTagihanScreen() {
               <Text
                 style={[styles.sectionTitle, { color: themeColors.textPrimary }]}
               >
-                {isEn ? 'Session details' : 'Rincian sesi'}
+                {t('tagihan.sessionDetails')}
               </Text>
 
               <View style={styles.detailRow}>
@@ -243,7 +231,7 @@ export default function DetailTagihanScreen() {
                       { color: themeColors.textPrimary },
                     ]}
                   >
-                    {item.lab?.nama ?? item.sesi?.lab ?? 'Lab'}
+                    {item.lab?.nama ?? item.sesi?.lab ?? t('common.labFallback')}
                   </Text>
                   {item.sesi ? (
                     <Text
@@ -252,7 +240,7 @@ export default function DetailTagihanScreen() {
                         { color: themeColors.textSecondary },
                       ]}
                     >
-                      {isEn ? 'Class' : 'Kelas'} {item.sesi.kelas}
+                      {t('common.classWithValue', { kelas: item.sesi.kelas })}
                     </Text>
                   ) : null}
                 </View>
@@ -268,12 +256,10 @@ export default function DetailTagihanScreen() {
                     ]}
                   >
                     {item.tagihan.menitTerlambat > 0
-                      ? isEn
-                        ? `Late by ${item.tagihan.menitTerlambat} minutes`
-                        : `Terlambat ${item.tagihan.menitTerlambat} menit`
-                      : isEn
-                        ? 'On time'
-                        : 'Tepat waktu'}
+                      ? t('tagihan.lateMinutes', {
+                          menit: item.tagihan.menitTerlambat,
+                        })
+                      : t('presensi.onTime')}
                   </Text>
                   <Text
                     style={[
@@ -282,10 +268,10 @@ export default function DetailTagihanScreen() {
                     ]}
                   >
                     {kehadiranItem
-                      ? `${isEn ? 'Checked in at' : 'Dicatat pada'} ${formatJam(kehadiranItem.waktuHadir)}`
-                      : isEn
-                        ? 'Fine is calculated from your check-in time.'
-                        : 'Denda dihitung dari waktu presensimu.'}
+                      ? t('tagihan.checkedInAt', {
+                          jam: formatJam(kehadiranItem.waktuHadir),
+                        })
+                      : t('tagihan.fineCalculated')}
                   </Text>
                 </View>
               </View>
@@ -303,7 +289,7 @@ export default function DetailTagihanScreen() {
               <Text
                 style={[styles.sectionTitle, { color: themeColors.textPrimary }]}
               >
-                {isEn ? 'Transaction history' : 'Riwayat transaksi'}
+                {t('tagihan.transactionHistory')}
               </Text>
 
               {transaksi.length === 0 ? (
@@ -313,7 +299,7 @@ export default function DetailTagihanScreen() {
                     { color: themeColors.textSecondary },
                   ]}
                 >
-                  {isEn ? 'No transactions yet.' : 'Belum ada transaksi.'}
+                  {t('pembayaran.noTransaction')}
                 </Text>
               ) : (
                 <View style={styles.transactionList}>
@@ -378,9 +364,7 @@ export default function DetailTagihanScreen() {
                     { color: themeColors.textSecondary },
                   ]}
                 >
-                  {isEn
-                    ? 'Payment is being processed. Do not create a new transaction.'
-                    : 'Pembayaran sedang diproses. Jangan membuat transaksi baru.'}
+                  {t('tagihan.pendingNote')}
                 </Text>
                 {orderPending ? (
                   <Tombol
@@ -388,7 +372,7 @@ export default function DetailTagihanScreen() {
                     loading={memeriksa}
                     onPress={() => cekStatus(orderPending)}
                   >
-                    {isEn ? 'Check status' : 'Cek status'}
+                    {t('tagihan.checkStatus')}
                   </Tombol>
                 ) : null}
               </View>
@@ -408,7 +392,7 @@ export default function DetailTagihanScreen() {
                     { color: themeColors.pembayaranSuccessFg },
                   ]}
                 >
-                  {isEn ? 'Payment successful' : 'Pembayaran berhasil'}
+                  {t('tagihan.paidSuccessTitle')}
                 </Text>
                 {item.tagihan.dibayarPada ? (
                   <Text
@@ -438,7 +422,7 @@ export default function DetailTagihanScreen() {
                     { color: themeColors.pembayaranDibebaskanFg },
                   ]}
                 >
-                  {isEn ? 'Waived' : 'Dibebaskan'}
+                  {t('tagihan.waivedTitle')}
                 </Text>
                 <Text
                   style={[
@@ -446,9 +430,7 @@ export default function DetailTagihanScreen() {
                     { color: themeColors.pembayaranDibebaskanFg },
                   ]}
                 >
-                  {isEn
-                    ? 'This bill was waived because your leave was accepted.'
-                    : 'Tagihan ini dibebaskan karena izinmu diterima.'}
+                  {t('tagihan.waivedBody')}
                 </Text>
               </View>
             ) : bisaBayarSekarang ? (
@@ -467,9 +449,7 @@ export default function DetailTagihanScreen() {
                     { color: themeColors.textSecondary },
                   ]}
                 >
-                  {isEn
-                    ? 'Payment is verified by the server. Your bill status updates automatically.'
-                    : 'Pembayaran diverifikasi server. Status tagihan diperbarui otomatis.'}
+                  {t('tagihan.payNote')}
                 </Text>
                 <Tombol
                   variant="primer"
@@ -477,20 +457,17 @@ export default function DetailTagihanScreen() {
                   onPress={() => bayar(item.tagihan.id)}
                 >
                   {statusTagihan === 'FAILED'
-                    ? isEn
-                      ? 'Retry payment'
-                      : 'Bayar ulang'
-                    : isEn
-                      ? 'Pay now'
-                      : 'Bayar sekarang'}
+                    ? t('tagihan.payAgain')
+                    : t('tagihan.payNow')}
                 </Tombol>
               </View>
             ) : null}
 
             <Text style={[styles.meta, { color: themeColors.textMuted }]}>
-              {isEn ? 'Recorded' : 'Dicatat'}{' '}
-              {formatTanggalTagihan(item.tagihan.dibuatPada, isEn)} ·{' '}
-              {formatJam(item.tagihan.dibuatPada)}
+              {t('tagihan.recordedAt', {
+                tanggal: formatTanggalTagihan(item.tagihan.dibuatPada, isEn),
+                jam: formatJam(item.tagihan.dibuatPada),
+              })}
             </Text>
           </>
         )}

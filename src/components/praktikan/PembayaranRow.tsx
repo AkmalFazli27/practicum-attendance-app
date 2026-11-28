@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight, ReceiptText } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { StatusPembayaranBadge } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
@@ -39,6 +40,7 @@ export function PembayaranRow({
   onPress,
 }: PembayaranRowProps) {
   const { themeColors, language } = usePreferences();
+  const { t } = useTranslation();
   const isEn = language === 'en';
   const nominalText = formatRupiah(pembayaran.nominal);
   const waktuTransaksi = formatWaktuTransaksi(pembayaran.dibuatPada, isEn);
@@ -83,7 +85,7 @@ export function PembayaranRow({
           style={[styles.billDate, { color: themeColors.textSecondary }]}
           numberOfLines={1}
         >
-          {isEn ? 'Bill date' : 'Tanggal tagihan'}: {tanggalTagihanText}
+          {t('pembayaran.billDate', { tanggal: tanggalTagihanText })}
         </Text>
 
         <View style={styles.bottomRow}>

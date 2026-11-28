@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import { useTranslation } from 'react-i18next';
 
 import { useToast } from '@/components/ui';
 import { isFirebaseConfigured } from '@/config/firebase';
-import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 
-import { pesanAlasanPembayaran } from './pesanPembayaran';
+import { keyAlasanPembayaran } from './pesanPembayaran';
 
 const URL_STUB_PEMBAYARAN = 'https://example.com/midtrans-stub';
 
@@ -30,9 +30,8 @@ async function mulaiPembayaranDemo(): Promise<HasilMulaiPembayaran> {
 
 export function usePembayaranTagihan() {
   const { mulaiPembayaran, sinkronPembayaran } = useSession();
-  const { language } = usePreferences();
+  const { t } = useTranslation();
   const { showToast } = useToast();
-  const isEn = language === 'en';
 
   const [memproses, setMemproses] = useState(false);
   const [memeriksa, setMemeriksa] = useState(false);
@@ -48,11 +47,11 @@ export function usePembayaranTagihan() {
 
   const tampilkanGalat = useCallback(
     (alasan: string) => {
-      const pesan = pesanAlasanPembayaran(alasan, isEn);
+      const pesan = t(keyAlasanPembayaran(alasan));
       setGalat(pesan);
       showToast(pesan);
     },
-    [isEn, showToast],
+    [showToast, t],
   );
 
   const sinkron = useCallback(
@@ -91,11 +90,7 @@ export function usePembayaranTagihan() {
         orderMenunggu.current = hasil.orderId;
 
         if (modeDemo) {
-          showToast(
-            isEn
-              ? 'Demo mode: opening a payment stub page.'
-              : 'Mode demo: membuka halaman stub pembayaran.',
-          );
+          showToast(t('tagihan.demoOpening'));
         }
 
         try {
@@ -120,7 +115,7 @@ export function usePembayaranTagihan() {
         setMemproses(false);
       }
     },
-    [isEn, modeDemo, mulaiPembayaran, showToast, sinkron, tampilkanGalat],
+    [modeDemo, mulaiPembayaran, showToast, sinkron, t, tampilkanGalat],
   );
 
   const cekStatus = useCallback(
@@ -136,23 +131,17 @@ export function usePembayaranTagihan() {
         if (!berhasil) return;
 
         if (modeDemo) {
-          showToast(
-            isEn
-              ? 'Demo mode: status only changes through Firestore.'
-              : 'Mode demo: status asli hanya berubah lewat Firestore.',
-          );
+          showToast(t('tagihan.demoCheckStatus'));
           return;
         }
 
-        showToast(
-          isEn ? 'Payment status refreshed.' : 'Status pembayaran diperbarui.',
-        );
+        showToast(t('tagihan.statusRefreshed'));
       } finally {
         memeriksaRef.current = false;
         setMemeriksa(false);
       }
     },
-    [isEn, modeDemo, showToast, sinkron],
+    [modeDemo, showToast, sinkron, t],
   );
 
   // Android: browser Custom Tab membuka activity lain, jadi AppState berubah.

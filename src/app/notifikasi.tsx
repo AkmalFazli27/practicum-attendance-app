@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Platform,
@@ -42,11 +43,11 @@ import {
 } from '@/theme/tokens';
 import { formatJam, titikJam } from '@/utils/format';
 
-function formatWaktuNotif(iso: string): string {
+function formatWaktuNotif(iso: string, isEn: boolean): string {
   try {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '';
-    const tgl = d.toLocaleDateString('id-ID', {
+    const tgl = d.toLocaleDateString(isEn ? 'en-GB' : 'id-ID', {
       day: 'numeric',
       month: 'short',
     });
@@ -61,9 +62,10 @@ export default function NotifikasiScreen() {
   const router = useRouter();
   const { currentUser } = useSession();
   const { showToast } = useToast();
-  const { themeColors, language } = usePreferences();
+  const { themeColors } = usePreferences();
+  const { t, i18n } = useTranslation();
 
-  const isEn = language === 'en';
+  const isEn = i18n.language === 'en';
   const uid = currentUser?.id;
   const [state, setState] = useState<{
     uid?: string;
@@ -114,9 +116,7 @@ export default function NotifikasiScreen() {
       await dismissAllNotificationsAsync().catch(() => {});
     }
     setState({ uid: currentUser.id, items: [] });
-    showToast(
-      isEn ? 'Notification history cleared.' : 'Riwayat notifikasi dibersihkan.',
-    );
+    showToast(t('notifikasi.cleared'));
   };
 
   const handleTekanItem = (item: NotifikasiRiwayatItem) => {
@@ -142,7 +142,7 @@ export default function NotifikasiScreen() {
         <View style={styles.headerLeft}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={isEn ? 'Back' : 'Kembali'}
+            accessibilityLabel={t('common.back')}
             onPress={() => router.back()}
             hitSlop={12}
             style={({ pressed }) => [
@@ -155,14 +155,14 @@ export default function NotifikasiScreen() {
           <Text
             style={[styles.headerTitle, { color: themeColors.textPrimary }]}
           >
-            {isEn ? 'Notifications' : 'Notifikasi'}
+            {t('notifikasi.title')}
           </Text>
         </View>
 
         {items.length > 0 ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={isEn ? 'Clear all' : 'Bersihkan semua'}
+            accessibilityLabel={t('notifikasi.clearAria')}
             onPress={handleHapusSemua}
             hitSlop={8}
             style={({ pressed }) => [
@@ -178,7 +178,7 @@ export default function NotifikasiScreen() {
                 { color: themeColors.textSecondary },
               ]}
             >
-              {isEn ? 'Clear' : 'Bersihkan'}
+              {t('notifikasi.clear')}
             </Text>
           </Pressable>
         ) : null}
@@ -207,12 +207,8 @@ export default function NotifikasiScreen() {
                 <BellOff size={26} color={themeColors.textMuted} />
               </View>
             }
-            judul={isEn ? 'No notifications yet' : 'Belum ada notifikasi'}
-            pesan={
-              isEn
-                ? 'Session alerts, schedule updates, bills, and leave decisions will appear here.'
-                : 'Pemberitahuan sesi, jadwal, tagihan, pembayaran, dan izin akan muncul di sini.'
-            }
+            judul={t('notifikasi.emptyTitle')}
+            pesan={t('notifikasi.emptyBody')}
           />
         ) : (
           <View style={styles.list}>
@@ -277,7 +273,7 @@ export default function NotifikasiScreen() {
                     <Text
                       style={[styles.notifTime, { color: themeColors.textMuted }]}
                     >
-                      {formatWaktuNotif(item.waktu)}
+                      {formatWaktuNotif(item.waktu, isEn)}
                     </Text>
                   </View>
 

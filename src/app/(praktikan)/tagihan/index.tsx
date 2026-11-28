@@ -16,6 +16,7 @@ import { BannerGalat } from '@/components/praktikan/BannerGalat';
 import { formatRupiah } from '@/components/praktikan/formatTagihan';
 import { usePembayaranTagihan } from '@/components/praktikan/usePembayaranTagihan';
 import { useTagihanPraktikan } from '@/components/praktikan/useTagihanPraktikan';
+import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/context/PreferencesContext';
 import {
   layout,
@@ -28,8 +29,8 @@ import {
 export default function TagihanScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
+  const { t } = useTranslation();
   const {
     daftar,
     totalTertunggak,
@@ -70,7 +71,7 @@ export default function TagihanScreen() {
       <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={isEn ? 'Back' : 'Kembali'}
+          accessibilityLabel={t('common.back')}
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.backButton,
@@ -86,13 +87,13 @@ export default function TagihanScreen() {
         </Pressable>
         <View style={styles.headerCopy}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            {isEn ? 'BILLING' : 'TAGIHAN'}
+            {t('tagihan.kicker')}
           </Text>
           <Text
             style={[styles.title, { color: themeColors.textPrimary }]}
             numberOfLines={1}
           >
-            {isEn ? 'Bills' : 'Tagihan'}
+            {t('tagihan.title')}
           </Text>
         </View>
         <View style={styles.headerSpacer} />
@@ -110,9 +111,7 @@ export default function TagihanScreen() {
         }
       >
         <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
-          {isEn
-            ? 'Your late-attendance bills'
-            : 'Tagihan denda keterlambatanmu'}
+          {t('tagihan.subtitle')}
         </Text>
 
         {!error && (!loading || daftar.length > 0) ? (
@@ -137,7 +136,7 @@ export default function TagihanScreen() {
               <Text
                 style={[styles.summaryLabel, { color: themeColors.textSecondary }]}
               >
-                {isEn ? 'Total outstanding' : 'Total tertunggak'}
+                {t('tagihan.totalOutstanding')}
               </Text>
               <Text
                 style={[styles.summaryAmount, { color: themeColors.textPrimary }]}
@@ -146,12 +145,8 @@ export default function TagihanScreen() {
               </Text>
               <Text style={[styles.summaryNote, { color: themeColors.textMuted }]}>
                 {jumlahAktif === 0
-                  ? isEn
-                    ? 'No active bills'
-                    : 'Tidak ada tagihan aktif'
-                  : isEn
-                    ? `${jumlahAktif} active ${jumlahAktif === 1 ? 'bill' : 'bills'}`
-                    : `${jumlahAktif} tagihan aktif`}
+                  ? t('tagihan.noActiveBills')
+                  : t('tagihan.activeBills', { count: jumlahAktif })}
               </Text>
             </View>
           </View>
@@ -163,26 +158,22 @@ export default function TagihanScreen() {
 
         {error ? (
           <EmptyState
-            judul={isEn ? 'Failed to load bills' : 'Gagal memuat tagihan'}
+            judul={t('tagihan.loadError')}
             pesan={error}
             aksi={{
-              label: isEn ? 'Try again' : 'Coba lagi',
+              label: t('common.retry'),
               onPress: retrySync,
             }}
           />
         ) : loading && daftar.length === 0 ? (
           <EmptyState
-            judul={isEn ? 'Loading bills…' : 'Memuat tagihan…'}
-            pesan={isEn ? 'Please wait a moment.' : 'Mohon tunggu sebentar.'}
+            judul={t('tagihan.loadingTitle')}
+            pesan={t('common.pleaseWait')}
           />
         ) : daftar.length === 0 ? (
           <EmptyState
-            judul={isEn ? 'No bills yet' : 'Belum ada tagihan'}
-            pesan={
-              isEn
-                ? 'Bills will appear here if you check in late.'
-                : 'Tagihan akan muncul jika kamu terlambat presensi.'
-            }
+            judul={t('tagihan.emptyTitle')}
+            pesan={t('tagihan.emptyBody')}
           />
         ) : (
           <View style={styles.list}>

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react-native';
 
 import { Tombol, useToast } from '@/components/ui';
+import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import {
@@ -75,8 +76,8 @@ export default function ProfilScreen() {
   const router = useRouter();
   const { currentUser, getKehadiranPraktikan, logout } = useSession();
   const { showToast } = useToast();
-  const { themeColors, language, t } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors, t } = usePreferences();
+  const { t: tI18n } = useTranslation();
   const [sedangKeluar, setSedangKeluar] = useState(false);
 
   if (!currentUser) return <Redirect href="/" />;
@@ -251,28 +252,20 @@ export default function ProfilScreen() {
         </Pressable>
 
         <Text style={[styles.menuGroupLabel, { color: themeColors.textMuted }]}>
-          {isEn ? 'BILLING' : 'KEUANGAN'}
+          {tI18n('profile.billing')}
         </Text>
 
         <MenuRow
           icon={<ReceiptText size={20} color={themeColors.textPrimary} />}
-          title={isEn ? 'Bills' : 'Tagihan'}
-          subtitle={
-            isEn
-              ? 'Late-attendance fines and payment status'
-              : 'Denda keterlambatan dan status pembayaran'
-          }
+          title={tI18n('profile.bills')}
+          subtitle={tI18n('profile.billsSub')}
           onPress={() => router.push('/(praktikan)/tagihan' as any)}
         />
 
         <MenuRow
           icon={<History size={20} color={themeColors.textPrimary} />}
-          title={isEn ? 'Payment history' : 'Riwayat Pembayaran'}
-          subtitle={
-            isEn
-              ? 'All payment transactions'
-              : 'Semua transaksi pembayaranmu'
-          }
+          title={tI18n('profile.paymentHistory')}
+          subtitle={tI18n('profile.paymentHistorySub')}
           onPress={() =>
             router.push('/(praktikan)/riwayat-pembayaran' as any)
           }

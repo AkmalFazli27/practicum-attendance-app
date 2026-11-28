@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
-import { usePreferences } from '@/context/PreferencesContext';
 import { spacing } from '@/theme/tokens';
 import { FilterChip } from './FilterChip';
 
@@ -16,12 +16,13 @@ export interface FilterRentangProps {
 const OPSI: RentangDashboard[] = ['hari', 'minggu', 'bulan'];
 
 export function FilterRentang({ value, onChange, style }: FilterRentangProps) {
-  const { language } = usePreferences();
-  const isEn = language === 'en';
+  const { t } = useTranslation();
 
-  const label: Record<RentangDashboard, string> = isEn
-    ? { hari: 'Day', minggu: 'Week', bulan: 'Month' }
-    : { hari: 'Hari', minggu: 'Minggu', bulan: 'Bulan' };
+  const label: Record<RentangDashboard, string> = {
+    hari: t('filter.day'),
+    minggu: t('filter.week'),
+    bulan: t('filter.month'),
+  };
 
   return (
     <View style={[styles.row, style]}>
