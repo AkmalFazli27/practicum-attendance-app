@@ -25,6 +25,9 @@ export const KATEGORI_IZIN_RESMI = ['Sakit', 'Izin'] as const;
 export type KategoriIzinResmi = (typeof KATEGORI_IZIN_RESMI)[number];
 export const KATEGORI_FALLBACK = 'Belum Terklasifikasi' as const;
 
+export const SENTIMEN_IZIN = ['positif', 'netral', 'negatif'] as const;
+export type SentimenIzin = (typeof SENTIMEN_IZIN)[number];
+
 export const DEFAULT_GEMINI_MODELS = [
   'gemini-2.5-flash-lite',
   'gemini-3.1-flash-lite',
@@ -39,6 +42,7 @@ export type AiProviderKind =
 
 export interface HasilKlasifikasiAI {
   kategori: KategoriIzinResmi | typeof KATEGORI_FALLBACK;
+  sentimen?: SentimenIzin;
   confidence?: number;
   isFallback: boolean;
   keterangan?: string;
@@ -66,8 +70,10 @@ const SYSTEM_PROMPT_KLASIFIKASI =
   'Klasifikasikan narasi alasan ketidakhadiran ke tepat SATU label resmi berikut:\n' +
   '- "Sakit": HANYA jika praktikan SENDIRI mengalami gangguan kesehatan, sakit, demam, cedera, ke dokter/klinik/IGD, atau rawat inap.\n' +
   '- "Izin": untuk alasan selain praktikan sendiri sakit, termasuk mengantar/menemani keluarga yang sakit atau dirawat, urusan keluarga/duka, kegiatan akademik/lomba/delegasi/ujian, kendala transportasi/cuaca, atau keperluan pribadi.\n' +
+  'Tentukan juga "sentimen" nada narasi: "negatif" bila bernada duka, musibah, atau keluhan berat; ' +
+  '"positif" bila kegiatan membanggakan seperti lomba, delegasi, atau acara bahagia; selain itu "netral".\n' +
   'Jawab HANYA dengan JSON valid tanpa markdown: ' +
-  '{"kategori": "Sakit" atau "Izin", "keterangan": "<ringkasan singkat 1 kalimat Bahasa Indonesia>"}';
+  '{"kategori": "Sakit" atau "Izin", "sentimen": "positif" atau "netral" atau "negatif", "keterangan": "<ringkasan singkat 1 kalimat Bahasa Indonesia>"}';
 
 const cachedModelByUrl = new Map<string, string>();
 
@@ -236,6 +242,33 @@ export function normalisasiKategoriResmi(
   return null;
 }
 
+export function normalisasiSentimen(raw: unknown): SentimenIzin | null {
+  if (typeof raw !== 'string') return null;
+  const s = raw.trim().toLowerCase();
+  if (s.includes('positif') || s.includes('positive')) return 'positif';
+  if (s.includes('negatif') || s.includes('negative')) return 'negatif';
+  if (s.includes('netral') || s.includes('neutral')) return 'netral';
+  return null;
+}
+
+const KATA_SENTIMEN_NEGATIF = [
+  'meninggal', 'duka', 'musibah', 'kecelakaan', 'rawat inap', 'opname', 'darurat',
+  'demam tinggi', 'sakit keras', 'operasi', 'igd', 'ugd', 'kehilangan', 'banjir',
+  'accident', 'emergency', 'passed away', 'hospitalized',
+];
+const KATA_SENTIMEN_POSITIF = [
+  'lomba', 'juara', 'delegasi', 'wisuda', 'menikah', 'pernikahan', 'prestasi',
+  'penghargaan', 'kompetisi', 'competition', 'wedding', 'graduation', 'award',
+];
+
+/** Sentimen lokal berbasis kata kunci; dipakai bila AI gagal atau tidak mengirim sentimen. */
+export function sentimenLokal(alasan: string): SentimenIzin {
+  const teks = (alasan || '').toLowerCase();
+  if (KATA_SENTIMEN_NEGATIF.some((k) => teks.includes(k))) return 'negatif';
+  if (KATA_SENTIMEN_POSITIF.some((k) => teks.includes(k))) return 'positif';
+  return 'netral';
+}
+
 /**
  * Klasifikasi lokal berbasis kata kunci (ID + EN) untuk narasi izin praktikan.
  */
@@ -324,6 +357,7 @@ function buatHasilFallback(
   const lokal = klasifikasiLokal(alasan);
   return {
     kategori: lokal.kategori,
+    sentimen: sentimenLokal(alasan),
     isFallback: true,
     keterangan: lokal.ringkasan,
     provider: 'local-fallback',
@@ -433,6 +467,7 @@ function parseResponsKlasifikasiJson(
   const tryParseObj = (jsonText: string): HasilKlasifikasiAI | null => {
     const parsed = JSON.parse(jsonText) as {
       kategori?: unknown;
+      sentimen?: unknown;
       keterangan?: unknown;
     };
     if (typeof parsed?.kategori === 'string') {
@@ -442,6 +477,9 @@ function parseResponsKlasifikasiJson(
           kategori: kategoriValid,
           isFallback: false,
           provider,
+          ...(normalisasiSentimen(parsed.sentimen)
+            ? { sentimen: normalisasiSentimen(parsed.sentimen) as SentimenIzin }
+            : {}),
           ...(model ? { model } : {}),
           keterangan:
             typeof parsed.keterangan === 'string' &&
@@ -555,13 +593,17 @@ async function klasifikasiViaGeminiNative(
             type: 'STRING',
             enum: ['Sakit', 'Izin'],
           },
+          sentimen: {
+            type: 'STRING',
+            enum: ['positif', 'netral', 'negatif'],
+          },
           keterangan: {
             type: 'STRING',
             description:
               'Ringkasan singkat 1 kalimat Bahasa Indonesia mengenai alasan ketidakhadiran.',
           },
         },
-        required: ['kategori', 'keterangan'],
+        required: ['kategori', 'sentimen', 'keterangan'],
       },
     };
 
@@ -858,7 +900,7 @@ async function klasifikasiViaCustomRest(
  * bila endpoint/token bermasalah, otomatis menggunakan klasifikasi lokal agar label Sakit/Izin
  * tetap dihasilkan.
  */
-export async function klasifikasikanAlasanIzin(
+async function klasifikasiInti(
   alasan: string,
   options?: KlasifikasiOptions,
 ): Promise<HasilKlasifikasiAI> {
@@ -986,4 +1028,16 @@ export async function klasifikasikanAlasanIzin(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Titik masuk publik: klasifikasi Sakit/Izin ditambah sentimen. Bila penyedia AI tidak
+ * mengirim sentimen, dipakai sentimen lokal. Hasil hanya informasi pendukung Asprak.
+ */
+export async function klasifikasikanAlasanIzin(
+  alasan: string,
+  options?: KlasifikasiOptions,
+): Promise<HasilKlasifikasiAI> {
+  const hasil = await klasifikasiInti(alasan, options);
+  return hasil.sentimen ? hasil : { ...hasil, sentimen: sentimenLokal(alasan) };
 }

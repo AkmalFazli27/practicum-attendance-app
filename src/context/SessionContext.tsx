@@ -27,6 +27,7 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  deleteField,
   updateDoc,
   where,
   writeBatch,
@@ -70,8 +71,11 @@ import { nowLocalISO } from '@/utils/format';
 import { koordinatValid } from '@/utils/geo';
 import { cariBentrokJadwal } from '@/utils/bentrokJadwal';
 import { evaluasiPresensi, hitungKeterlambatan } from '@/utils/presensi';
+import type { Rentang } from '@/utils/rentang';
+import { hitungRingkasanLab, type RingkasanLab } from '@/utils/ringkasanLab';
 import {
   alasanTidakBisaDibuka,
+  dalamJamOperasional,
   buatQrToken,
   getStatusEfektif as hitungStatusEfektif,
   hitungQrExpiresAt,
@@ -177,6 +181,7 @@ export type SessionContextValue = {
   pindahAnggota: (uid: string, dariLabId: string, keLabId: string) => Promise<{ ok: true } | { ok: false; alasan: string }>;
   mulaiPembayaran: (tagihanId: string) => Promise<{ ok: true; redirectUrl: string; orderId: string } | { ok: false; alasan: string }>;
   sinkronPembayaran: (orderId: string) => Promise<void>;
+  getRingkasanLab: (rentang: Rentang) => RingkasanLab;
 };
 
 const AUTH_LOAD_TIMEOUT_MS = 9000;
@@ -817,6 +822,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             waktuKeputusan,
             reviewedAt: d.reviewedAt || waktuKeputusan,
             reviewedBy: d.reviewedBy || undefined,
+            sentimenAi: d.sentimenAi || undefined,
+            aiFallback: d.aiFallback === true ? true : undefined,
           };
         });
         setIzin(liveIzin);
@@ -1235,6 +1242,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async (): Promise<LogoutResult> => {
+    if (isFirebaseConfigured && currentUser?.id && auth.currentUser) {
+      try {
+        await updateDoc(doc(db, 'users', currentUser.id), { pushToken: deleteField() });
+      } catch (err: any) {
+        const alasan = terjemahkanErrorFirestore(
+          err,
+          'Gagal menghapus token notifikasi. Periksa koneksi internet Anda lalu coba keluar lagi.',
+          'Failed to remove the notification token. Check your internet connection and try again.',
+        );
+        setError(alasan);
+        return { ok: false, alasan };
+      }
+    }
     pendingRegisterUserRef.current = null;
     authGenRef.current += 1;
     if (isFirebaseConfigured) {
@@ -1275,6 +1295,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const now = sekarang();
       const alasan = alasanTidakBisaDibuka(target, now);
       if (alasan) return { ok: false, alasan };
+      if (!dalamJamOperasional(target)) {
+        return { ok: false, alasan: 'DI_LUAR_JAM_OPERASIONAL' };
+      }
       const qrToken = buatQrToken();
       const qrExpiresAt = hitungQrExpiresAt(target, now);
       if (isFirebaseConfigured) {
@@ -1796,6 +1819,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       alasan: teksAlasan,
       kategoriAi: hasilAi.kategori,
       ringkasanAi: hasilAi.keterangan || 'Hasil klasifikasi inferensi AI',
+      sentimenAi: hasilAi.sentimen ?? 'netral',
+      aiFallback: hasilAi.isFallback,
       status: 'MENUNGGU' as const,
       waktuPengajuan,
     };
@@ -2264,6 +2289,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!hasil.ok) throw new Error(hasil.alasan);
   };
 
+  const getRingkasanLab = (rentang: Rentang): RingkasanLab =>
+    hitungRingkasanLab({
+      rentang,
+      labs,
+      sesi,
+      keanggotaan: keanggotaanLab,
+      tagihan,
+      users: mergedUsers,
+      aslabId: currentUser?.peran === 'aslab' ? currentUser.id : undefined,
+      now: sekarang(),
+    });
+
   const value = useMemo<SessionContextValue>(
     () => ({
       isLiveFirebase: isFirebaseConfigured,
@@ -2312,9 +2349,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       pindahAnggota,
       mulaiPembayaran,
       sinkronPembayaran,
+      getRingkasanLab,
+
     }),
     [
+      loading,
+      error,
+      errorAksi,
+      mergedUsers,
+      currentUser,
       labs,
+      sesi,
+      kehadiran,
+      izin,
       keanggotaanLab,
       tagihan,
       pembayaran,

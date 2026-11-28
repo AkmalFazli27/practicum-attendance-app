@@ -43,6 +43,14 @@ service cloud.firestore {
           && d.dendaNominal is int && d.dendaNominal > 0;
     }
 
+    // FR-48: sesi hanya pada jam operasional lab 07:00-20:00 WIB (format HH:mm).
+    function jamOperasionalValid() {
+      let d = request.resource.data;
+      return d.jamMulai is string && d.jamSelesai is string
+          && d.jamMulai >= '07:00' && d.jamSelesai <= '20:00'
+          && d.jamMulai < d.jamSelesai;
+    }
+
     function sesiExists(sesiId) {
       return exists(/databases/$(database)/documents/sesi/$(sesiId));
     }
@@ -66,7 +74,9 @@ service cloud.firestore {
       allow update: if (isOwner(userId)
                         && request.resource.data.peran == resource.data.peran
                         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['peran', 'createdAt']))
-                    || isAsisten();
+                    || (isAsisten()
+                        && request.resource.data.peran == resource.data.peran
+                        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['peran', 'createdAt']));
 
       allow delete: if false;
     }
@@ -98,11 +108,15 @@ service cloud.firestore {
     // Koleksi sesi praktikum
     match /sesi/{sesiId} {
       allow read: if true;
-      allow create, delete: if isAsisten();
+      allow create: if isAsisten() && jamOperasionalValid();
+      allow delete: if isAsisten();
 
       // PB-05: sesi yang sudah SELESAI tidak boleh dikembalikan ke status lain.
+      // Jam hanya diperiksa bila jadwal diubah, agar sesi lama tetap dapat dibuka/ditutup.
       allow update: if isAsisten()
-                    && !(resource.data.status == 'SELESAI' && request.resource.data.status != 'SELESAI');
+                    && !(resource.data.status == 'SELESAI' && request.resource.data.status != 'SELESAI')
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['jamMulai', 'jamSelesai'])
+                        || jamOperasionalValid());
     }
 
     // Koleksi kehadiran
@@ -188,6 +202,8 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'izinId'])
                     && request.resource.data.izinId == resource.data.sesiId + '_' + resource.data.praktikanId
                     && get(/databases/$(database)/documents/izin/$(request.resource.data.izinId)).data.status == 'DITERIMA';
+                    // Setelah asprak terdaftar di keanggotaanLab: hapus ';' di baris atas, lalu aktifkan baris ini:
+                    // && exists(/databases/$(database)/documents/keanggotaanLab/$(resource.data.labId + '_' + request.auth.uid));
 
       allow delete: if false;
     }
