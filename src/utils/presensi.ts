@@ -1,6 +1,6 @@
 import type { HasilAksi, AlasanTolak, Koordinat, Lab, Sesi, User } from '@/data/dummy';
 import { hitungJarak, koordinatValid } from '@/utils/geo';
-import { sudahLewat, sudahMulai } from '@/utils/statusSesi';
+import { sudahLewat, sudahMulai, waktuMulaiMs } from '@/utils/statusSesi';
 
 type Input = {
   sesi: Sesi | null;
@@ -42,4 +42,29 @@ export function evaluasiPresensi({
   const jarak = Math.round(hitungJarak(koordinat, lab));
   if (jarak > lab.radius) return tolak('LUAR_RADIUS');
   return { ok: true, jarak };
+}
+
+export type HasilKeterlambatan = {
+  statusKehadiran: 'TEPAT_WAKTU' | 'TERLAMBAT';
+  menitTerlambat: number;
+  /** 0 berarti tidak ada tagihan */
+  nominal: number;
+};
+
+export function hitungKeterlambatan(
+  sesi: Sesi,
+  lab: Lab | null,
+  now: number = Date.now(),
+): HasilKeterlambatan {
+  const grace = lab?.graceMenit ?? 0;
+  const menit = Math.max(0, Math.floor((now - waktuMulaiMs(sesi)) / 60000));
+  if (menit <= grace) {
+    return { statusKehadiran: 'TEPAT_WAKTU', menitTerlambat: 0, nominal: 0 };
+  }
+  const denda = Math.round(lab?.dendaNominal ?? 0);
+  return {
+    statusKehadiran: 'TERLAMBAT',
+    menitTerlambat: menit,
+    nominal: denda > 0 ? denda : 0,
+  };
 }

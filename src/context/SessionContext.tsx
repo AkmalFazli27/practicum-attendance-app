@@ -68,7 +68,7 @@ import {
 import { nowLocalISO } from '@/utils/format';
 import { koordinatValid } from '@/utils/geo';
 import { cariBentrokJadwal } from '@/utils/bentrokJadwal';
-import { evaluasiPresensi } from '@/utils/presensi';
+import { evaluasiPresensi, hitungKeterlambatan } from '@/utils/presensi';
 import {
   alasanTidakBisaDibuka,
   buatQrToken,
@@ -260,6 +260,38 @@ function mapLab(id: string, d: Record<string, any>): Lab {
     lat: Number(d.lat),
     lng: Number(d.lng),
     radius: Number(d.radius),
+    graceMenit: typeof d.graceMenit === 'number' ? d.graceMenit : undefined,
+    dendaNominal: typeof d.dendaNominal === 'number' ? d.dendaNominal : undefined,
+  };
+}
+
+function mapTagihan(id: string, d: Record<string, any>): Tagihan {
+  return {
+    id,
+    praktikanId: d.praktikanId || '',
+    sesiId: d.sesiId || '',
+    labId: d.labId || '',
+    kehadiranId: d.kehadiranId || '',
+    nominal: Number(d.nominal) || 0,
+    menitTerlambat: Number(d.menitTerlambat) || 0,
+    status: d.status || 'UNPAID',
+    dibuatPada: d.dibuatPada || '',
+    dibayarPada: d.dibayarPada || undefined,
+    izinId: d.izinId || undefined,
+  };
+}
+
+function mapPembayaran(id: string, d: Record<string, any>): Pembayaran {
+  return {
+    id,
+    tagihanId: d.tagihanId || '',
+    praktikanId: d.praktikanId || '',
+    nominal: Number(d.nominal) || 0,
+    status: d.status || 'pending',
+    statusMidtrans: d.statusMidtrans || '',
+    metode: d.metode || undefined,
+    dibuatPada: d.dibuatPada || '',
+    diperbaruiPada: d.diperbaruiPada || '',
   };
 }
 
@@ -288,6 +320,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [labs, setLabs] = useState<Lab[]>(
     isFirebaseConfigured ? [] : LABS_SEED,
   );
+  const [tagihan, setTagihan] = useState<Tagihan[]>([]);
+  const [pembayaran, setPembayaran] = useState<Pembayaran[]>([]);
   const [tick, setTick] = useState<number>(0);
   const serverOffsetRef = useRef<number>(0);
   const sekarang = () => Date.now() + serverOffsetRef.current;
@@ -512,6 +546,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setIzin([]);
       setUsers([]);
       setLabs([]);
+      setTagihan([]);
+      setPembayaran([]);
       return;
     }
 
@@ -612,6 +648,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             lng: typeof d.lng === 'number' ? d.lng : undefined,
             jarak: typeof d.jarak === 'number' ? d.jarak : undefined,
             akurasi: typeof d.akurasi === 'number' ? d.akurasi : undefined,
+            statusKehadiran:
+              d.statusKehadiran === 'TERLAMBAT' || d.statusKehadiran === 'TEPAT_WAKTU'
+                ? d.statusKehadiran
+                : undefined,
+            menitTerlambat: typeof d.menitTerlambat === 'number' ? d.menitTerlambat : undefined,
+            tagihanId: typeof d.tagihanId === 'string' ? d.tagihanId : undefined,
           };
         });
         setKehadiran(liveKehadiran);
@@ -665,13 +707,39 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         );
       },
     );
+    const tagihanQuery = isAsistenRole
+      ? query(collection(db, 'tagihan'))
+      : query(collection(db, 'tagihan'), where('praktikanId', '==', uid));
+    const unsubscribeTagihan = onSnapshot(
+      tagihanQuery,
+      (snapshot) => {
+        setTagihan(snapshot.docs.map((d) => mapTagihan(d.id, d.data())));
+      },
+      (err) => {
+        setError(terjemahkanErrorFirestore(err, 'Gagal menyinkronkan data tagihan.'));
+      },
+    );
 
+    const pembayaranQuery = isAsistenRole
+      ? query(collection(db, 'pembayaran'))
+      : query(collection(db, 'pembayaran'), where('praktikanId', '==', uid));
+    const unsubscribePembayaran = onSnapshot(
+      pembayaranQuery,
+      (snapshot) => {
+        setPembayaran(snapshot.docs.map((d) => mapPembayaran(d.id, d.data())));
+      },
+      (err) => {
+        setError(terjemahkanErrorFirestore(err, 'Gagal menyinkronkan data pembayaran.'));
+      },
+    );
     return () => {
       unsubscribeSelf();
       if (unsubscribeUsers) unsubscribeUsers();
       unsubscribeLabs();
       unsubscribeKehadiran();
       unsubscribeIzin();
+      unsubscribeTagihan();
+      unsubscribePembayaran();
     };
   }, [currentUser?.id, currentUser?.peran, syncVersion]);
 
@@ -1371,6 +1439,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       });
       if (!hasil.ok) return hasil;
       const k = koordinat as Koordinat;
+      const labDummy = labs.find((l) => l.id === target?.labId) ?? null;
+      const denda = hitungKeterlambatan(target as Sesi, labDummy, now);
       setKehadiran((prev) => [
         ...prev,
         {
@@ -1385,8 +1455,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           lng: k.lng,
           jarak: hasil.jarak,
           akurasi: k.akurasi,
+          statusKehadiran: denda.statusKehadiran,
+          menitTerlambat: denda.menitTerlambat,
+          ...(denda.nominal > 0 ? { tagihanId: docId } : {}),
         },
       ]);
+      if (denda.nominal > 0) {
+        setTagihan((prev) =>
+          prev.some((t) => t.id === docId)
+            ? prev
+            : [
+              ...prev,
+              {
+                id: docId,
+                praktikanId: user.id,
+                sesiId,
+                labId: target?.labId ?? '',
+                kehadiranId: docId,
+                nominal: denda.nominal,
+                menitTerlambat: denda.menitTerlambat,
+                status: 'UNPAID',
+                dibuatPada: nowLocalISO(),
+              },
+            ],
+        );
+      }
       return hasil;
     }
 
@@ -1414,6 +1507,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (!hasil.ok) return hasil;
 
         const k = koordinat as Koordinat;
+        const labData = labSnap?.exists() ? mapLab(labSnap.id, labSnap.data()) : null;
+        const denda = hitungKeterlambatan(sesiData as Sesi, labData, now);
         tx.set(doc(db, 'kehadiran', docId), {
           sesiId,
           praktikanId: user.id,
@@ -1425,7 +1520,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           lng: k.lng,
           jarak: hasil.jarak,
           akurasi: k.akurasi ?? null,
+          statusKehadiran: denda.statusKehadiran,
+          menitTerlambat: denda.menitTerlambat,
+          ...(denda.nominal > 0 ? { tagihanId: docId } : {}),
         });
+        if (denda.nominal > 0) {
+          tx.set(doc(db, 'tagihan', docId), {
+            praktikanId: user.id,
+            sesiId,
+            labId: sesiData?.labId ?? '',
+            kehadiranId: docId,
+            nominal: denda.nominal,
+            menitTerlambat: denda.menitTerlambat,
+            status: 'UNPAID',
+            dibuatPada: nowLocalISO(),
+          });
+        }
         return hasil;
       });
     } catch (err: any) {
@@ -1740,8 +1850,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       getIzinPraktikan,
       getIzinBySesiPraktikan,
       keanggotaanLab: [],
-      tagihan: [],
-      pembayaran: [],
+      tagihan,
+      pembayaran,
       createLab,
       createLabsBulk,
       addAnggotaBulk,

@@ -109,9 +109,9 @@ service cloud.firestore {
                     && request.resource.data.jarak is number
                     && request.resource.data.keys().hasOnly([
                          'sesiId', 'praktikanId', 'namaPraktikan', 'nimPraktikan',
-                         'kelasPraktikan', 'waktuHadir', 'lat', 'lng', 'jarak', 'akurasi'
+                         'kelasPraktikan', 'waktuHadir', 'lat', 'lng', 'jarak', 'akurasi',
+                         'statusKehadiran', 'menitTerlambat', 'tagihanId'
                        ]);
-
       allow update, delete: if isAsisten();
     }
 
@@ -135,6 +135,58 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'waktuKeputusan', 'reviewedAt', 'reviewedBy']);
 
       allow delete: if isAsisten();
+    }
+
+        // Koleksi tagihan denda keterlambatan
+    match /tagihan/{tagihanId} {
+      allow read: if isAsisten() || isAslab()
+                  || (isAuthenticated() && resource.data.praktikanId == request.auth.uid);
+
+      // Dibuat praktikan bersamaan dengan kehadiran terlambat (satu transaksi).
+      // Nominal harus sama dengan denda lab; status awal selalu UNPAID.
+      allow create: if isPraktikan()
+                    && request.resource.data.praktikanId == request.auth.uid
+                    && request.resource.data.sesiId is string
+                    && tagihanId == request.resource.data.sesiId + '_' + request.auth.uid
+                    && request.resource.data.kehadiranId == tagihanId
+                    && existsAfter(/databases/$(database)/documents/kehadiran/$(tagihanId))
+                    && sesiExists(request.resource.data.sesiId)
+                    && request.resource.data.labId == getSesiData(request.resource.data.sesiId).labId
+                    && request.resource.data.status == 'UNPAID'
+                    && request.resource.data.menitTerlambat is int
+                    && request.resource.data.menitTerlambat > 0
+                    && request.resource.data.nominal is int
+                    && request.resource.data.nominal > 0
+                    && request.resource.data.nominal ==
+                       get(/databases/$(database)/documents/labs/$(request.resource.data.labId)).data.get('dendaNominal', 0)
+                    && request.resource.data.keys().hasOnly([
+                         'praktikanId', 'sesiId', 'labId', 'kehadiranId',
+                         'nominal', 'menitTerlambat', 'status', 'dibuatPada'
+                       ]);
+
+      // Asisten membebaskan denda bila izin sesi yang sama sudah DITERIMA.
+      allow update: if isAsisten()
+                    && resource.data.status in ['UNPAID', 'FAILED']
+                    && request.resource.data.status == 'DIBEBASKAN'
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'izinId'])
+                    && request.resource.data.izinId == resource.data.sesiId + '_' + resource.data.praktikanId
+                    && get(/databases/$(database)/documents/izin/$(request.resource.data.izinId)).data.status == 'DITERIMA';
+
+      allow delete: if false;
+    }
+
+    // Koleksi pembayaran: hanya ditulis backend (Admin SDK)
+    match /pembayaran/{pembayaranId} {
+      allow read: if isAsisten() || isAslab()
+                  || (isAuthenticated() && resource.data.praktikanId == request.auth.uid);
+      allow write: if false;
+    }
+
+    // Keanggotaan lab: dikelola Aslab
+    match /keanggotaanLab/{keanggotaanId} {
+      allow read: if isAsisten() || isAslab()
+                  || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow write: if isAslab();
     }
   }
 }

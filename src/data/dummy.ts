@@ -445,6 +445,8 @@ export const LABS_SEED: Lab[] = [
     lat: -7.0490375,
     lng: 110.441484375,
     radius: 50,
+    graceMenit: 10,
+    dendaNominal: 5000,
   },
   {
     id: 'lab-b',
@@ -453,6 +455,8 @@ export const LABS_SEED: Lab[] = [
     lat: -7.0482375,
     lng: 110.440765625,
     radius: 100,
+    graceMenit: 10,
+    dendaNominal: 5000,
   },
   {
     id: 'lab-c',
@@ -461,6 +465,8 @@ export const LABS_SEED: Lab[] = [
     lat: -7.0482375,
     lng: 110.440765625,
     radius: 100,
+    graceMenit: 10,
+    dendaNominal: 5000,
   },
   {
     id: 'lab-d',
@@ -469,5 +475,7 @@ export const LABS_SEED: Lab[] = [
     lat: -7.0482375,
     lng: 110.440765625,
     radius: 100,
+    graceMenit: 10,
+    dendaNominal: 5000,
   },
 ];
