@@ -1,18 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
 
-import { SesiFormSheet } from '@/components/asisten/SesiFormSheet';
 import { SinkronGuard } from '@/components/asisten/SyncState';
 import { useAksiSesi } from '@/components/asisten/useAksiSesi';
+import { useSesiAsprak } from '@/components/asisten/useSesiAsprak';
 import { useStatusSesi } from '@/components/asisten/useStatusSesi';
 import { EmptyState, SessionCard, Tombol } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
-import { type Sesi } from '@/data/dummy';
 import { colors, layout, spacing, type } from '@/theme/tokens';
-import { useSesiAsprak } from '@/components/asisten/useSesiAsprak';
 
 export default function SesiAsistenScreen() {
   const router = useRouter();
@@ -21,9 +18,6 @@ export default function SesiAsistenScreen() {
   const isEn = language === 'en';
   const { mulai, sheet } = useAksiSesi();
   const { statusEfektif, aksiUtama } = useStatusSesi();
-
-  const [formVisible, setFormVisible] = useState(false);
-  const [sesiDiedit, setSesiDiedit] = useState<Sesi | null>(null);
   const { sesiSaya } = useSesiAsprak();
 
   if (!currentUser) return null;
@@ -31,45 +25,24 @@ export default function SesiAsistenScreen() {
   const bukaDetail = (id: string) =>
     router.push({ pathname: '/(asisten)/sesi/[id]', params: { id } } as any);
 
-  const bukaTambah = () => {
-    setSesiDiedit(null);
-    setFormVisible(true);
-  };
-
-  const bukaEdit = (item: Sesi) => {
-    setSesiDiedit(item);
-    setFormVisible(true);
-  };
-
   return (
     <View style={[styles.root, { backgroundColor: themeColors.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Page Title + Tombol Tambah Sesi */}
-        <View style={styles.headerRow}>
-          <View style={styles.pageTitle}>
-            <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-              {isEn ? 'MANAGE' : 'KELOLA'}
-            </Text>
-            <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
-              {isEn ? 'Practicum sessions' : 'Sesi praktikum'}
-            </Text>
-            <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
-              {isEn
-                ? 'Open, close, edit, and monitor every session.'
-                : 'Buka, tutup, ubah, dan pantau setiap sesi.'}
-            </Text>
-          </View>
-          <Tombol
-            variant="primer"
-            icon={<Plus size={18} color={themeColors.onPrimary} />}
-            onPress={bukaTambah}
-            style={styles.addBtn}
-          >
-            {isEn ? 'Add' : 'Tambah'}
-          </Tombol>
+        <View style={styles.pageTitle}>
+          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+            {isEn ? 'MANAGE' : 'KELOLA'}
+          </Text>
+          <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
+            {isEn ? 'Practicum sessions' : 'Sesi praktikum'}
+          </Text>
+          <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
+            {isEn
+              ? 'Open, close, and monitor every session.'
+              : 'Buka, tutup, dan pantau setiap sesi.'}
+          </Text>
         </View>
 
         <SinkronGuard adaData={sesiSaya.length > 0}>
@@ -78,13 +51,9 @@ export default function SesiAsistenScreen() {
               judul={isEn ? 'No sessions yet' : 'Belum ada sesi'}
               pesan={
                 isEn
-                  ? 'Sessions you manage will appear here.'
-                  : 'Sesi yang kamu kelola akan tampil di sini.'
+                  ? 'Sessions scheduled by the lab assistant will appear here.'
+                  : 'Sesi yang dijadwalkan oleh Aslab akan tampil di sini.'
               }
-              aksi={{
-                label: isEn ? 'Add New Session' : 'Tambah Sesi Baru',
-                onPress: bukaTambah,
-              }}
             />
           ) : (
             <View style={styles.list}>
@@ -95,7 +64,6 @@ export default function SesiAsistenScreen() {
                 ).length;
 
                 const aksi = aksiUtama(s);
-                const sesiSelesai = statusEfektif(s) === 'SELESAI';
 
                 return (
                   <View key={s.id} style={styles.cardGroup}>
@@ -130,15 +98,6 @@ export default function SesiAsistenScreen() {
                           {isEn ? 'Close' : 'Tutup'}
                         </Tombol>
                       )}
-                      {!sesiSelesai && (
-                        <Tombol
-                          variant="sekunder"
-                          style={styles.smallBtn}
-                          onPress={() => bukaEdit(s)}
-                        >
-                          {isEn ? 'Edit' : 'Ubah'}
-                        </Tombol>
-                      )}
                       <Tombol
                         variant="sekunder"
                         style={styles.smallBtn}
@@ -156,12 +115,6 @@ export default function SesiAsistenScreen() {
       </ScrollView>
 
       {sheet}
-
-      <SesiFormSheet
-        visible={formVisible}
-        initialSesi={sesiDiedit}
-        onClose={() => setFormVisible(false)}
-      />
     </View>
   );
 }
@@ -177,14 +130,8 @@ const styles = StyleSheet.create({
     paddingBottom: layout.tabContentBottomPadding,
     gap: spacing.s5,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.s3,
-  },
   pageTitle: {
-    flex: 1,
+    gap: 2,
   },
   kicker: {
     ...type.micro,
@@ -200,10 +147,6 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: colors.textSecondary,
     marginTop: 6,
-  },
-  addBtn: {
-    minHeight: 42,
-    paddingHorizontal: spacing.s4,
   },
   list: {
     gap: spacing.s4,
