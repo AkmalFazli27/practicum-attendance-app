@@ -33,6 +33,16 @@ service cloud.firestore {
       return userExists() && getUserData().peran == 'aslab';
     }
 
+        function labValid() {
+      let d = request.resource.data;
+      return d.nama is string && d.nama.size() > 0
+          && d.lat is number && d.lat >= -90 && d.lat <= 90
+          && d.lng is number && d.lng >= -180 && d.lng <= 180
+          && d.radius is number && d.radius > 0
+          && d.graceMenit is int && d.graceMenit >= 0 && d.graceMenit <= 60
+          && d.dendaNominal is int && d.dendaNominal > 0;
+    }
+
     function sesiExists(sesiId) {
       return exists(/databases/$(database)/documents/sesi/$(sesiId));
     }
@@ -66,16 +76,23 @@ service cloud.firestore {
     match /labs/{labId} {
       allow read: if isAuthenticated();
 
-      allow update: if isAsisten()
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lat', 'lng', 'radius'])
-                    && request.resource.data.lat is number
-                    && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
-                    && request.resource.data.lng is number
-                    && request.resource.data.lng >= -180 && request.resource.data.lng <= 180
-                    && request.resource.data.radius is number
-                    && request.resource.data.radius > 0;
+      allow update: if (isAsisten()
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lat', 'lng', 'radius'])
+                        && request.resource.data.lat is number
+                        && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
+                        && request.resource.data.lng is number
+                        && request.resource.data.lng >= -180 && request.resource.data.lng <= 180
+                        && request.resource.data.radius is number
+                        && request.resource.data.radius > 0)
+                    || (isAslab() && labValid());
 
-      allow create, delete: if false;
+      allow create: if isAslab() && labValid()
+                    && request.resource.data.keys().hasOnly([
+                         'nama', 'alamat', 'mataKuliah', 'lat', 'lng', 'radius',
+                         'graceMenit', 'dendaNominal', 'aslabId'
+                       ]);
+
+      allow delete: if false;
     }
 
     // Koleksi sesi praktikum
