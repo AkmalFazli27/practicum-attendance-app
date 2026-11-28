@@ -2,6 +2,11 @@ import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AlertCircle, Check, FileText, Sparkles } from 'lucide-react-native';
 
+import {
+  formatSentimenAi,
+  labelStatusIzin,
+  resolveSentimenAi,
+} from '@/components/praktikan/formatIzin';
 import { EmptyState, StatusBadge } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
@@ -17,8 +22,10 @@ type Catatan = {
   waktu: string;
   jarak?: number;
   statusIzin?: StatusIzin;
+  alasan?: string;
   kategoriAi?: string;
   ringkasanAi?: string;
+  sentimenAi?: string;
 };
 
 export default function RiwayatScreen() {
@@ -59,8 +66,10 @@ export default function RiwayatScreen() {
         sesiId: i.sesiId,
         waktu: i.waktuPengajuan,
         statusIzin: i.status,
+        alasan: i.alasan,
         kategoriAi: i.kategoriAi,
         ringkasanAi: i.ringkasanAi,
+        sentimenAi: i.sentimenAi,
       }));
 
     const sesiTercatat = new Set<string>([
@@ -148,7 +157,17 @@ export default function RiwayatScreen() {
                 item.ringkasanAi,
                 isEn,
               );
-              const aiTidakTersedia = !infoAi.terklasifikasi;
+              const aiTidakTersedia =
+                !infoAi.terklasifikasi || !(item.ringkasanAi ?? '').trim();
+              const sentimenEfektif = resolveSentimenAi(
+                item.sentimenAi,
+                item.alasan,
+                infoAi.terklasifikasi,
+              );
+              const sentimen = formatSentimenAi(sentimenEfektif, isEn);
+              const statusInfo = item.statusIzin
+                ? labelStatusIzin(item.statusIzin, isEn)
+                : null;
 
               return (
                 <View
@@ -208,37 +227,116 @@ export default function RiwayatScreen() {
                         : ''}
                     </Text>
                     {!isHadir && !isAlpha ? (
-                      <View
-                        style={[
-                          styles.aiChip,
-                          {
-                            backgroundColor: aiTidakTersedia
-                              ? themeColors.gpsOffBg
-                              : themeColors.primarySoft,
-                          },
-                        ]}
-                      >
-                        <Sparkles
-                          size={11}
-                          color={
-                            aiTidakTersedia
-                              ? themeColors.gpsOffFg
-                              : themeColors.sesiDibukaFg
-                          }
-                        />
-                        <Text
-                          style={[
-                            styles.aiChipText,
-                            {
-                              color: aiTidakTersedia
-                                ? themeColors.gpsOffFg
-                                : themeColors.sesiDibukaFg,
-                            },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {`AI: ${infoAi.label}`}
-                        </Text>
+                      <View style={styles.izinMetaGroup}>
+                        {statusInfo ? (
+                          <Text
+                            style={[
+                              styles.izinStatusNote,
+                              item.statusIzin === 'DITERIMA' &&
+                                styles.izinStatusNoteBold,
+                              {
+                                color:
+                                  item.statusIzin === 'DITERIMA'
+                                    ? themeColors.sesiDibukaFg
+                                    : item.statusIzin === 'MENUNGGU'
+                                      ? themeColors.izinFg
+                                      : themeColors.textSecondary,
+                              },
+                            ]}
+                          >
+                            {item.statusIzin === 'DITERIMA'
+                              ? isEn
+                                ? 'Excused absence · no fine'
+                                : 'Tidak hadir dengan izin · bebas denda'
+                              : item.statusIzin === 'MENUNGGU'
+                                ? isEn
+                                  ? 'You can still check in while awaiting decision.'
+                                  : 'Masih bisa presensi selama menunggu keputusan.'
+                                : statusInfo.keterangan}
+                          </Text>
+                        ) : null}
+
+                        {aiTidakTersedia ? (
+                          <View
+                            style={[
+                              styles.aiChip,
+                              { backgroundColor: themeColors.gpsOffBg },
+                            ]}
+                          >
+                            <Sparkles size={11} color={themeColors.gpsOffFg} />
+                            <Text
+                              style={[
+                                styles.aiChipText,
+                                { color: themeColors.gpsOffFg },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {isEn
+                                ? 'AI analysis unavailable'
+                                : 'Analisis AI tidak tersedia'}
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={styles.aiChipsRow}>
+                            <View
+                              style={[
+                                styles.aiChip,
+                                { backgroundColor: themeColors.primarySoft },
+                              ]}
+                            >
+                              <Sparkles
+                                size={11}
+                                color={themeColors.sesiDibukaFg}
+                              />
+                              <Text
+                                style={[
+                                  styles.aiChipText,
+                                  { color: themeColors.sesiDibukaFg },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {`AI: ${infoAi.label}`}
+                              </Text>
+                            </View>
+
+                            <View
+                              style={[
+                                styles.aiChip,
+                                {
+                                  backgroundColor: sentimen.tersedia
+                                    ? themeColors.primarySoft
+                                    : themeColors.gpsOffBg,
+                                },
+                              ]}
+                            >
+                              <Sparkles
+                                size={11}
+                                color={
+                                  sentimen.tersedia
+                                    ? themeColors.sesiDibukaFg
+                                    : themeColors.gpsOffFg
+                                }
+                              />
+                              <Text
+                                style={[
+                                  styles.aiChipText,
+                                  {
+                                    color: sentimen.tersedia
+                                      ? themeColors.sesiDibukaFg
+                                      : themeColors.gpsOffFg,
+                                  },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {sentimen.tersedia
+                                  ? `${isEn ? 'AI Sentiment' : 'Sentimen AI'}: ${sentimen.label}`
+                                  : isEn
+                                    ? 'Sentiment unavailable'
+                                    : 'Sentimen tidak tersedia'}
+                              </Text>
+                            </View>
+                          </View>
+                        )}
                       </View>
                     ) : null}
                   </View>
@@ -319,6 +417,22 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   historyMeta: { ...type.caption, color: colors.textMuted },
+  izinMetaGroup: {
+    gap: 4,
+    marginTop: 2,
+  },
+  izinStatusNote: {
+    ...type.micro,
+    lineHeight: 15,
+  },
+  izinStatusNoteBold: {
+    fontFamily: fontFamily.bold,
+  },
+  aiChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
   aiChip: {
     flexDirection: 'row',
     alignItems: 'center',
