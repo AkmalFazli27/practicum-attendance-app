@@ -38,8 +38,7 @@ export default function TagihanScreen() {
     error,
     retrySync,
   } = useTagihanPraktikan();
-  const { bayar, memproses, galat, clearGalat, tersedia } =
-    usePembayaranTagihan();
+  const { bayar, memproses, galat, clearGalat } = usePembayaranTagihan();
   const [idProses, setIdProses] = useState<string | null>(null);
 
   const bukaDetail = (id: string) =>
@@ -59,7 +58,7 @@ export default function TagihanScreen() {
   };
 
   const bisaBayar = (status: string) =>
-    tersedia && (status === 'UNPAID' || status === 'FAILED');
+    status === 'UNPAID' || status === 'FAILED';
 
   return (
     <View
