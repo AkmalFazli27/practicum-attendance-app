@@ -150,6 +150,10 @@ export type HasilBulk = {
   berhasil: number; gagal: { baris: number; alasan: string }[];
 };
 
+/** Default bila dokumen lab belum punya graceMenit / dendaNominal. Satu sumber untuk seluruh app. */
+export const GRACE_DEFAULT_MENIT = 15;
+export const DENDA_DEFAULT_NOMINAL = 5000;
+
 const WIB_MS = 7 * 60 * 60 * 1000;
 const HARI_MS = 24 * 60 * 60 * 1000;
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -189,6 +193,12 @@ export const USERS: User[] = [
     email: 'siti.rahma@tapin.ac.id',
     nim: '2210512002',
     peran: 'asisten',
+  },
+  {
+    id: 'al1',
+    nama: 'Aslab Utama',
+    email: 'aslab@tapin.ac.id',
+    peran: 'aslab',
   },
   {
     id: 'p1',
@@ -451,8 +461,10 @@ export const LABS_SEED: Lab[] = [
     lat: -7.0490375,
     lng: 110.441484375,
     radius: 50,
-    graceMenit: 10,
-    dendaNominal: 5000,
+    mataKuliah: 'Pemrograman Web',
+    aslabId: 'al1',
+    graceMenit: GRACE_DEFAULT_MENIT,
+    dendaNominal: DENDA_DEFAULT_NOMINAL,
   },
   {
     id: 'lab-b',
@@ -461,8 +473,10 @@ export const LABS_SEED: Lab[] = [
     lat: -7.0482375,
     lng: 110.440765625,
     radius: 100,
-    graceMenit: 10,
-    dendaNominal: 5000,
+    mataKuliah: 'Basis Data',
+    aslabId: 'al1',
+    graceMenit: GRACE_DEFAULT_MENIT,
+    dendaNominal: DENDA_DEFAULT_NOMINAL,
   },
   {
     id: 'lab-c',
@@ -471,8 +485,10 @@ export const LABS_SEED: Lab[] = [
     lat: -7.0482375,
     lng: 110.440765625,
     radius: 100,
-    graceMenit: 10,
-    dendaNominal: 5000,
+    mataKuliah: 'Jaringan Komputer',
+    aslabId: 'al1',
+    graceMenit: GRACE_DEFAULT_MENIT,
+    dendaNominal: DENDA_DEFAULT_NOMINAL,
   },
   {
     id: 'lab-d',
@@ -481,7 +497,29 @@ export const LABS_SEED: Lab[] = [
     lat: -7.0482375,
     lng: 110.440765625,
     radius: 100,
-    graceMenit: 10,
-    dendaNominal: 5000,
+    mataKuliah: 'Sistem Operasi',
+    aslabId: 'al1',
+    graceMenit: GRACE_DEFAULT_MENIT,
+    dendaNominal: DENDA_DEFAULT_NOMINAL,
   },
+];
+
+const anggotaLab = (
+  labId: string,
+  mataKuliah: string,
+  peran: Keanggotaan['peran'],
+  uids: string[],
+): Keanggotaan[] =>
+  uids.map((uid) => ({ id: `${labId}_${uid}`, labId, uid, peran, mataKuliah }));
+
+/** Keanggotaan awal untuk mode dummy (id dokumen = {labId}_{uid}). */
+export const KEANGGOTAAN_SEED: Keanggotaan[] = [
+  ...anggotaLab('lab-ap', 'Pemrograman Web', 'praktikan', ['p1', 'p2', 'p3', 'p4']),
+  ...anggotaLab('lab-ap', 'Pemrograman Web', 'asprak', ['a1']),
+  ...anggotaLab('lab-b', 'Basis Data', 'praktikan', ['p1', 'p2', 'p3', 'p4']),
+  ...anggotaLab('lab-b', 'Basis Data', 'asprak', ['a1']),
+  ...anggotaLab('lab-c', 'Jaringan Komputer', 'praktikan', ['p5', 'p6', 'p7', 'p8']),
+  ...anggotaLab('lab-c', 'Jaringan Komputer', 'asprak', ['a1']),
+  ...anggotaLab('lab-d', 'Sistem Operasi', 'praktikan', ['p5', 'p6', 'p7', 'p8']),
+  ...anggotaLab('lab-d', 'Sistem Operasi', 'asprak', ['a2']),
 ];

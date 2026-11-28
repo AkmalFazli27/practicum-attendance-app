@@ -1,3 +1,4 @@
+import { GRACE_DEFAULT_MENIT } from '@/data/dummy';
 import type { HasilAksi, AlasanTolak, Koordinat, Lab, Sesi, User } from '@/data/dummy';
 import { hitungJarak, koordinatValid } from '@/utils/geo';
 import { sudahLewat, sudahMulai, waktuMulaiMs } from '@/utils/statusSesi';
@@ -56,7 +57,7 @@ export function hitungKeterlambatan(
   lab: Lab | null,
   now: number = Date.now(),
 ): HasilKeterlambatan {
-  const grace = lab?.graceMenit ?? 0;
+  const grace = lab?.graceMenit ?? GRACE_DEFAULT_MENIT;
   const menit = Math.max(0, Math.floor((now - waktuMulaiMs(sesi)) / 60000));
   if (menit <= grace) {
     return { statusKehadiran: 'TEPAT_WAKTU', menitTerlambat: 0, nominal: 0 };

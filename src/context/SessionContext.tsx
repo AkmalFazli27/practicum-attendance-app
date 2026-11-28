@@ -42,6 +42,9 @@ import {
   IZIN_SEED,
   KEHADIRAN_SEED,
   LABS_SEED,
+  KEANGGOTAAN_SEED,
+  GRACE_DEFAULT_MENIT,
+  DENDA_DEFAULT_NOMINAL,
   SESI_SEED,
   USERS,
   type HasilAksi,
@@ -322,8 +325,8 @@ function mapKeanggotaan(id: string, d: Record<string, any>): Keanggotaan {
   };
 }
 
-const GRACE_DEFAULT = 15;
-const DENDA_DEFAULT = 5000;
+const GRACE_DEFAULT = GRACE_DEFAULT_MENIT;
+const DENDA_DEFAULT = DENDA_DEFAULT_NOMINAL;
 
 type LabTervalidasi = {
   nama: string;
@@ -448,7 +451,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
   const [tagihan, setTagihan] = useState<Tagihan[]>([]);
   const [pembayaran, setPembayaran] = useState<Pembayaran[]>([]);
-  const [keanggotaanLab, setKeanggotaanLab] = useState<Keanggotaan[]>([]);
+  const [keanggotaanLab, setKeanggotaanLab] = useState<Keanggotaan[]>(
+    isFirebaseConfigured ? [] : KEANGGOTAAN_SEED,
+  );
   const [tick, setTick] = useState<number>(0);
   const serverOffsetRef = useRef<number>(0);
   const sekarang = () => Date.now() + serverOffsetRef.current;
