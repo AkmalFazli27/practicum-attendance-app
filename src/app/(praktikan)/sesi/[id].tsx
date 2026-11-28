@@ -17,6 +17,11 @@ import {
 } from 'lucide-react-native';
 
 import { formatRupiah } from '@/components/praktikan/formatTagihan';
+import {
+  formatSentimenAi,
+  labelStatusIzin,
+  resolveSentimenAi,
+} from '@/components/praktikan/formatIzin';
 import { IzinSheet } from '@/components/praktikan/IzinSheet';
 import { EmptyState, StatusBadge, Tombol } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
@@ -169,7 +174,17 @@ export default function DetailSesiPraktikan() {
     izinSaya?.ringkasanAi,
     isEn,
   );
-  const aiTidakTersedia = !infoAi.terklasifikasi;
+  const aiTidakTersedia =
+    !infoAi.terklasifikasi || !(izinSaya?.ringkasanAi ?? '').trim();
+  const sentimenEfektif = resolveSentimenAi(
+    izinSaya?.sentimenAi,
+    izinSaya?.alasan,
+    infoAi.terklasifikasi,
+  );
+  const sentimenInfo = formatSentimenAi(sentimenEfektif, isEn);
+  const statusIzinInfo = izinSaya
+    ? labelStatusIzin(izinSaya.status, isEn)
+    : null;
 
   const bukaKameraPresensi = () => {
     router.push({
@@ -537,7 +552,7 @@ export default function DetailSesiPraktikan() {
                     izinSaya.status === 'DITERIMA'
                       ? themeColors.sesiDibukaBg
                       : izinSaya.status === 'DITOLAK'
-                        ? themeColors.errorBg
+                        ? themeColors.surfaceMuted
                         : themeColors.izinBg,
                 },
               ]}
@@ -550,7 +565,7 @@ export default function DetailSesiPraktikan() {
                       izinSaya.status === 'DITERIMA'
                         ? themeColors.sesiDibukaFg
                         : izinSaya.status === 'DITOLAK'
-                          ? themeColors.errorFg
+                          ? themeColors.textSecondary
                           : themeColors.izinFg,
                   },
                 ]}
@@ -561,24 +576,31 @@ export default function DetailSesiPraktikan() {
                     : 'Tidak hadir dengan izin · bebas denda'
                   : izinSaya.status === 'DITOLAK'
                     ? isEn
-                      ? 'Leave rejected. Attendance follows normal rules.'
-                      : 'Izin ditolak. Presensi mengikuti aturan normal.'
+                      ? 'Leave rejected · normal attendance'
+                      : 'Izin ditolak · presensi normal'
                     : isEn
-                      ? 'Your leave is pending. You can still check in; if late, the bill may be waived if leave is approved.'
-                      : 'Izin sedang menunggu. Kamu masih bisa presensi; jika terlambat, tagihan dapat dibebaskan bila izin diterima.'}
+                      ? 'Leave pending · you can still check in'
+                      : 'Izin menunggu · kamu masih bisa presensi'}
               </Text>
-              {izinSaya.status === 'DITERIMA' ? (
-                <Text
-                  style={[
-                    styles.izinNoticeSub,
-                    { color: themeColors.sesiDibukaFg },
-                  ]}
-                >
-                  {isEn
+              <Text
+                style={[
+                  styles.izinNoticeSub,
+                  {
+                    color:
+                      izinSaya.status === 'DITERIMA'
+                        ? themeColors.sesiDibukaFg
+                        : izinSaya.status === 'DITOLAK'
+                          ? themeColors.textSecondary
+                          : themeColors.izinFg,
+                  },
+                ]}
+              >
+                {izinSaya.status === 'DITERIMA'
+                  ? isEn
                     ? 'Attendance is not required for this session and no fine applies.'
-                    : 'Presensi tidak diperlukan untuk sesi ini dan tidak ada denda.'}
-                </Text>
-              ) : null}
+                    : 'Presensi tidak diperlukan untuk sesi ini dan tidak ada denda.'
+                  : statusIzinInfo?.keterangan}
+              </Text>
             </View>
 
             <View
@@ -588,6 +610,9 @@ export default function DetailSesiPraktikan() {
                   backgroundColor: aiTidakTersedia
                     ? themeColors.gpsOffBg
                     : themeColors.primarySoft,
+                  borderColor: aiTidakTersedia
+                    ? themeColors.gpsOffBorder
+                    : themeColors.radiusInsideBorder,
                 },
               ]}
             >
@@ -610,10 +635,34 @@ export default function DetailSesiPraktikan() {
                     },
                   ]}
                 >
-                  {isEn ? `AI Label: ${infoAi.label}` : `Label AI: ${infoAi.label}`}
+                  {aiTidakTersedia
+                    ? isEn
+                      ? 'AI analysis unavailable'
+                      : 'Analisis AI tidak tersedia'
+                    : isEn
+                      ? `AI Label: ${infoAi.label}`
+                      : `Label AI: ${infoAi.label}`}
                 </Text>
               </View>
-              {izinSaya.ringkasanAi ? (
+              {!aiTidakTersedia ? (
+                <Text
+                  style={[
+                    styles.aiSentimentText,
+                    {
+                      color: sentimenInfo.tersedia
+                        ? themeColors.sesiDibukaFg
+                        : themeColors.gpsOffFg,
+                    },
+                  ]}
+                >
+                  {sentimenInfo.tersedia
+                    ? `${isEn ? 'AI Sentiment' : 'Sentimen AI'}: ${sentimenInfo.label}`
+                    : isEn
+                      ? 'Sentiment unavailable'
+                      : 'Sentimen tidak tersedia'}
+                </Text>
+              ) : null}
+              {!aiTidakTersedia && izinSaya.ringkasanAi ? (
                 <Text
                   style={[
                     styles.aiSummaryText,
@@ -623,29 +672,38 @@ export default function DetailSesiPraktikan() {
                   {izinSaya.ringkasanAi}
                 </Text>
               ) : null}
+              <Text
+                style={[styles.aiFootnote, { color: themeColors.textMuted }]}
+              >
+                {isEn
+                  ? 'Supporting information — decision is made by the assistant.'
+                  : 'Informasi pendukung — keputusan ditetapkan oleh asisten.'}
+              </Text>
             </View>
           </View>
         ) : null}
 
         {/* Tombol Aksi */}
         <View style={styles.actionsGroup}>
-          <Tombol
-            variant="primer"
-            disabled={!bisaPresensi}
-            icon={
-              hadir ? (
-                <CheckCircle2 size={19} color={themeColors.disabledText} />
-              ) : undefined
-            }
-            rightIcon={
-              bisaPresensi ? (
-                <ArrowRight size={19} color={themeColors.onPrimary} />
-              ) : undefined
-            }
-            onPress={bukaKameraPresensi}
-          >
-            {actionLabel}
-          </Tombol>
+          {!izinDiterima ? (
+            <Tombol
+              variant="primer"
+              disabled={!bisaPresensi}
+              icon={
+                hadir ? (
+                  <CheckCircle2 size={19} color={themeColors.disabledText} />
+                ) : undefined
+              }
+              rightIcon={
+                bisaPresensi ? (
+                  <ArrowRight size={19} color={themeColors.onPrimary} />
+                ) : undefined
+              }
+              onPress={bukaKameraPresensi}
+            >
+              {actionLabel}
+            </Tombol>
+          ) : null}
 
           {bisaAjukanIzin && (
             <Tombol
@@ -860,6 +918,14 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
     color: colors.textSecondary,
     lineHeight: 15,
+  },
+  aiSentimentText: {
+    ...type.micro,
+    fontFamily: fontFamily.bold,
+  },
+  aiFootnote: {
+    fontSize: 10,
+    fontFamily: fontFamily.regular,
   },
   actionsGroup: { marginTop: spacing.s5, gap: spacing.s3 },
 });
