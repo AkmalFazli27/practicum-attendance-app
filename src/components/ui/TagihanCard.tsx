@@ -8,6 +8,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { useTranslation } from 'react-i18next';
+
 import { usePreferences } from '@/context/PreferencesContext';
 import {
   fontFamily,
@@ -53,8 +55,8 @@ export function TagihanCard({
   loadingBayar = false,
   style,
 }: TagihanCardProps) {
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
+  const { t } = useTranslation();
   const bisaBayar =
     tagihan.status === 'UNPAID' ||
     tagihan.status === 'FAILED' ||
@@ -105,9 +107,7 @@ export function TagihanCard({
           </Text>
           {tagihan.menitTerlambat > 0 ? (
             <Text style={[styles.late, { color: themeColors.kehadiranTerlambatFg }]}>
-              {isEn
-                ? `Late ${tagihan.menitTerlambat} min`
-                : `Terlambat ${tagihan.menitTerlambat} menit`}
+              {t('tagihan.lateMinutesShort', { menit: tagihan.menitTerlambat })}
             </Text>
           ) : null}
         </View>
@@ -123,12 +123,8 @@ export function TagihanCard({
             onPress={onBayar}
           >
             {tagihan.status === 'FAILED' || tagihan.status === 'failed'
-              ? isEn
-                ? 'Retry payment'
-                : 'Bayar ulang'
-              : isEn
-                ? 'Pay now'
-                : 'Bayar'}
+              ? t('tagihan.payAgain')
+              : t('tagihan.pay')}
           </Tombol>
         </View>
       ) : null}

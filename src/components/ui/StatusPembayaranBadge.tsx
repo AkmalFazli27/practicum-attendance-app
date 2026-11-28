@@ -7,6 +7,9 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
+
 import { usePreferences } from '@/context/PreferencesContext';
 import {
   fontFamily,
@@ -33,40 +36,40 @@ export interface StatusPembayaranBadgeProps {
 function getBadgeConfig(
   status: StatusPembayaranTampil,
   tc: ThemeColors,
-  isEn: boolean,
+  t: TFunction,
 ): { label: string; bg: string; fg: string } {
   switch (status) {
     case 'PENDING':
     case 'pending':
       return {
-        label: isEn ? 'Awaiting payment' : 'Menunggu pembayaran',
+        label: t('status.pending'),
         bg: tc.pembayaranPendingBg,
         fg: tc.pembayaranPendingFg,
       };
     case 'PAID':
     case 'success':
       return {
-        label: isEn ? 'Paid' : 'Lunas',
+        label: t('status.paid'),
         bg: tc.pembayaranSuccessBg,
         fg: tc.pembayaranSuccessFg,
       };
     case 'FAILED':
     case 'failed':
       return {
-        label: isEn ? 'Failed' : 'Gagal',
+        label: t('status.failed'),
         bg: tc.pembayaranFailedBg,
         fg: tc.pembayaranFailedFg,
       };
     case 'DIBEBASKAN':
       return {
-        label: isEn ? 'Waived' : 'Dibebaskan',
+        label: t('status.waived'),
         bg: tc.pembayaranDibebaskanBg,
         fg: tc.pembayaranDibebaskanFg,
       };
     case 'UNPAID':
     default:
       return {
-        label: isEn ? 'Unpaid' : 'Belum dibayar',
+        label: t('status.unpaid'),
         bg: tc.pembayaranUnpaidBg,
         fg: tc.pembayaranUnpaidFg,
       };
@@ -77,8 +80,9 @@ export function StatusPembayaranBadge({
   status,
   style,
 }: StatusPembayaranBadgeProps) {
-  const { themeColors, language } = usePreferences();
-  const config = getBadgeConfig(status, themeColors, language === 'en');
+  const { themeColors } = usePreferences();
+  const { t } = useTranslation();
+  const config = getBadgeConfig(status, themeColors, t);
 
   return (
     <View
