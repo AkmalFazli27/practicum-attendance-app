@@ -6,6 +6,7 @@ import { Bell, MapPin, Settings } from 'lucide-react-native';
 
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { colors, fontFamily, layout, spacing } from '@/theme/tokens';
 import { inisialNama } from '@/utils/format';
 import { Brand } from './Brand';
@@ -27,7 +28,9 @@ export function AppHeader({
   const router = useRouter();
   const pathname = usePathname();
   const { currentUser } = useSession();
-  const { isDark, themeColors } = usePreferences();
+  const unread = useUnreadNotificationCount(currentUser?.id);
+  const { isDark, themeColors, language } = usePreferences();
+  const isEn = language === 'en';
 
   const isProfile = pathname?.includes('profil');
 
@@ -108,10 +111,15 @@ export function AppHeader({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Notifikasi"
+            accessibilityLabel={
+              isEn
+                ? `Notifications, ${unread} unread`
+                : `Notifikasi, ${unread} belum dibaca`
+            }
             onPress={handleBell}
             style={({ pressed }) => [
               styles.iconButton,
+              styles.iconButtonRelative,
               {
                 borderColor: themeColors.border,
                 backgroundColor: pressed
@@ -121,6 +129,27 @@ export function AppHeader({
             ]}
           >
             <Bell size={20} color={themeColors.textPrimary} />
+            {unread > 0 ? (
+              <View
+                style={[
+                  styles.notifBadge,
+                  { backgroundColor: themeColors.errorFg },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.notifBadgeText,
+                    {
+                      color: isDark
+                        ? themeColors.onPrimary
+                        : themeColors.onGraphite,
+                    },
+                  ]}
+                >
+                  {unread > 99 ? '99+' : String(unread)}
+                </Text>
+              </View>
+            ) : null}
           </Pressable>
 
           {isProfile ? (
@@ -190,6 +219,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconButtonRelative: {
+    position: 'relative',
+    overflow: 'visible',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifBadgeText: {
+    fontSize: 10,
+    fontFamily: fontFamily.bold,
+    lineHeight: 12,
   },
   settingsButtonActive: {
     borderColor: colors.textPrimary,
