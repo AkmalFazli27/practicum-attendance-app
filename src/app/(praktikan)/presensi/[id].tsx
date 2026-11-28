@@ -12,7 +12,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   CalendarDays,
-  Check,
   CheckCircle2,
   Clock3,
   Compass,
@@ -206,7 +205,6 @@ export default function HalamanPresensiPraktikan() {
   const [kodeInput, setKodeInput] = useState<string>(() =>
     (qrToken ?? '').trim().toUpperCase(),
   );
-  const [setujuHadir, setSetujuHadir] = useState(false);
   const [memproses, setMemproses] = useState(false);
   const [galatModal, setGalatModal] = useState<{
     judul: string;
@@ -300,18 +298,6 @@ export default function HalamanPresensiPraktikan() {
   const lokasiSiapSubmit =
     statusKartuLokasi === 'dalam-radius' && punyaKoordinatValid;
 
-  // Centang otomatis ketika kode valid DAN lokasi memenuhi syarat,
-  // serta lepas centang bila kode belum valid atau sesi tidak bisa presensi
-  useEffect(() => {
-    if (!sesiBisaPresensi || !kodeTerverifikasi) {
-      setSetujuHadir(false);
-      return;
-    }
-    if (lokasiSiapSubmit) {
-      setSetujuHadir(true);
-    }
-  }, [sesiBisaPresensi, kodeTerverifikasi, lokasiSiapSubmit]);
-
   if (
     !currentUser ||
     !s ||
@@ -384,11 +370,7 @@ export default function HalamanPresensiPraktikan() {
   const waktuHadirTeks = hadir ? titikJam(formatJam(hadir.waktuHadir)) : null;
 
   const tombolKonfirmasiNonaktif =
-    !sesiBisaPresensi ||
-    !kodeTerverifikasi ||
-    !lokasiSiapSubmit ||
-    !setujuHadir ||
-    memproses;
+    !sesiBisaPresensi || !kodeTerverifikasi || !lokasiSiapSubmit || memproses;
 
   const labelTombolUtama = (() => {
     if (memproses) {
@@ -448,7 +430,7 @@ export default function HalamanPresensiPraktikan() {
     if (statusKartuLokasi === 'lab-belum-diatur') {
       return isEn ? 'Lab location not set' : 'Lokasi lab belum diatur';
     }
-    return isEn ? 'Confirm Attendance Now' : 'Konfirmasi Presensi Sekarang';
+    return isEn ? 'Check In Now' : 'Presensi Sekarang';
   })();
 
   const handlePresensi = async () => {
@@ -840,7 +822,7 @@ export default function HalamanPresensiPraktikan() {
             </View>
           </View>
         ) : (
-          /* 4. Input Kode Presensi, Pernyataan Kehadiran & Tombol Konfirmasi */
+          /* 4. Input Kode Presensi & Tombol Presensi */
           <View
             style={[
               styles.confirmCard,
@@ -852,7 +834,7 @@ export default function HalamanPresensiPraktikan() {
           >
             <View style={styles.confirmHeaderRow}>
               <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-                {isEn ? 'ATTENDANCE CONFIRMATION' : 'KONFIRMASI KEHADIRAN'}
+                {isEn ? 'ATTENDANCE' : 'PRESENSI'}
               </Text>
               {sesiBisaPresensi && (
                 <Pressable
@@ -881,7 +863,7 @@ export default function HalamanPresensiPraktikan() {
               )}
             </View>
 
-            {/* Input Kode Presensi (wajib sebelum centang) */}
+            {/* Input Kode Presensi */}
             <View style={styles.codeFieldWrap}>
               <Text
                 style={[
@@ -971,56 +953,6 @@ export default function HalamanPresensiPraktikan() {
                 </Text>
               )}
             </View>
-
-            {/* Checkbox Pernyataan Kehadiran */}
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{
-                checked: setujuHadir,
-                disabled: !sesiBisaPresensi || !kodeTerverifikasi || memproses,
-              }}
-              disabled={!sesiBisaPresensi || !kodeTerverifikasi || memproses}
-              onPress={() => setSetujuHadir((v) => !v)}
-              style={[
-                styles.checkboxRow,
-                {
-                  borderColor: setujuHadir
-                    ? themeColors.primary
-                    : themeColors.border,
-                  backgroundColor: themeColors.background,
-                  opacity:
-                    !sesiBisaPresensi || !kodeTerverifikasi ? 0.55 : 1,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.checkboxBox,
-                  {
-                    borderColor: setujuHadir
-                      ? themeColors.primary
-                      : themeColors.borderDashed,
-                    backgroundColor: setujuHadir
-                      ? themeColors.primary
-                      : themeColors.surface,
-                  },
-                ]}
-              >
-                {setujuHadir ? (
-                  <Check size={14} color={themeColors.onPrimary} />
-                ) : null}
-              </View>
-              <Text
-                style={[
-                  styles.checkboxLabel,
-                  { color: themeColors.textPrimary },
-                ]}
-              >
-                {isEn
-                  ? 'I confirm that I am physically present in the laboratory for this practicum session.'
-                  : 'Saya menyatakan hadir secara langsung di ruang laboratorium pada sesi praktikum ini.'}
-              </Text>
-            </Pressable>
 
             <Tombol
               variant="primer"
@@ -1277,27 +1209,6 @@ const styles = StyleSheet.create({
   codeHint: {
     ...type.micro,
     lineHeight: 16,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s3,
-    padding: spacing.s3,
-    borderRadius: radius.button,
-    borderWidth: 1,
-  },
-  checkboxBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 7,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxLabel: {
-    ...type.caption,
-    flex: 1,
-    lineHeight: 18,
   },
   errorRow: {
     flexDirection: 'row',
