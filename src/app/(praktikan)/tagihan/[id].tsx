@@ -31,7 +31,7 @@ export default function DetailTagihanScreen() {
   const isEn = language === 'en';
   const { daftar, pembayaran, kehadiran, loading, error, retrySync } =
     useTagihanPraktikan();
-  const { bayar, cekStatus, memproses, memeriksa, galat, clearGalat, tersedia } =
+  const { bayar, cekStatus, memproses, memeriksa, galat, clearGalat } =
     usePembayaranTagihan();
 
   const item = daftar.find((x) => x.tagihan.id === id);
@@ -50,7 +50,7 @@ export default function DetailTagihanScreen() {
   const orderPending = transaksi.find((p) => p.status === 'pending')?.id;
   const statusTagihan = item?.tagihan.status;
   const bisaBayarSekarang =
-    tersedia && (statusTagihan === 'UNPAID' || statusTagihan === 'FAILED');
+    statusTagihan === 'UNPAID' || statusTagihan === 'FAILED';
 
   const penjelasanStatus = (status: string): string => {
     switch (status) {
@@ -382,12 +382,11 @@ export default function DetailTagihanScreen() {
                     ? 'Payment is being processed. Do not create a new transaction.'
                     : 'Pembayaran sedang diproses. Jangan membuat transaksi baru.'}
                 </Text>
-                {tersedia ? (
+                {orderPending ? (
                   <Tombol
                     variant="sekunder"
                     loading={memeriksa}
-                    disabled={!orderPending}
-                    onPress={() => orderPending && cekStatus(orderPending)}
+                    onPress={() => cekStatus(orderPending)}
                   >
                     {isEn ? 'Check status' : 'Cek status'}
                   </Tombol>
