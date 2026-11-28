@@ -567,7 +567,12 @@ export default function RekapScreen() {
               onPress={kembaliKePraktikum}
               style={({ pressed }) => [
                 styles.backBtn,
-                pressed && { backgroundColor: themeColors.surfaceMuted },
+                {
+                  borderColor: themeColors.border,
+                  backgroundColor: pressed
+                    ? themeColors.surfaceMuted
+                    : themeColors.surface,
+                },
               ]}
             >
               <ArrowLeft size={18} color={themeColors.textPrimary} />
@@ -617,13 +622,14 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     alignSelf: 'flex-start',
-    minHeight: 40,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.s2,
-    paddingRight: spacing.s3,
+    paddingHorizontal: spacing.s3,
     marginBottom: spacing.s2,
-    borderRadius: 12,
+    borderRadius: 13,
+    borderWidth: 1,
   },
   backText: {
     ...type.caption,

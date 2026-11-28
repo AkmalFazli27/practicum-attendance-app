@@ -176,13 +176,15 @@ export default function DetailSesiScreen() {
           onPress={() => router.back()}
           style={({ pressed }) => [
             styles.backBtn,
-            pressed && { backgroundColor: themeColors.surfaceMuted },
+            {
+              borderColor: themeColors.border,
+              backgroundColor: pressed
+                ? themeColors.surfaceMuted
+                : themeColors.surface,
+            },
           ]}
         >
-          <ArrowLeft size={18} color={themeColors.textPrimary} />
-          <Text style={[styles.backText, { color: themeColors.textPrimary }]}>
-            {isEn ? 'Back' : 'Kembali'}
-          </Text>
+          <ArrowLeft size={20} color={themeColors.textPrimary} />
         </Pressable>
 
         {/* Kartu Info Utama Sesi */}
@@ -494,18 +496,13 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.s8,
   },
   backBtn: {
-    alignSelf: 'flex-start',
-    minHeight: 40,
-    flexDirection: 'row',
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    borderWidth: 1,
     alignItems: 'center',
-    gap: spacing.s2,
-    paddingRight: spacing.s3,
+    justifyContent: 'center',
     marginBottom: spacing.s3,
-    borderRadius: 12,
-  },
-  backText: {
-    ...type.caption,
-    fontFamily: fontFamily.bold,
   },
   heroCard: {
     padding: spacing.s4,

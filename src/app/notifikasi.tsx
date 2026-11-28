@@ -144,13 +144,17 @@ export default function NotifikasiScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
             onPress={() => router.back()}
-            hitSlop={12}
             style={({ pressed }) => [
               styles.backHit,
-              pressed && styles.pressed,
+              {
+                borderColor: themeColors.border,
+                backgroundColor: pressed
+                  ? themeColors.surfaceMuted
+                  : themeColors.surface,
+              },
             ]}
           >
-            <ChevronLeft size={26} color={themeColors.textPrimary} />
+            <ChevronLeft size={20} color={themeColors.textPrimary} />
           </Pressable>
           <Text
             style={[styles.headerTitle, { color: themeColors.textPrimary }]}
@@ -298,19 +302,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: layout.screenPadding - 4,
+    paddingHorizontal: layout.screenPadding,
     paddingBottom: spacing.s3,
     borderBottomWidth: 1,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.s2,
+    gap: spacing.s3,
   },
   backHit: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 13,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
