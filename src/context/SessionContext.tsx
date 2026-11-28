@@ -48,6 +48,10 @@ import {
   type Kehadiran,
   type Koordinat,
   type Lab,
+  type Keanggotaan,
+  type Tagihan,
+  type Pembayaran,
+  type HasilBulk,
   type Peran,
   type Sesi,
   type SesiInput,
@@ -154,6 +158,15 @@ export type SessionContextValue = {
     sesiId: string,
     praktikanId: string,
   ) => Izin | undefined;
+  keanggotaanLab: Keanggotaan[];
+  tagihan: Tagihan[];
+  pembayaran: Pembayaran[];
+  createLab: (input: Omit<Lab, 'id'>) => Promise<{ ok: true; labId: string } | { ok: false; alasan: string }>;
+  createLabsBulk: (mataKuliah: string, baris: Omit<Lab, 'id'>[]) => Promise<HasilBulk>;
+  addAnggotaBulk: (labId: string, peran: Keanggotaan['peran'], baris: { nim?: string; email?: string }[]) => Promise<HasilBulk>;
+  pindahAnggota: (uid: string, dariLabId: string, keLabId: string) => Promise<{ ok: true } | { ok: false; alasan: string }>;
+  mulaiPembayaran: (tagihanId: string) => Promise<{ ok: true; redirectUrl: string; orderId: string } | { ok: false; alasan: string }>;
+  sinkronPembayaran: (orderId: string) => Promise<void>;
 };
 
 const AUTH_LOAD_TIMEOUT_MS = 9000;
@@ -524,7 +537,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           };
         });
       },
-      () => {},
+      () => { },
     );
 
     // Asisten membaca daftar pengguna untuk kebutuhan rekap; praktikan hanya membaca profilnya sendiri
@@ -929,7 +942,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           } catch {
             try {
               await signOut(auth);
-            } catch {}
+            } catch { }
           }
 
           const isPermissionDenied = String(firestoreErr?.code || '')
@@ -1075,7 +1088,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           ),
         );
       }
-      const notifOk = target.status === 'DIBUKA'? true : await aman(() => notifySesiDibuka({ ...target, status: 'DIBUKA', qrToken, qrExpiresAt }));
+      const notifOk = target.status === 'DIBUKA' ? true : await aman(() => notifySesiDibuka({ ...target, status: 'DIBUKA', qrToken, qrExpiresAt }));
       return { ok: true, notifGagal: !notifOk };
     } catch (err: any) {
       setError(terjemahkanErrorFirestore(err, 'Gagal membuka sesi praktikum.'));
@@ -1642,7 +1655,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     try {
       await updateDoc(doc(db, 'users', currentUser.id), { pushToken: token });
-    } catch {}
+    } catch { }
   };
 
   // Helper getters
@@ -1677,6 +1690,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       (item) => item.sesiId === sesiId && item.praktikanId === praktikanId,
     );
   }
+
+  // STUB Sprint 4
+  const BELUM = { ok: false as const, alasan: 'BELUM_TERSEDIA' };
+  const createLab = async () => BELUM;
+  const createLabsBulk = async (): Promise<HasilBulk> => ({ berhasil: 0, gagal: [] });
+  const addAnggotaBulk = async (): Promise<HasilBulk> => ({ berhasil: 0, gagal: [] });
+  const pindahAnggota = async () => BELUM;
+  const mulaiPembayaran = async () => BELUM;
+  const sinkronPembayaran = async () => { };
 
   const value = useMemo<SessionContextValue>(
     () => ({
@@ -1717,6 +1739,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       getIzinSesi,
       getIzinPraktikan,
       getIzinBySesiPraktikan,
+      keanggotaanLab: [],
+      tagihan: [],
+      pembayaran: [],
+      createLab,
+      createLabsBulk,
+      addAnggotaBulk,
+      pindahAnggota,
+      mulaiPembayaran,
+      sinkronPembayaran,
     }),
     [
       loading,
