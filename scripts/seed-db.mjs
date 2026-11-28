@@ -151,6 +151,47 @@ const DAFTAR_ASPRAK = [
   },
 ];
 
+// Data lab awal. Samakan dengan LABS_SEED di src/data/dummy.ts.
+// Penulisan koleksi labs hanya boleh oleh Aslab (rules), jadi skrip login sebagai Aslab.
+// Isi SEED_ASLAB_EMAIL dan SEED_ASLAB_PASSWORD di .env (akun Aslab dibuat di Console, peran 'aslab').
+const DAFTAR_LAB = [
+  { id: 'lab-ap', nama: 'Lab AP', alamat: 'Gedung Dekanat FSM UNDIP', lat: -7.0490375, lng: 110.441484375, radius: 50, mataKuliah: 'Pemrograman Web' },
+  { id: 'lab-b', nama: 'Lab B', alamat: 'Gedung E FSM UNDIP, lantai 2', lat: -7.0482375, lng: 110.440765625, radius: 100, mataKuliah: 'Basis Data' },
+  { id: 'lab-c', nama: 'Lab C', alamat: 'Gedung E FSM UNDIP, lantai 2', lat: -7.0482375, lng: 110.440765625, radius: 100, mataKuliah: 'Jaringan Komputer' },
+  { id: 'lab-d', nama: 'Lab D', alamat: 'Gedung E FSM UNDIP, lantai 2', lat: -7.0482375, lng: 110.440765625, radius: 100, mataKuliah: 'Sistem Operasi' },
+];
+const GRACE_DEFAULT_MENIT = 15;
+const DENDA_DEFAULT_NOMINAL = 5000;
+
+async function seedLabs() {
+  const email = process.env.SEED_ASLAB_EMAIL || env.SEED_ASLAB_EMAIL;
+  const password = process.env.SEED_ASLAB_PASSWORD || env.SEED_ASLAB_PASSWORD;
+  if (!email || !password) {
+    console.warn('⚠️ [LABS] Dilewati: SEED_ASLAB_EMAIL / SEED_ASLAB_PASSWORD belum diisi di .env.');
+    return;
+  }
+  let aslabId;
+  try {
+    aslabId = (await signInWithEmailAndPassword(auth, email, password)).user.uid;
+  } catch (err) {
+    console.error(`❌ [LABS] Login Aslab gagal: ${err?.message}`);
+    return;
+  }
+  for (const lab of DAFTAR_LAB) {
+    try {
+      // merge: dokumen lab yang sudah ada dilengkapi, bukan ditimpa.
+      await setDoc(
+        doc(db, 'labs', lab.id),
+        { ...lab, aslabId, graceMenit: GRACE_DEFAULT_MENIT, dendaNominal: DENDA_DEFAULT_NOMINAL },
+        { merge: true },
+      );
+      console.log(`🏫 [LABS] ${lab.id} tersimpan (grace ${GRACE_DEFAULT_MENIT} mnt, denda Rp${DENDA_DEFAULT_NOMINAL}).`);
+    } catch (err) {
+      console.error(`❌ [LABS GAGAL] ${lab.id}: ${err?.message}`);
+    }
+  }
+}
+
 async function seed() {
   console.log('🚀 Memulai proses seeding data Asisten & Sesi ke Firebase...\n');
   console.log(`📌 Project ID : ${firebaseConfig.projectId}`);
@@ -235,6 +276,8 @@ async function seed() {
 
     console.log('------------------------------------------------------------');
   }
+
+  await seedLabs();
 
   console.log('\n🎉 SEEDING SELESAI!');
   console.log('Semua 10 akun asisten praktikum sudah siap digunakan untuk login.');
