@@ -88,7 +88,7 @@ const ID: TeksLogin = {
   subDaftar:
     'Daftarkan identitasmu untuk mengakses praktikum sebagai Praktikan.',
   infoDaftar:
-    'Pendaftaran mandiri hanya untuk Praktikan. Akun Asisten didaftarkan oleh admin praktikum.',
+    'Pendaftaran mandiri hanya untuk Praktikan. Akun Asprak dan Aslab didaftarkan oleh pengelola laboratorium.',
   namaLengkap: 'Nama lengkap',
   nimId: 'NIM / ID',
   kelas: 'Kelas',
@@ -183,7 +183,7 @@ const EN: TeksLogin = {
     'Sign in with your account email and password. Your role is detected automatically.',
   subDaftar: 'Register your identity to join practicum as a Student.',
   infoDaftar:
-    'Self-registration is only for Students. Assistant accounts are registered by the practicum admin.',
+    'Self-registration is only for Students. Asprak and Aslab accounts are provisioned by the laboratory admin.',
   namaLengkap: 'Full name',
   nimId: 'Student ID',
   kelas: 'Class',

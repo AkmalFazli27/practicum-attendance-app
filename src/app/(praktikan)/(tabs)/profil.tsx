@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import {
@@ -11,6 +11,7 @@ import {
   UserRound,
 } from 'lucide-react-native';
 
+import { useAslabStore } from '@/components/aslab/lab/aslabStore';
 import { Tombol, useToast } from '@/components/ui';
 import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/context/PreferencesContext';
@@ -74,18 +75,31 @@ function MenuRow({ icon, title, subtitle, onPress }: MenuRowProps) {
 
 export default function ProfilScreen() {
   const router = useRouter();
-  const { currentUser, getKehadiranPraktikan, logout } = useSession();
+  const { currentUser, logout } = useSession();
+  const { keanggotaanAll } = useAslabStore();
   const { showToast } = useToast();
   const { themeColors, t } = usePreferences();
   const { t: tI18n } = useTranslation();
   const [sedangKeluar, setSedangKeluar] = useState(false);
 
+  const jumlahKelasDiikuti = useMemo(() => {
+    if (!currentUser) return 0;
+    const set = new Set<string>();
+    for (const k of keanggotaanAll) {
+      if (k.uid === currentUser.id && k.peran === 'praktikan') {
+        set.add(k.labId);
+      }
+    }
+    return set.size;
+  }, [currentUser, keanggotaanAll]);
+
   if (!currentUser) return <Redirect href="/" />;
 
   const emailTampil = currentUser.email?.trim() || '-';
+  const nimTampil = currentUser.nim?.trim() || '-';
+  const kelasTampil = currentUser.kelas?.trim() || '-';
   const labelPeran =
     currentUser.peran === 'asisten' ? t('role_assistant') : t('role_student');
-  const totalPresensi = getKehadiranPraktikan(currentUser.id).length;
 
   const handleLogout = async () => {
     if (sedangKeluar) return;
@@ -125,28 +139,6 @@ export default function ProfilScreen() {
           <Text style={[styles.name, { color: themeColors.textPrimary }]}>
             {currentUser.nama}
           </Text>
-          <Text style={[styles.meta, { color: themeColors.textSecondary }]}>
-            {currentUser.nim ?? '-'}
-            {currentUser.kelas
-              ? ` · ${t('profile_class')} ${currentUser.kelas}`
-              : ''}
-          </Text>
-          <View
-            style={[
-              styles.roleBadge,
-              { backgroundColor: themeColors.sesiDibukaBg },
-            ]}
-          >
-            <UserRound size={15} color={themeColors.sesiDibukaFg} />
-            <Text
-              style={[
-                styles.roleBadgeText,
-                { color: themeColors.sesiDibukaFg },
-              ]}
-            >
-              {labelPeran}
-            </Text>
-          </View>
         </View>
 
         <View
@@ -171,6 +163,27 @@ export default function ProfilScreen() {
               {emailTampil}
             </Text>
           </View>
+
+          <View
+            style={[
+              styles.row,
+              styles.rowBorder,
+              { borderTopColor: themeColors.border },
+            ]}
+          >
+            <Text
+              style={[styles.rowLabel, { color: themeColors.textSecondary }]}
+            >
+              NIM
+            </Text>
+            <Text
+              style={[styles.rowValue, { color: themeColors.textPrimary }]}
+              numberOfLines={1}
+            >
+              {nimTampil}
+            </Text>
+          </View>
+
           <View
             style={[
               styles.row,
@@ -195,6 +208,7 @@ export default function ProfilScreen() {
               </Text>
             </View>
           </View>
+
           <View
             style={[
               styles.row,
@@ -205,10 +219,57 @@ export default function ProfilScreen() {
             <Text
               style={[styles.rowLabel, { color: themeColors.textSecondary }]}
             >
-              {t('profile_total_attendance')}
+              Role
+            </Text>
+            <View
+              style={[
+                styles.roleInlineBadge,
+                { backgroundColor: themeColors.sesiDibukaBg },
+              ]}
+            >
+              <UserRound size={14} color={themeColors.sesiDibukaFg} />
+              <Text
+                style={[
+                  styles.roleBadgeText,
+                  { color: themeColors.sesiDibukaFg },
+                ]}
+              >
+                {labelPeran}
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.row,
+              styles.rowBorder,
+              { borderTopColor: themeColors.border },
+            ]}
+          >
+            <Text
+              style={[styles.rowLabel, { color: themeColors.textSecondary }]}
+            >
+              {t('profile_class')}
             </Text>
             <Text style={[styles.rowValue, { color: themeColors.textPrimary }]}>
-              {totalPresensi} {t('profile_sessions_unit')}
+              {kelasTampil}
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.row,
+              styles.rowBorder,
+              { borderTopColor: themeColors.border },
+            ]}
+          >
+            <Text
+              style={[styles.rowLabel, { color: themeColors.textSecondary }]}
+            >
+              {isEn ? 'Enrolled practicums' : 'Kelas praktikum diikuti'}
+            </Text>
+            <Text style={[styles.rowValue, { color: themeColors.textPrimary }]}>
+              {jumlahKelasDiikuti} {isEn ? 'classes' : 'kelas'}
             </Text>
           </View>
         </View>
@@ -330,15 +391,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 6,
   },
-  roleBadge: {
+  roleInlineBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: spacing.s3,
+    gap: 5,
     paddingHorizontal: spacing.s3,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: radius.pill,
-    backgroundColor: colors.sesiDibukaBg,
   },
   roleBadgeText: {
     ...type.caption,

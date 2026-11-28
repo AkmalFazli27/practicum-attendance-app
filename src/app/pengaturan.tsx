@@ -845,9 +845,11 @@ export default function PengaturanScreen() {
             {
               label: t('acc_role'),
               value:
-                currentUser?.peran === 'asisten'
-                  ? t('role_assistant')
-                  : t('role_student'),
+                currentUser?.peran === 'aslab'
+                  ? t('role_aslab')
+                  : currentUser?.peran === 'asisten'
+                    ? t('role_assistant')
+                    : t('role_student'),
             },
           ].map((item, idx) => (
             <React.Fragment key={item.label}>

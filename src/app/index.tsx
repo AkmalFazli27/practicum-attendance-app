@@ -38,8 +38,10 @@ import {
   type,
 } from '@/theme/tokens';
 
-function berandaUntuk(peran: Peran): '/beranda-asisten' | '/beranda-praktikan' {
-  return peran === 'asisten' ? '/beranda-asisten' : '/beranda-praktikan';
+function berandaUntuk(peran: Peran): string {
+  if (peran === 'aslab') return '/(aslab)/(tabs)/beranda-aslab';
+  if (peran === 'asisten') return '/(asisten)/(tabs)/beranda-asisten';
+  return '/(praktikan)/(tabs)/beranda-praktikan';
 }
 
 function SplashLayar({
@@ -119,7 +121,7 @@ export default function OnboardingScreen() {
     if (loading || redirectAwalSelesai.current) return;
     redirectAwalSelesai.current = true;
     if (currentUser) {
-      router.replace(berandaUntuk(currentUser.peran));
+      router.replace(berandaUntuk(currentUser.peran) as any);
     }
   }, [loading, currentUser, router]);
 
@@ -134,7 +136,7 @@ export default function OnboardingScreen() {
 
   const handleGetStarted = () => {
     if (currentUser) {
-      router.replace(berandaUntuk(currentUser.peran));
+      router.replace(berandaUntuk(currentUser.peran) as any);
       return;
     }
     router.push('/login');

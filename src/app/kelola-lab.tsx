@@ -4,12 +4,20 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertTriangle } from 'lucide-react-native';
 
+import { useLabI18n } from '@/components/aslab/lab/i18nLab';
+import {
+  DEFAULT_DENDA_NOMINAL,
+  DEFAULT_GRACE_MENIT,
+  DEFAULT_RADIUS_LAB,
+  validasiFormLab,
+} from '@/components/aslab/lab/validasiManajemenLab';
 import { LokasiPicker } from '@/components/peta/LokasiPicker';
 import { PetaHeader } from '@/components/peta/PetaHeader';
 import {
@@ -19,12 +27,7 @@ import {
 } from '@/components/peta/bannerLokasi';
 import { labPunyaKoordinat, statusTungguLabs } from '@/components/peta/region';
 import { teksPeta } from '@/components/peta/teks';
-import {
-  adaPerubahan,
-  alasanTidakValid,
-  parseRadius,
-  type DrafLab,
-} from '@/components/peta/validasiLab';
+import { parseRadius, type DrafLab } from '@/components/peta/validasiLab';
 import {
   EmptyState,
   FilterChip,
@@ -32,8 +35,8 @@ import {
   Tombol,
   useToast,
 } from '@/components/ui';
-import { useSession } from '@/context/SessionContext';
 import { usePreferences } from '@/context/PreferencesContext';
+import { useSession } from '@/context/SessionContext';
 import type { Lab } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
 import {
@@ -48,9 +51,8 @@ import {
 const JEDA_TUNGGU_LABS_MS = 4000;
 
 /**
- * Rute ini berada di luar grup `(asisten)`, jadi guard dibuat manual. Isi layar
- * dipecah supaya `useLocation()` baru berjalan setelah peran terverifikasi:
- * deep link oleh praktikan tidak boleh memicu dialog izin lokasi.
+ * Kelola Lab khusus Aslab (FR-26, FR-27, FR-33).
+ * Asprak (`asisten`) dan Praktikan diarahkan ke beranda perannya masing-masing.
  */
 export default function KelolaLabScreen() {
   const { currentUser, loading } = useSession();
@@ -71,8 +73,16 @@ export default function KelolaLabScreen() {
   }
 
   if (!currentUser) return <Redirect href="/" />;
-  if (currentUser.peran !== 'asisten') {
-    return <Redirect href={'/beranda-praktikan' as never} />;
+  if (currentUser.peran !== 'aslab') {
+    return (
+      <Redirect
+        href={
+          (currentUser.peran === 'asisten'
+            ? '/(asisten)/(tabs)/beranda-asisten'
+            : '/(praktikan)/(tabs)/beranda-praktikan') as never
+        }
+      />
+    );
   }
 
   return <KelolaLabContent />;
@@ -81,23 +91,25 @@ export default function KelolaLabScreen() {
 function KelolaLabContent() {
   const { labs, error, retrySync, updateLab } = useSession();
   const { status: statusLokasi, koordinat, mintaIzin, coba } = useLocation();
-  // `pesanError` dari hook selalu berbahasa Indonesia; copy banner dan pesan
-  // lokasi diambil dari kamus P2 agar ikut bahasa aplikasi.
   const { showToast } = useToast();
   const { language, themeColors } = usePreferences();
+  const { t } = useLabI18n();
   const teks = teksPeta(language);
   const styles = useMemo(() => buatGaya(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
 
   const [labId, setLabId] = useState<string | null>(null);
+  const [nama, setNama] = useState('');
+  const [mataKuliah, setMataKuliah] = useState('');
+  const [alamat, setAlamat] = useState('');
   const [titik, setTitik] = useState<DrafLab['titik']>(null);
   const [radiusTeks, setRadiusTeks] = useState('');
+  const [graceTeks, setGraceTeks] = useState(String(DEFAULT_GRACE_MENIT));
+  const [dendaTeks, setDendaTeks] = useState(String(DEFAULT_DENDA_NOMINAL));
   const [menyimpan, setMenyimpan] = useState(false);
   const [sudahMencobaSimpan, setSudahMencobaSimpan] = useState(false);
   const [jedaLabsHabis, setJedaLabsHabis] = useState(false);
 
-  // Sama seperti Peta: labs datang dari listener sendiri, jadi jangan langsung
-  // menampilkan empty state saat data masih dimuat.
   useEffect(() => {
     if (labs.length > 0 || error) return;
     const id = setTimeout(() => setJedaLabsHabis(true), JEDA_TUNGGU_LABS_MS);
@@ -112,41 +124,72 @@ function KelolaLabContent() {
     [labs, labId],
   );
 
-  // Pilih lab pertama yang punya koordinat agar layar tidak kosong saat dibuka.
-  useEffect(() => {
-    if (labId || labs.length === 0) return;
-    const awal = labs.find(labPunyaKoordinat) ?? labs[0];
-    setLabId(awal.id);
-    setTitik(
-      Number.isFinite(awal.lat) && Number.isFinite(awal.lng)
-        ? { lat: awal.lat, lng: awal.lng }
-        : null,
-    );
-    setRadiusTeks(Number.isFinite(awal.radius) ? String(awal.radius) : '');
-  }, [labs, labId]);
-
-  const pilihLab = useCallback((lab: Lab) => {
+  const isiFormDariLab = useCallback((lab: Lab) => {
     setLabId(lab.id);
+    setNama(lab.nama);
+    setMataKuliah(lab.mataKuliah ?? '');
+    setAlamat(lab.alamat);
     setTitik(
       Number.isFinite(lab.lat) && Number.isFinite(lab.lng)
         ? { lat: lab.lat, lng: lab.lng }
         : null,
     );
-    setRadiusTeks(Number.isFinite(lab.radius) ? String(lab.radius) : '');
+    setRadiusTeks(
+      Number.isFinite(lab.radius)
+        ? String(lab.radius)
+        : String(DEFAULT_RADIUS_LAB),
+    );
+    setGraceTeks(
+      typeof lab.graceMenit === 'number'
+        ? String(lab.graceMenit)
+        : String(DEFAULT_GRACE_MENIT),
+    );
+    setDendaTeks(
+      typeof lab.dendaNominal === 'number'
+        ? String(lab.dendaNominal)
+        : String(DEFAULT_DENDA_NOMINAL),
+    );
     setSudahMencobaSimpan(false);
   }, []);
 
+  useEffect(() => {
+    if (labId || labs.length === 0) return;
+    const awal = labs.find(labPunyaKoordinat) ?? labs[0];
+    isiFormDariLab(awal);
+  }, [labs, labId, isiFormDariLab]);
+
   const radiusAngka = parseRadius(radiusTeks);
-  const draf: DrafLab = {
-    labId,
-    titik,
-    radius: radiusAngka ?? Number.NaN,
-  };
-  const alasan = alasanTidakValid(draf);
-  const pesanValidasi = alasan.map((kode) => teks.validasi[kode]);
-  const berubah = labTerpilih ? adaPerubahan(labTerpilih, draf) : false;
-  // Tombol tetap aktif saat data tidak valid supaya pesan inline bisa muncul;
-  // `simpan` sendiri menolak menyimpan selama `alasan` belum kosong.
+  const hasilValidasi = useMemo(
+    () =>
+      validasiFormLab({
+        nama,
+        mataKuliah,
+        alamat,
+        titik,
+        radiusTeks,
+        graceTeks,
+        dendaTeks,
+      }),
+    [nama, mataKuliah, alamat, titik, radiusTeks, graceTeks, dendaTeks],
+  );
+
+  const berubah = useMemo(() => {
+    if (!labTerpilih) return false;
+    const gLama = labTerpilih.graceMenit ?? DEFAULT_GRACE_MENIT;
+    const dLama = labTerpilih.dendaNominal ?? DEFAULT_DENDA_NOMINAL;
+    return (
+      nama.trim() !== labTerpilih.nama ||
+      mataKuliah.trim() !== (labTerpilih.mataKuliah ?? '') ||
+      alamat.trim() !== labTerpilih.alamat ||
+      radiusTeks.trim() !== String(labTerpilih.radius) ||
+      graceTeks.trim() !== String(gLama) ||
+      dendaTeks.trim() !== String(dLama) ||
+      !titik ||
+      Math.abs(titik.lat - labTerpilih.lat) > 1e-7 ||
+      Math.abs(titik.lng - labTerpilih.lng) > 1e-7
+    );
+  }, [labTerpilih, nama, mataKuliah, alamat, radiusTeks, graceTeks, dendaTeks, titik]);
+
   const bisaMencoba = berubah && !menyimpan;
 
   const pakaiLokasiSaatIni = useCallback(() => {
@@ -156,34 +199,49 @@ function KelolaLabContent() {
 
   const simpan = useCallback(async () => {
     setSudahMencobaSimpan(true);
-    if (alasan.length > 0 || !labId || !titik) return;
+    if (hasilValidasi.errors.length > 0 || !labId || !titik) return;
 
     setMenyimpan(true);
     try {
-      const berhasil = await updateLab(labId, {
+      const payloadUpdate = {
+        nama: nama.trim(),
+        mataKuliah: mataKuliah.trim(),
+        alamat: alamat.trim(),
         lat: titik.lat,
         lng: titik.lng,
-        radius: radiusAngka as number,
-      });
+        radius: hasilValidasi.radius,
+        graceMenit: hasilValidasi.graceMenit,
+        dendaNominal: hasilValidasi.dendaNominal,
+      };
+      const berhasil = await updateLab(
+        labId,
+        payloadUpdate as Parameters<typeof updateLab>[1],
+      );
       if (berhasil) {
         setSudahMencobaSimpan(false);
-        showToast(teks.toastTersimpan);
+        showToast(t('labUpdatedToast'));
         return;
       }
       showToast(teks.toastGagalSimpan);
     } finally {
       setMenyimpan(false);
     }
-  }, [alasan.length, labId, radiusAngka, showToast, titik, updateLab]);
+  }, [
+    hasilValidasi,
+    labId,
+    titik,
+    nama,
+    mataKuliah,
+    alamat,
+    updateLab,
+    showToast,
+    t,
+    teks.toastGagalSimpan,
+  ]);
 
-  // Pesan lokasi hanya relevan saat tombol "gunakan lokasi" belum bisa dipakai.
-  // Saat status gagal, banner di bawah sudah menjelaskan sebabnya, jadi pesan
-  // kecil cukup muncul selama lokasi masih dibaca.
   const pesanLokasi =
     statusLokasi === 'memuat' ? teks.membacaLokasi : null;
 
-  // Halaman ini memakai lokasi hanya untuk tombol "gunakan lokasi saat ini",
-  // jadi status `memuat` cukup tampil sebagai pesan kecil, bukan banner.
   const banner = bannerPrioritas(
     error,
     statusLokasi === 'memuat' ? null : bannerLokasiDari(statusLokasi, null),
@@ -245,11 +303,9 @@ function KelolaLabContent() {
                   key={lab.id}
                   label={lab.nama}
                   aktif={lab.id === labId}
-                  // Mengganti lab saat menyimpan akan membuang draf yang
-                  // sedang ditulis, jadi chip dikunci selama proses simpan.
                   onPress={() => {
                     if (menyimpan) return;
-                    pilihLab(lab);
+                    isiFormDariLab(lab);
                   }}
                   style={menyimpan ? styles.chipNonaktif : undefined}
                 />
@@ -259,22 +315,53 @@ function KelolaLabContent() {
 
           {labTerpilih ? (
             <>
-              <View style={styles.infoCard}>
-                <Text style={styles.infoNama}>{labTerpilih.nama}</Text>
-                <Text style={styles.infoAlamat}>{labTerpilih.alamat}</Text>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>{t('fieldNamaLab')}</Text>
+                <TextInput
+                  value={nama}
+                  onChangeText={setNama}
+                  placeholder={t('placeholderNamaLab')}
+                  placeholderTextColor={themeColors.textMuted}
+                  editable={!menyimpan}
+                  style={styles.input}
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>{t('fieldMataKuliah')}</Text>
+                <TextInput
+                  value={mataKuliah}
+                  onChangeText={setMataKuliah}
+                  placeholder={t('placeholderMataKuliah')}
+                  placeholderTextColor={themeColors.textMuted}
+                  editable={!menyimpan}
+                  style={styles.input}
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>{t('fieldAlamat')}</Text>
+                <TextInput
+                  value={alamat}
+                  onChangeText={setAlamat}
+                  placeholder={t('placeholderAlamat')}
+                  placeholderTextColor={themeColors.textMuted}
+                  editable={!menyimpan}
+                  style={styles.input}
+                />
               </View>
 
               <LokasiPicker
                 titik={titik}
                 radius={radiusAngka ?? 0}
-                onTitikChange={(t) => {
-                  setTitik(t);
+                onTitikChange={(nextTitik) => {
+                  setTitik(nextTitik);
                   setSudahMencobaSimpan(false);
                 }}
                 disabled={menyimpan}
                 radiusTeks={radiusTeks}
-                onRadiusTeksChange={(teks) => {
-                  setRadiusTeks(teks);
+                onRadiusTeksChange={(txt) => {
+                  setRadiusTeks(txt);
                   setSudahMencobaSimpan(false);
                 }}
                 onGunakanLokasi={pakaiLokasiSaatIni}
@@ -284,7 +371,33 @@ function KelolaLabContent() {
                 labId={labId}
               />
 
-              {sudahMencobaSimpan && alasan.length > 0 ? (
+              <View style={styles.rowTwo}>
+                <View style={[styles.fieldGroup, styles.halfCol]}>
+                  <Text style={styles.fieldLabel}>{t('fieldGrace')}</Text>
+                  <TextInput
+                    value={graceTeks}
+                    onChangeText={setGraceTeks}
+                    keyboardType="numeric"
+                    editable={!menyimpan}
+                    style={styles.input}
+                  />
+                  <Text style={styles.hint}>{t('hintGrace')}</Text>
+                </View>
+
+                <View style={[styles.fieldGroup, styles.halfCol]}>
+                  <Text style={styles.fieldLabel}>{t('fieldDenda')}</Text>
+                  <TextInput
+                    value={dendaTeks}
+                    onChangeText={setDendaTeks}
+                    keyboardType="numeric"
+                    editable={!menyimpan}
+                    style={styles.input}
+                  />
+                  <Text style={styles.hint}>{t('hintDenda')}</Text>
+                </View>
+              </View>
+
+              {sudahMencobaSimpan && hasilValidasi.errors.length > 0 ? (
                 <View style={styles.validasiBox} accessibilityRole="alert">
                   <View style={styles.validasiJudulRow}>
                     <AlertTriangle size={16} color={themeColors.errorFg} />
@@ -292,9 +405,9 @@ function KelolaLabContent() {
                       {teks.periksaData}
                     </Text>
                   </View>
-                  {pesanValidasi.map((pesan) => (
-                    <Text key={pesan} style={styles.validasiPesan}>
-                      • {pesan}
+                  {hasilValidasi.errors.map((kode) => (
+                    <Text key={kode} style={styles.validasiPesan}>
+                      • {t(kode)}
                     </Text>
                   ))}
                 </View>
@@ -347,7 +460,7 @@ const buatGaya = (w: ThemeColors) =>
     content: {
       paddingHorizontal: layout.screenPadding,
       paddingTop: spacing.s4,
-      gap: spacing.s4,
+      gap: spacing.s3 + 2,
     },
     section: {
       gap: spacing.s2,
@@ -364,22 +477,36 @@ const buatGaya = (w: ThemeColors) =>
     chipNonaktif: {
       opacity: 0.5,
     },
-    infoCard: {
-      gap: 2,
-      padding: spacing.s3,
-      borderRadius: radius.card,
+    fieldGroup: {
+      gap: 6,
+    },
+    fieldLabel: {
+      ...type.caption,
+      fontFamily: fontFamily.bold,
+      color: w.textPrimary,
+    },
+    input: {
+      minHeight: 46,
+      borderRadius: radius.button,
       borderWidth: 1,
       borderColor: w.border,
       backgroundColor: w.surface,
-    },
-    infoNama: {
-      ...type.bodyStrong,
-      fontFamily: fontFamily.semibold,
+      paddingHorizontal: spacing.s3 + 2,
+      paddingVertical: 10,
+      ...type.body,
       color: w.textPrimary,
     },
-    infoAlamat: {
-      ...type.caption,
+    hint: {
+      ...type.micro,
       color: w.textMuted,
+      lineHeight: 15,
+    },
+    rowTwo: {
+      flexDirection: 'row',
+      gap: spacing.s3,
+    },
+    halfCol: {
+      flex: 1,
     },
     validasiBox: {
       gap: spacing.s1,

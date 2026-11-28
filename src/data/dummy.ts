@@ -96,6 +96,10 @@ export type Lab = {
   /** Radius presensi dalam meter */
   radius: number;
   mataKuliah?: string;
+  /** Nama ruangan lab fisik tempat kelas diselenggarakan (misal: Lab B) */
+  ruanganLab?: string;
+  /** Jumlah pertemuan praktikum dalam 1 semester untuk mata kuliah ini */
+  jumlahPertemuan?: number;
   aslabId?: string;
   graceMenit?: number;
   dendaNominal?: number;

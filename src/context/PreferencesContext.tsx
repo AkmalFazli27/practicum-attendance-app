@@ -29,7 +29,9 @@ const translations = {
   id: {
     // Tabs
     tab_home: 'Beranda',
+    tab_lab: 'Lab',
     tab_schedule: 'Jadwal',
+    tab_fines: 'Denda',
     tab_qr: 'QR',
     tab_history: 'Riwayat',
     tab_profile: 'Profil',
@@ -41,7 +43,8 @@ const translations = {
 
     // Profile
     role_student: 'Praktikan',
-    role_assistant: 'Asisten',
+    role_assistant: 'Asprak',
+    role_aslab: 'Aslab',
     profile_class: 'Kelas',
     profile_email: 'Email',
     profile_status: 'Status akun',
@@ -158,7 +161,9 @@ const translations = {
   en: {
     // Tabs
     tab_home: 'Home',
+    tab_lab: 'Labs',
     tab_schedule: 'Schedule',
+    tab_fines: 'Fines',
     tab_qr: 'QR',
     tab_history: 'History',
     tab_profile: 'Profile',
@@ -170,7 +175,8 @@ const translations = {
 
     // Profile
     role_student: 'Student',
-    role_assistant: 'Assistant',
+    role_assistant: 'Asprak',
+    role_aslab: 'Lab Assistant (Aslab)',
     profile_class: 'Class',
     profile_email: 'Email',
     profile_status: 'Account status',
