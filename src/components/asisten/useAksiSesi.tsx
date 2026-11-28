@@ -52,6 +52,8 @@ const PESAN_TOLAK: Partial<Record<AlasanTolak, string>> = {
   WAKTU_HABIS: 'Waktu sesi sudah berakhir, sesi tidak dapat dibuka.',
   SESI_SUDAH_DITUTUP: 'Sesi yang sudah ditutup tidak dapat dibuka lagi.',
   SESI_TIDAK_DIBUKA: 'Sesi tidak ditemukan.',
+  DI_LUAR_JAM_OPERASIONAL:
+    'Sesi hanya dapat dibuka pada jam operasional lab (07.00–20.00 WIB).',
   JARINGAN: 'Gagal mengubah status sesi. Periksa koneksi lalu coba lagi.',
 };
 
