@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -7,9 +7,7 @@ import {
   Clock,
   Lock,
   MapPin,
-  Pencil,
   Play,
-  Trash2,
   Users,
 } from 'lucide-react-native';
 
@@ -18,17 +16,14 @@ import { formatJarak } from '@/components/asisten/formatJarak';
 import { IzinPanel } from '@/components/asisten/IzinPanel';
 import { QrPresensi } from '@/components/asisten/QrPresensi';
 import { hitungPresensiSesi } from '@/components/asisten/ringkasanPresensi';
-import { SesiFormSheet } from '@/components/asisten/SesiFormSheet';
 import { ErrorBlock, LoadingBlock } from '@/components/asisten/SyncState';
 import { useAksiSesi } from '@/components/asisten/useAksiSesi';
 import { useSesiAsprak } from '@/components/asisten/useSesiAsprak';
 import { useStatusSesi } from '@/components/asisten/useStatusSesi';
 import {
-  ConfirmSheet,
   EmptyState,
   StatusBadge,
   Tombol,
-  useToast,
 } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
@@ -46,7 +41,6 @@ export default function DetailSesiScreen() {
     izin,
     keanggotaanLab,
     getKehadiranSesi,
-    deleteSession,
     loading,
     error,
     retrySync,
@@ -54,13 +48,8 @@ export default function DetailSesiScreen() {
   const { bolehKelola } = useSesiAsprak();
   const { themeColors, language } = usePreferences();
   const isEn = language === 'en';
-  const { showToast } = useToast();
   const { mulai, sheet } = useAksiSesi();
   const { statusEfektif, aksiUtama } = useStatusSesi();
-
-  const [editVisible, setEditVisible] = useState(false);
-  const [hapusVisible, setHapusVisible] = useState(false);
-  const [menghapus, setMenghapus] = useState(false);
 
   const s = sesi.find((item) => item.id === id);
 
@@ -127,7 +116,6 @@ export default function DetailSesiScreen() {
 
   const status = statusEfektif(s);
   const aksi = aksiUtama(s);
-  const sesiSelesai = status === 'SELESAI';
   const daftarHadir = getKehadiranSesi(s.id)
     .slice()
     .sort((a, b) => a.waktuHadir.localeCompare(b.waktuHadir));
@@ -138,30 +126,6 @@ export default function DetailSesiScreen() {
     izin,
     keanggotaanLab,
   });
-
-  const konfirmasiHapus = async () => {
-    if (menghapus) return;
-    setMenghapus(true);
-    const berhasil = await deleteSession(s.id);
-    setMenghapus(false);
-    setHapusVisible(false);
-
-    if (berhasil) {
-      showToast(
-        isEn
-          ? 'Session deleted successfully.'
-          : 'Sesi praktikum berhasil dihapus.',
-      );
-      router.back();
-      return;
-    }
-
-    showToast(
-      isEn
-        ? 'Failed to delete session. Please try again.'
-        : 'Gagal menghapus sesi. Silakan coba lagi.',
-    );
-  };
 
   return (
     <View style={[styles.root, { backgroundColor: themeColors.background }]}>
@@ -249,56 +213,37 @@ export default function DetailSesiScreen() {
           ) : null}
 
           {/* Aksi Utama Sesi */}
-          <View style={styles.primaryActions}>
-            {aksi.jenis === 'buka' && (
-              <>
-                <Tombol
-                  variant="primer"
-                  disabled={!aksi.aktif}
-                  icon={<Play size={16} color={themeColors.onPrimary} />}
-                  onPress={() => mulai(s.id, 'buka')}
-                >
-                  {isEn ? 'Open session' : 'Buka sesi'}
-                </Tombol>
-                {!aksi.aktif && aksi.keterangan ? (
-                  <Text style={[styles.actionHint, { color: themeColors.textMuted }]}>
-                    {aksi.keterangan}
-                  </Text>
-                ) : null}
-              </>
-            )}
+          {aksi.jenis !== 'selesai' && (
+            <View style={styles.primaryActions}>
+              {aksi.jenis === 'buka' && (
+                <>
+                  <Tombol
+                    variant="primer"
+                    disabled={!aksi.aktif}
+                    icon={<Play size={16} color={themeColors.onPrimary} />}
+                    onPress={() => mulai(s.id, 'buka')}
+                  >
+                    {isEn ? 'Open session' : 'Buka sesi'}
+                  </Tombol>
+                  {!aksi.aktif && aksi.keterangan ? (
+                    <Text style={[styles.actionHint, { color: themeColors.textMuted }]}>
+                      {aksi.keterangan}
+                    </Text>
+                  ) : null}
+                </>
+              )}
 
-            {aksi.jenis === 'tutup' && (
-              <Tombol
-                variant="danger"
-                icon={<Lock size={16} color={themeColors.errorFg} />}
-                onPress={() => mulai(s.id, 'tutup')}
-              >
-                {isEn ? 'Close session' : 'Tutup sesi'}
-              </Tombol>
-            )}
-
-            <View style={styles.secondaryRow}>
-              {!sesiSelesai && (
+              {aksi.jenis === 'tutup' && (
                 <Tombol
-                  variant="sekunder"
-                  icon={<Pencil size={15} color={themeColors.textPrimary} />}
-                  onPress={() => setEditVisible(true)}
-                  style={styles.flexBtn}
+                  variant="danger"
+                  icon={<Lock size={16} color={themeColors.errorFg} />}
+                  onPress={() => mulai(s.id, 'tutup')}
                 >
-                  {isEn ? 'Edit' : 'Ubah'}
+                  {isEn ? 'Close session' : 'Tutup sesi'}
                 </Tombol>
               )}
-              <Tombol
-                variant="sekunder"
-                icon={<Trash2 size={15} color={themeColors.errorFg} />}
-                onPress={() => setHapusVisible(true)}
-                style={styles.flexBtn}
-              >
-                {isEn ? 'Delete' : 'Hapus'}
-              </Tombol>
             </View>
-          </View>
+          )}
         </View>
 
         {/* QR & Kode Presensi saat sesi sedang dibuka */}
@@ -454,29 +399,6 @@ export default function DetailSesiScreen() {
       </ScrollView>
 
       {sheet}
-
-      <SesiFormSheet
-        visible={editVisible}
-        initialSesi={s}
-        onClose={() => setEditVisible(false)}
-      />
-
-      <ConfirmSheet
-        visible={hapusVisible}
-        title={isEn ? 'Delete this session?' : 'Hapus sesi ini?'}
-        body={
-          isEn
-            ? 'Session data will be permanently removed.'
-            : 'Data sesi praktikum akan dihapus permanen.'
-        }
-        danger
-        loading={menghapus}
-        confirmLabel={isEn ? 'Yes, delete' : 'Ya, hapus'}
-        onConfirm={konfirmasiHapus}
-        onClose={() => {
-          if (!menghapus) setHapusVisible(false);
-        }}
-      />
     </View>
   );
 }
@@ -552,13 +474,6 @@ const styles = StyleSheet.create({
   actionHint: {
     ...type.micro,
     textAlign: 'center',
-  },
-  secondaryRow: {
-    flexDirection: 'row',
-    gap: spacing.s2,
-  },
-  flexBtn: {
-    flex: 1,
   },
   panel: {
     marginTop: spacing.s4,

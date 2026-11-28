@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowRight, DoorOpen, Plus, Users } from 'lucide-react-native';
+import { ArrowRight, DoorOpen, Users } from 'lucide-react-native';
 
 import {
   EmptyState,
@@ -14,7 +14,6 @@ import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
 import { titikJam } from '@/utils/format';
-import { SesiFormSheet } from './SesiFormSheet';
 import { SinkronGuard } from './SyncState';
 import { useSesiAsprak } from './useSesiAsprak';
 import { useStatusSesi } from './useStatusSesi';
@@ -25,7 +24,6 @@ export function BerandaAsisten() {
   const { sesiSaya } = useSesiAsprak();
   const { themeColors, language } = usePreferences();
   const isEn = language === 'en';
-  const [tambahVisible, setTambahVisible] = useState(false);
   const { statusEfektif } = useStatusSesi();
 
   if (!currentUser) return null;
@@ -176,33 +174,6 @@ export function BerandaAsisten() {
             kicker={isEn ? 'TODAY & UPCOMING' : 'HARI INI & MENDATANG'}
             title={isEn ? 'Your sessions' : 'Sesi kamu'}
             style={styles.sectionHeading}
-            right={
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                  isEn ? 'Add new practicum session' : 'Tambah sesi praktikum baru'
-                }
-                onPress={() => setTambahVisible(true)}
-                style={({ pressed }) => [
-                  styles.addChip,
-                  {
-                    backgroundColor: themeColors.primarySoft,
-                    borderColor: themeColors.primary,
-                  },
-                  pressed && styles.addChipPressed,
-                ]}
-              >
-                <Plus size={15} color={themeColors.textPrimary} />
-                <Text
-                  style={[
-                    styles.addChipText,
-                    { color: themeColors.textPrimary },
-                  ]}
-                >
-                  {isEn ? 'New Session' : 'Sesi Baru'}
-                </Text>
-              </Pressable>
-            }
           />
 
           {sesiSaya.length === 0 ? (
@@ -210,13 +181,9 @@ export function BerandaAsisten() {
               judul={isEn ? 'No sessions yet' : 'Belum ada sesi'}
               pesan={
                 isEn
-                  ? 'Add a new practicum session to start managing attendance.'
-                  : 'Tambahkan sesi praktikum baru untuk mulai mengelola kehadiran.'
+                  ? 'Sessions scheduled by the lab assistant will appear here.'
+                  : 'Sesi yang dijadwalkan oleh Aslab akan tampil di sini.'
               }
-              aksi={{
-                label: isEn ? 'Add New Session' : 'Tambah Sesi Baru',
-                onPress: () => setTambahVisible(true),
-              }}
             />
           ) : (
             <View style={styles.sessionList}>
@@ -241,11 +208,6 @@ export function BerandaAsisten() {
           )}
         </SinkronGuard>
       </ScrollView>
-
-      <SesiFormSheet
-        visible={tambahVisible}
-        onClose={() => setTambahVisible(false)}
-      />
     </View>
   );
 }
@@ -343,25 +305,6 @@ const styles = StyleSheet.create({
   sectionHeading: {
     marginTop: spacing.s6 + 4,
     marginBottom: spacing.s3 + 2,
-  },
-  addChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: spacing.s3,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.primaryPressed,
-  },
-  addChipPressed: {
-    opacity: 0.8,
-  },
-  addChipText: {
-    ...type.caption,
-    fontFamily: fontFamily.bold,
-    color: colors.textPrimary,
   },
   sessionList: {
     gap: spacing.s3,
