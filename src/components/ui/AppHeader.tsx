@@ -208,8 +208,8 @@ const styles = StyleSheet.create({
     gap: spacing.s2 + 1,
   },
   iconButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 13,
     borderWidth: 1,
     borderColor: colors.border,
@@ -244,8 +244,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   avatar: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 13,
     backgroundColor: colors.graphite,
     alignItems: 'center',
