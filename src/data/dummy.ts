@@ -1,4 +1,4 @@
-export type Peran = 'asisten' | 'praktikan';
+export type Peran = 'asisten' | 'praktikan' | 'aslab';
 export type StatusSesi = 'TERJADWAL' | 'DIBUKA' | 'SELESAI';
 export type StatusIzin = 'MENUNGGU' | 'DITERIMA' | 'DITOLAK';
 
@@ -61,6 +61,9 @@ export type Kehadiran = {
   lng?: number;
   jarak?: number;
   akurasi?: number;
+  statusKehadiran?: 'TEPAT_WAKTU' | 'TERLAMBAT';
+  menitTerlambat?: number;
+  tagihanId?: string;
 };
 
 export type Izin = {
@@ -79,6 +82,7 @@ export type Izin = {
   waktuKeputusan?: string;
   reviewedAt?: string;
   reviewedBy?: string;
+  sentimenAi?: string;
 };
 
 export type Lab = {
@@ -89,6 +93,10 @@ export type Lab = {
   lng: number;
   /** Radius presensi dalam meter */
   radius: number;
+  mataKuliah?: string;
+  aslabId?: string;
+  graceMenit?: number;
+  dendaNominal?: number;
 };
 
 export type Koordinat = {
@@ -109,11 +117,32 @@ export type AlasanTolak =
   | 'JARINGAN'
   | 'LAB_BELUM_DIATUR'
   | 'SUDAH_IZIN'
+  | 'DI_LUAR_JAM_OPERASIONAL'
   | 'TIDAK_BERHAK';
-  
+
+
 export type HasilAksi =
   | { ok: true; jarak?: number; notifGagal?: boolean }
   | { ok: false; alasan: AlasanTolak };
+
+export type Keanggotaan = {
+  id: string; labId: string; uid: string;
+  peran: 'praktikan' | 'asprak'; mataKuliah: string;
+};
+export type Tagihan = {
+  id: string; praktikanId: string; sesiId: string; labId: string;
+  kehadiranId: string; nominal: number; menitTerlambat: number;
+  status: 'UNPAID' | 'PENDING' | 'PAID' | 'FAILED' | 'DIBEBASKAN';
+  dibuatPada: string; dibayarPada?: string; izinId?: string;
+};
+export type Pembayaran = {
+  id: string; tagihanId: string; praktikanId: string; nominal: number;
+  status: 'pending' | 'success' | 'failed'; statusMidtrans: string;
+  metode?: string; dibuatPada: string; diperbaruiPada: string;
+};
+export type HasilBulk = {
+  berhasil: number; gagal: { baris: number; alasan: string }[];
+};
 
 const WIB_MS = 7 * 60 * 60 * 1000;
 const HARI_MS = 24 * 60 * 60 * 1000;
