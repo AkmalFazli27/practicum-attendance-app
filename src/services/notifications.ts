@@ -35,22 +35,30 @@ function tokenValid(t: unknown): t is string {
   return typeof t === 'string' && POLA_TOKEN.test(t);
 }
 
-async function tokenPraktikanKelas(kelas: string): Promise<string[]> {
-  const snap = await getDocs(
-    query(
-      collection(db, 'users'),
-      where('peran', '==', 'praktikan'),
-      where('kelas', '==', kelas),
-    ),
-  );
-  const tokens = snap.docs.map((d) => d.data().pushToken).filter(tokenValid);
-  return Array.from(new Set(tokens));
-}
-
 async function tokenPengguna(uid: string): Promise<string[]> {
   const snap = await getDoc(doc(db, 'users', uid));
   const t = snap.exists() ? snap.data().pushToken : undefined;
   return tokenValid(t) ? [t] : [];
+}
+
+/**
+ * FR-43: penerima notifikasi sesi/jadwal adalah praktikan yang terdaftar sebagai anggota lab
+ * (koleksi keanggotaanLab), bukan berdasarkan kelas. Asisten tidak menerimanya.
+ */
+async function tokenPraktikanLab(labId?: string): Promise<string[]> {
+  if (!labId) return [];
+  const snap = await getDocs(
+    query(
+      collection(db, 'keanggotaanLab'),
+      where('labId', '==', labId),
+      where('peran', '==', 'praktikan'),
+    ),
+  );
+  const uids = Array.from(
+    new Set(snap.docs.map((d) => String(d.data().uid || '')).filter(Boolean)),
+  );
+  const hasil = await Promise.all(uids.map((uid) => tokenPengguna(uid)));
+  return Array.from(new Set(hasil.flat()));
 }
 
 async function kirimBatch(tokens: string[], pesan: Pesan): Promise<boolean> {
@@ -100,7 +108,7 @@ async function kirim(tokens: string[], pesan: Pesan): Promise<boolean> {
 export async function notifySesiDibuka(sesi: Sesi): Promise<boolean> {
   if (!isFirebaseConfigured) return true;
   try {
-    const tokens = await tokenPraktikanKelas(sesi.kelas);
+    const tokens = await tokenPraktikanLab(sesi.labId);
     return await kirim(tokens, {
       title: 'Sesi presensi dibuka',
       body: `${sesi.namaPraktikum} (${sesi.kelas}) di ${sesi.lab} sudah dibuka. Segera lakukan presensi.`,
@@ -114,7 +122,7 @@ export async function notifySesiDibuka(sesi: Sesi): Promise<boolean> {
 export async function notifyJadwalBerubah(sesi: Sesi): Promise<boolean> {
   if (!isFirebaseConfigured) return true;
   try {
-    const tokens = await tokenPraktikanKelas(sesi.kelas);
+    const tokens = await tokenPraktikanLab(sesi.labId);
     return await kirim(tokens, {
       title: 'Jadwal praktikum berubah',
       body: `${sesi.namaPraktikum} (${sesi.kelas}): ${sesi.tanggal}, ${sesi.jamMulai}–${sesi.jamSelesai} di ${sesi.lab}.`,

@@ -83,6 +83,8 @@ export type Izin = {
   reviewedAt?: string;
   reviewedBy?: string;
   sentimenAi?: string;
+  /** true bila klasifikasi dibuat oleh fallback lokal (layanan AI tidak tersedia). */
+  aiFallback?: boolean;
 };
 
 export type Lab = {
