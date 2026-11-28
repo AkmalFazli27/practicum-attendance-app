@@ -1,44 +1,166 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Lock,
+  MapPin,
+  Pencil,
+  Play,
+  Trash2,
+  Users,
+} from 'lucide-react-native';
 
+import { BadgeKehadiran } from '@/components/asisten/BadgeKehadiran';
+import { formatJarak } from '@/components/asisten/formatJarak';
+import { IzinPanel } from '@/components/asisten/IzinPanel';
+import { QrPresensi } from '@/components/asisten/QrPresensi';
+import { hitungPresensiSesi } from '@/components/asisten/ringkasanPresensi';
 import { SesiFormSheet } from '@/components/asisten/SesiFormSheet';
-import { SinkronGuard } from '@/components/asisten/SyncState';
+import { ErrorBlock, LoadingBlock } from '@/components/asisten/SyncState';
 import { useAksiSesi } from '@/components/asisten/useAksiSesi';
 import { useSesiAsprak } from '@/components/asisten/useSesiAsprak';
 import { useStatusSesi } from '@/components/asisten/useStatusSesi';
-import { EmptyState, SessionCard, Tombol } from '@/components/ui';
+import {
+  ConfirmSheet,
+  EmptyState,
+  StatusBadge,
+  Tombol,
+  useToast,
+} from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
-import { type Sesi } from '@/data/dummy';
-import { colors, layout, spacing, type } from '@/theme/tokens';
+import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/tokens';
+import { formatJam, formatTanggalSingkat, titikJam } from '@/utils/format';
 
-export default function SesiAsistenScreen() {
+export default function DetailSesiScreen() {
   const router = useRouter();
-  const { currentUser, getKehadiranSesi, getIzinSesi } = useSession();
-  const { sesiSaya } = useSesiAsprak();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const {
+    currentUser,
+    users,
+    sesi,
+    kehadiran,
+    izin,
+    keanggotaanLab,
+    getKehadiranSesi,
+    deleteSession,
+    loading,
+    error,
+    retrySync,
+  } = useSession();
+  const { bolehKelola } = useSesiAsprak();
   const { themeColors, language } = usePreferences();
   const isEn = language === 'en';
+  const { showToast } = useToast();
   const { mulai, sheet } = useAksiSesi();
   const { statusEfektif, aksiUtama } = useStatusSesi();
 
-  const [formVisible, setFormVisible] = useState(false);
-  const [sesiDiedit, setSesiDiedit] = useState<Sesi | null>(null);
+  const [editVisible, setEditVisible] = useState(false);
+  const [hapusVisible, setHapusVisible] = useState(false);
+  const [menghapus, setMenghapus] = useState(false);
+
+  const s = sesi.find((item) => item.id === id);
+
+  const petaUser = useMemo(
+    () => new Map(users.map((u) => [u.id, u])),
+    [users],
+  );
 
   if (!currentUser) return null;
 
-  const bukaDetail = (id: string) =>
-    router.push({ pathname: '/(asisten)/sesi/[id]', params: { id } } as any);
+  if (!s) {
+    if (loading) {
+      return (
+        <View style={[styles.root, { backgroundColor: themeColors.background }]}>
+          <LoadingBlock
+            pesan={isEn ? 'Loading session...' : 'Memuat detail sesi...'}
+          />
+        </View>
+      );
+    }
+    if (error) {
+      return (
+        <View style={[styles.root, { backgroundColor: themeColors.background }]}>
+          <ErrorBlock pesan={error} onRetry={retrySync} />
+        </View>
+      );
+    }
+    return (
+      <View style={[styles.root, styles.centerPad, { backgroundColor: themeColors.background }]}>
+        <EmptyState
+          judul={isEn ? 'Session not found' : 'Sesi tidak ditemukan'}
+          pesan={
+            isEn
+              ? 'The session may have been deleted or belongs to another lab.'
+              : 'Sesi mungkin sudah dihapus atau berasal dari lab lain.'
+          }
+          aksi={{
+            label: isEn ? 'Back' : 'Kembali',
+            onPress: () => router.back(),
+          }}
+        />
+      </View>
+    );
+  }
 
-  const bukaTambah = () => {
-    setSesiDiedit(null);
-    setFormVisible(true);
-  };
+  if (!bolehKelola(s)) {
+    return (
+      <View style={[styles.root, styles.centerPad, { backgroundColor: themeColors.background }]}>
+        <EmptyState
+          judul={isEn ? 'Access denied' : 'Akses dibatasi'}
+          pesan={
+            isEn
+              ? 'You are not registered as an assistant for this lab.'
+              : 'Kamu tidak terdaftar sebagai asisten pada laboratorium sesi ini.'
+          }
+          aksi={{
+            label: isEn ? 'Back' : 'Kembali',
+            onPress: () => router.back(),
+          }}
+        />
+      </View>
+    );
+  }
 
-  const bukaEdit = (item: Sesi) => {
-    setSesiDiedit(item);
-    setFormVisible(true);
+  const status = statusEfektif(s);
+  const aksi = aksiUtama(s);
+  const sesiSelesai = status === 'SELESAI';
+  const daftarHadir = getKehadiranSesi(s.id)
+    .slice()
+    .sort((a, b) => a.waktuHadir.localeCompare(b.waktuHadir));
+  const ringkasan = hitungPresensiSesi({
+    sesi: s,
+    users,
+    kehadiran,
+    izin,
+    keanggotaanLab,
+  });
+
+  const konfirmasiHapus = async () => {
+    if (menghapus) return;
+    setMenghapus(true);
+    const berhasil = await deleteSession(s.id);
+    setMenghapus(false);
+    setHapusVisible(false);
+
+    if (berhasil) {
+      showToast(
+        isEn
+          ? 'Session deleted successfully.'
+          : 'Sesi praktikum berhasil dihapus.',
+      );
+      router.back();
+      return;
+    }
+
+    showToast(
+      isEn
+        ? 'Failed to delete session. Please try again.'
+        : 'Gagal menghapus sesi. Silakan coba lagi.',
+    );
   };
 
   return (
@@ -47,120 +169,311 @@ export default function SesiAsistenScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Page Title + Tombol Tambah Sesi */}
-        <View style={styles.headerRow}>
-          <View style={styles.pageTitle}>
+        {/* Tombol Kembali */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isEn ? 'Back' : 'Kembali'}
+          onPress={() => router.back()}
+          style={({ pressed }) => [
+            styles.backBtn,
+            pressed && { backgroundColor: themeColors.surfaceMuted },
+          ]}
+        >
+          <ArrowLeft size={18} color={themeColors.textPrimary} />
+          <Text style={[styles.backText, { color: themeColors.textPrimary }]}>
+            {isEn ? 'Back' : 'Kembali'}
+          </Text>
+        </Pressable>
+
+        {/* Kartu Info Utama Sesi */}
+        <View
+          style={[
+            styles.heroCard,
+            {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
+          <View style={styles.heroTop}>
             <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-              {isEn ? 'MANAGE' : 'KELOLA'}
+              {s.kelas} · {s.lab}
             </Text>
-            <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
-              {isEn ? 'Practicum sessions' : 'Sesi praktikum'}
-            </Text>
-            <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
-              {isEn
-                ? 'Open, close, edit, and monitor every session.'
-                : 'Buka, tutup, ubah, dan pantau setiap sesi.'}
-            </Text>
+            <StatusBadge status={status} />
           </View>
-          <Tombol
-            variant="primer"
-            icon={<Plus size={18} color={themeColors.onPrimary} />}
-            onPress={bukaTambah}
-            style={styles.addBtn}
-          >
-            {isEn ? 'Add' : 'Tambah'}
-          </Tombol>
+
+          <Text style={[styles.title, { color: themeColors.textPrimary }]}>
+            {s.namaPraktikum}
+          </Text>
+
+          {s.topik ? (
+            <Text style={[styles.topic, { color: themeColors.textSecondary }]}>
+              {s.topik}
+            </Text>
+          ) : null}
+
+          <View style={[styles.metaList, { borderTopColor: themeColors.border }]}>
+            <View style={styles.metaRow}>
+              <Calendar size={15} color={themeColors.textMuted} />
+              <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>
+                {formatTanggalSingkat(s.tanggal)}
+              </Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Clock size={15} color={themeColors.textMuted} />
+              <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>
+                {titikJam(s.jamMulai)}–{titikJam(s.jamSelesai)} WIB
+              </Text>
+            </View>
+            <View style={styles.metaRow}>
+              <MapPin size={15} color={themeColors.textMuted} />
+              <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>
+                {s.lab} · {s.kelas}
+              </Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Users size={15} color={themeColors.textMuted} />
+              <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>
+                {daftarHadir.length}/{s.kapasitas ?? 32}{' '}
+                {isEn ? 'students attended' : 'praktikan hadir'}
+              </Text>
+            </View>
+          </View>
+
+          {s.deskripsi ? (
+            <Text style={[styles.desc, { color: themeColors.textSecondary }]}>
+              {s.deskripsi}
+            </Text>
+          ) : null}
+
+          {/* Aksi Utama Sesi */}
+          <View style={styles.primaryActions}>
+            {aksi.jenis === 'buka' && (
+              <>
+                <Tombol
+                  variant="primer"
+                  disabled={!aksi.aktif}
+                  icon={<Play size={16} color={themeColors.onPrimary} />}
+                  onPress={() => mulai(s.id, 'buka')}
+                >
+                  {isEn ? 'Open session' : 'Buka sesi'}
+                </Tombol>
+                {!aksi.aktif && aksi.keterangan ? (
+                  <Text style={[styles.actionHint, { color: themeColors.textMuted }]}>
+                    {aksi.keterangan}
+                  </Text>
+                ) : null}
+              </>
+            )}
+
+            {aksi.jenis === 'tutup' && (
+              <Tombol
+                variant="danger"
+                icon={<Lock size={16} color={themeColors.errorFg} />}
+                onPress={() => mulai(s.id, 'tutup')}
+              >
+                {isEn ? 'Close session' : 'Tutup sesi'}
+              </Tombol>
+            )}
+
+            <View style={styles.secondaryRow}>
+              {!sesiSelesai && (
+                <Tombol
+                  variant="sekunder"
+                  icon={<Pencil size={15} color={themeColors.textPrimary} />}
+                  onPress={() => setEditVisible(true)}
+                  style={styles.flexBtn}
+                >
+                  {isEn ? 'Edit' : 'Ubah'}
+                </Tombol>
+              )}
+              <Tombol
+                variant="sekunder"
+                icon={<Trash2 size={15} color={themeColors.errorFg} />}
+                onPress={() => setHapusVisible(true)}
+                style={styles.flexBtn}
+              >
+                {isEn ? 'Delete' : 'Hapus'}
+              </Tombol>
+            </View>
+          </View>
         </View>
 
-        <SinkronGuard adaData={sesiSaya.length > 0}>
-          {sesiSaya.length === 0 ? (
-            <EmptyState
-              judul={isEn ? 'No sessions yet' : 'Belum ada sesi'}
-              pesan={
-                isEn
-                  ? 'Sessions you manage will appear here.'
-                  : 'Sesi yang kamu kelola akan tampil di sini.'
-              }
-              aksi={{
-                label: isEn ? 'Add New Session' : 'Tambah Sesi Baru',
-                onPress: bukaTambah,
-              }}
-            />
+        {/* QR & Kode Presensi saat sesi sedang dibuka */}
+        {status === 'DIBUKA' && <QrPresensi sesi={s} />}
+
+        {/* Ringkasan Kehadiran Real-time */}
+        <View
+          style={[
+            styles.panel,
+            {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+            {isEn ? 'ATTENDANCE SUMMARY' : 'RINGKASAN PRESENSI'}
+          </Text>
+          <Text style={[styles.panelTitle, { color: themeColors.textPrimary }]}>
+            {isEn
+              ? `Present (${daftarHadir.length}/${s.kapasitas ?? 32})`
+              : `Daftar hadir (${daftarHadir.length}/${s.kapasitas ?? 32})`}
+          </Text>
+
+          <View style={styles.statGrid}>
+            <View
+              style={[
+                styles.statBox,
+                {
+                  backgroundColor: themeColors.background,
+                  borderColor: themeColors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.statVal, { color: themeColors.kehadiranTepatWaktuFg }]}>
+                {ringkasan.tepatWaktu}
+              </Text>
+              <Text style={[styles.statLbl, { color: themeColors.textMuted }]}>
+                {isEn ? 'On time' : 'Tepat waktu'}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.statBox,
+                {
+                  backgroundColor: themeColors.background,
+                  borderColor: themeColors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.statVal, { color: themeColors.kehadiranTerlambatFg }]}>
+                {ringkasan.terlambat}
+              </Text>
+              <Text style={[styles.statLbl, { color: themeColors.textMuted }]}>
+                {isEn ? 'Late' : 'Terlambat'}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.statBox,
+                {
+                  backgroundColor: themeColors.background,
+                  borderColor: themeColors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.statVal, { color: themeColors.textPrimary }]}>
+                {ringkasan.izin}
+              </Text>
+              <Text style={[styles.statLbl, { color: themeColors.textMuted }]}>
+                {isEn ? 'Excused' : 'Izin'}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.statBox,
+                {
+                  backgroundColor: themeColors.background,
+                  borderColor: themeColors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.statVal, { color: themeColors.textPrimary }]}>
+                {ringkasan.belumHadir}
+              </Text>
+              <Text style={[styles.statLbl, { color: themeColors.textMuted }]}>
+                {isEn ? 'Absent' : 'Belum hadir'}
+              </Text>
+            </View>
+          </View>
+
+          {daftarHadir.length === 0 ? (
+            <Text
+              style={[
+                styles.emptyText,
+                {
+                  borderTopColor: themeColors.border,
+                  color: themeColors.textMuted,
+                },
+              ]}
+            >
+              {isEn
+                ? 'No students have checked in for this session yet.'
+                : 'Belum ada praktikan yang melakukan presensi pada sesi ini.'}
+            </Text>
           ) : (
-            <View style={styles.list}>
-              {sesiSaya.map((s) => {
-                const hadir = getKehadiranSesi(s.id).length;
-                const pendingIzin = getIzinSesi(s.id).filter(
-                  (iz) => iz.status === 'MENUNGGU',
-                ).length;
-
-                const aksi = aksiUtama(s);
-                const sesiSelesai = statusEfektif(s) === 'SELESAI';
-
+            <View style={styles.attendeeList}>
+              {daftarHadir.map((k) => {
+                const user = petaUser.get(k.praktikanId);
+                const nama = k.namaPraktikan || user?.nama || 'Praktikan';
+                const nim = k.nimPraktikan || user?.nim || '-';
                 return (
-                  <View key={s.id} style={styles.cardGroup}>
-                    <SessionCard
-                      session={{ ...s, status: statusEfektif(s) }}
-                      assistant
-                      attendance={hadir}
-                      attendanceTotal={s.kapasitas ?? 32}
-                      pendingIzinCount={pendingIzin}
-                      onPress={() => bukaDetail(s.id)}
-                    />
-                    <View style={styles.quickActions}>
-                      {aksi.jenis === 'buka' && !aksi.aktif && (
-                        <Text style={styles.hint}>{aksi.keterangan}</Text>
-                      )}
-                      {aksi.jenis === 'buka' && (
-                        <Tombol
-                          variant="sekunder"
-                          style={styles.smallBtn}
-                          disabled={!aksi.aktif}
-                          onPress={() => mulai(s.id, 'buka')}
-                        >
-                          {isEn ? 'Open' : 'Buka'}
-                        </Tombol>
-                      )}
-                      {aksi.jenis === 'tutup' && (
-                        <Tombol
-                          variant="danger"
-                          style={styles.smallBtn}
-                          onPress={() => mulai(s.id, 'tutup')}
-                        >
-                          {isEn ? 'Close' : 'Tutup'}
-                        </Tombol>
-                      )}
-                      {!sesiSelesai && (
-                        <Tombol
-                          variant="sekunder"
-                          style={styles.smallBtn}
-                          onPress={() => bukaEdit(s)}
-                        >
-                          {isEn ? 'Edit' : 'Ubah'}
-                        </Tombol>
-                      )}
-                      <Tombol
-                        variant="sekunder"
-                        style={styles.smallBtn}
-                        onPress={() => bukaDetail(s.id)}
+                  <View
+                    key={k.id}
+                    style={[
+                      styles.attendeeRow,
+                      { borderTopColor: themeColors.border },
+                    ]}
+                  >
+                    <View style={styles.attendeeInfo}>
+                      <Text
+                        style={[
+                          styles.attendeeName,
+                          { color: themeColors.textPrimary },
+                        ]}
+                        numberOfLines={1}
                       >
-                        Detail
-                      </Tombol>
+                        {nama}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.attendeeMeta,
+                          { color: themeColors.textMuted },
+                        ]}
+                      >
+                        {nim} · {titikJam(formatJam(k.waktuHadir))}
+                        {k.jarak !== undefined ? ` · ${formatJarak(k.jarak)}` : ''}
+                      </Text>
                     </View>
+                    <BadgeKehadiran
+                      status={k.statusKehadiran ?? 'TEPAT_WAKTU'}
+                      menit={k.menitTerlambat}
+                    />
                   </View>
                 );
               })}
             </View>
           )}
-        </SinkronGuard>
+        </View>
+
+        {/* Panel Izin & AI */}
+        <IzinPanel sesiId={s.id} />
       </ScrollView>
 
       {sheet}
 
       <SesiFormSheet
-        visible={formVisible}
-        initialSesi={sesiDiedit}
-        onClose={() => setFormVisible(false)}
+        visible={editVisible}
+        initialSesi={s}
+        onClose={() => setEditVisible(false)}
+      />
+
+      <ConfirmSheet
+        visible={hapusVisible}
+        title={isEn ? 'Delete this session?' : 'Hapus sesi ini?'}
+        body={
+          isEn
+            ? 'Session data will be permanently removed.'
+            : 'Data sesi praktikum akan dihapus permanen.'
+        }
+        danger
+        loading={menghapus}
+        confirmLabel={isEn ? 'Yes, delete' : 'Ya, hapus'}
+        onConfirm={konfirmasiHapus}
+        onClose={() => {
+          if (!menghapus) setHapusVisible(false);
+        }}
       />
     </View>
   );
@@ -171,59 +484,146 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  centerPad: {
+    justifyContent: 'center',
+    padding: layout.screenPadding,
+  },
   content: {
     paddingHorizontal: layout.screenPadding,
     paddingTop: spacing.s5,
-    paddingBottom: layout.tabContentBottomPadding,
-    gap: spacing.s5,
+    paddingBottom: spacing.s8,
   },
-  headerRow: {
+  backBtn: {
+    alignSelf: 'flex-start',
+    minHeight: 40,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.s3,
+    alignItems: 'center',
+    gap: spacing.s2,
+    paddingRight: spacing.s3,
+    marginBottom: spacing.s3,
+    borderRadius: 12,
   },
-  pageTitle: {
-    flex: 1,
+  backText: {
+    ...type.caption,
+    fontFamily: fontFamily.bold,
+  },
+  heroCard: {
+    padding: spacing.s4,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    gap: spacing.s2,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.s2,
   },
   kicker: {
     ...type.micro,
-    color: colors.textMuted,
-    letterSpacing: 1.15,
-    marginBottom: 6,
+    letterSpacing: 1.1,
   },
-  h1: {
+  title: {
     ...type.h1,
-    color: colors.textPrimary,
   },
-  sub: {
-    ...type.caption,
-    color: colors.textSecondary,
-    marginTop: 6,
+  topic: {
+    ...type.body,
   },
-  addBtn: {
-    minHeight: 42,
-    paddingHorizontal: spacing.s4,
-  },
-  list: {
-    gap: spacing.s4,
-  },
-  cardGroup: {
+  metaList: {
+    marginTop: spacing.s2,
+    paddingTop: spacing.s3,
+    borderTopWidth: 1,
     gap: spacing.s2,
   },
-  quickActions: {
+  metaRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
     gap: spacing.s2,
   },
-  hint: {
-    ...type.micro,
-    color: colors.textMuted,
-    flex: 1,
-    alignSelf: 'center',
+  metaText: {
+    ...type.caption,
   },
-  smallBtn: {
-    minHeight: 40,
-    paddingHorizontal: spacing.s4,
+  desc: {
+    ...type.caption,
+    lineHeight: 18,
+    marginTop: spacing.s1,
+  },
+  primaryActions: {
+    marginTop: spacing.s3,
+    gap: spacing.s2,
+  },
+  actionHint: {
+    ...type.micro,
+    textAlign: 'center',
+  },
+  secondaryRow: {
+    flexDirection: 'row',
+    gap: spacing.s2,
+  },
+  flexBtn: {
+    flex: 1,
+  },
+  panel: {
+    marginTop: spacing.s4,
+    padding: spacing.s4,
+    borderRadius: radius.card,
+    borderWidth: 1,
+  },
+  panelTitle: {
+    ...type.bodyStrong,
+    fontFamily: fontFamily.bold,
+    marginTop: 2,
+    marginBottom: spacing.s3,
+  },
+  statGrid: {
+    flexDirection: 'row',
+    gap: spacing.s2,
+    marginBottom: spacing.s3,
+  },
+  statBox: {
+    flex: 1,
+    paddingVertical: spacing.s2 + 2,
+    paddingHorizontal: spacing.s2,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  statVal: {
+    fontSize: 16,
+    fontFamily: fontFamily.extrabold,
+  },
+  statLbl: {
+    fontSize: 10,
+    fontFamily: fontFamily.medium,
+    textAlign: 'center',
+  },
+  emptyText: {
+    borderTopWidth: 1,
+    paddingTop: spacing.s3,
+    ...type.caption,
+  },
+  attendeeList: {
+    marginTop: spacing.s1,
+  },
+  attendeeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.s2,
+    borderTopWidth: 1,
+    paddingVertical: spacing.s2 + 2,
+  },
+  attendeeInfo: {
+    flex: 1,
+  },
+  attendeeName: {
+    ...type.caption,
+    fontFamily: fontFamily.bold,
+  },
+  attendeeMeta: {
+    fontSize: 10,
+    fontFamily: fontFamily.medium,
+    marginTop: 2,
   },
 });
