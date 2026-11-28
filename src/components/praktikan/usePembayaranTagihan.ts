@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Linking } from 'react-native';
+import { AppState } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 
 import { useToast } from '@/components/ui';
 import { isFirebaseConfigured } from '@/config/firebase';
@@ -7,24 +8,12 @@ import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 
 import { pesanAlasanPembayaran } from './pesanPembayaran';
-import type { PembayaranLokal } from './tagihanStub';
+
+const URL_STUB_PEMBAYARAN = 'https://example.com/midtrans-stub';
 
 type HasilMulaiPembayaran =
   | { ok: true; redirectUrl: string; orderId: string }
   | { ok: false; alasan: string };
-
-/**
- * Bridge sementara ke kontrak PM yang belum merge.
- * TODO(sprint4): hapus kontrak lokal ini setelah `mulaiPembayaran`,
- * `sinkronPembayaran`, dan `pembayaran` resmi tersedia di SessionContext.
- */
-type KontrakPembayaran = {
-  mulaiPembayaran?: (tagihanId: string) => Promise<HasilMulaiPembayaran>;
-  sinkronPembayaran?: (orderId: string) => Promise<unknown>;
-  pembayaran?: PembayaranLokal[];
-};
-
-const URL_STUB_PEMBAYARAN = 'https://example.com/midtrans-stub';
 
 /**
  * Adapter demo khusus mode dummy (tanpa Firebase).
@@ -40,8 +29,7 @@ async function mulaiPembayaranDemo(): Promise<HasilMulaiPembayaran> {
 }
 
 export function usePembayaranTagihan() {
-  const session = useSession() as ReturnType<typeof useSession> &
-    KontrakPembayaran;
+  const { mulaiPembayaran, sinkronPembayaran } = useSession();
   const { language } = usePreferences();
   const { showToast } = useToast();
   const isEn = language === 'en';
@@ -55,10 +43,6 @@ export function usePembayaranTagihan() {
   const orderMenunggu = useRef<string | null>(null);
 
   const modeDemo = !isFirebaseConfigured;
-  const punyaKontrak = Boolean(
-    session.mulaiPembayaran && session.sinkronPembayaran,
-  );
-  const tersedia = punyaKontrak || modeDemo;
 
   const clearGalat = useCallback(() => setGalat(null), []);
 
@@ -73,12 +57,7 @@ export function usePembayaranTagihan() {
 
   const sinkron = useCallback(
     async (orderId: string): Promise<boolean> => {
-      const sinkronPembayaran = session.sinkronPembayaran;
-      if (!sinkronPembayaran) {
-        if (modeDemo) return true;
-        tampilkanGalat('PEMBAYARAN_BELUM_TERSEDIA');
-        return false;
-      }
+      if (modeDemo) return true;
 
       try {
         await sinkronPembayaran(orderId);
@@ -88,27 +67,21 @@ export function usePembayaranTagihan() {
         return false;
       }
     },
-    [modeDemo, session.sinkronPembayaran, tampilkanGalat],
+    [modeDemo, sinkronPembayaran, tampilkanGalat],
   );
 
   const bayar = useCallback(
     async (tagihanId: string) => {
       if (memprosesRef.current) return;
 
-      const mulaiPembayaran = session.mulaiPembayaran;
-      if (!mulaiPembayaran && !modeDemo) {
-        tampilkanGalat('PEMBAYARAN_BELUM_TERSEDIA');
-        return;
-      }
-
       setGalat(null);
       memprosesRef.current = true;
       setMemproses(true);
 
       try {
-        const hasil = mulaiPembayaran
-          ? await mulaiPembayaran(tagihanId)
-          : await mulaiPembayaranDemo();
+        const hasil = modeDemo
+          ? await mulaiPembayaranDemo()
+          : await mulaiPembayaran(tagihanId);
 
         if (!hasil.ok) {
           tampilkanGalat(hasil.alasan);
@@ -126,7 +99,16 @@ export function usePembayaranTagihan() {
         }
 
         try {
-          await Linking.openURL(hasil.redirectUrl);
+          const hasilBrowser = await WebBrowser.openBrowserAsync(
+            hasil.redirectUrl,
+          );
+          // Android me-resolve saat browser dibuka ('opened'); iOS saat ditutup.
+          // Untuk iOS, sinkronkan langsung karena AppState tidak berubah.
+          if (hasilBrowser.type !== 'opened') {
+            const orderId = orderMenunggu.current;
+            orderMenunggu.current = null;
+            if (orderId) await sinkron(orderId);
+          }
         } catch {
           orderMenunggu.current = null;
           tampilkanGalat('JARINGAN');
@@ -138,13 +120,7 @@ export function usePembayaranTagihan() {
         setMemproses(false);
       }
     },
-    [
-      isEn,
-      modeDemo,
-      session.mulaiPembayaran,
-      showToast,
-      tampilkanGalat,
-    ],
+    [isEn, modeDemo, mulaiPembayaran, showToast, sinkron, tampilkanGalat],
   );
 
   const cekStatus = useCallback(
@@ -162,7 +138,7 @@ export function usePembayaranTagihan() {
         if (modeDemo) {
           showToast(
             isEn
-              ? 'Demo mode: status comes from Firestore in the real build.'
+              ? 'Demo mode: status only changes through Firestore.'
               : 'Mode demo: status asli hanya berubah lewat Firestore.',
           );
           return;
@@ -179,8 +155,8 @@ export function usePembayaranTagihan() {
     [isEn, modeDemo, showToast, sinkron],
   );
 
-  // Saat pengguna kembali dari browser pembayaran, minta backend
-  // menyinkronkan order yang sedang menunggu.
+  // Android: browser Custom Tab membuka activity lain, jadi AppState berubah.
+  // Saat pengguna kembali, minta backend menyinkronkan order yang menunggu.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
@@ -199,6 +175,5 @@ export function usePembayaranTagihan() {
     memeriksa,
     galat,
     clearGalat,
-    tersedia,
   };
 }

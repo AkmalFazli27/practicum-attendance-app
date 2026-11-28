@@ -32,6 +32,10 @@ export function pesanAlasanPembayaran(alasan: string, isEn: boolean): string {
       return isEn
         ? 'Payment is not available in this build yet.'
         : 'Pembayaran belum tersedia di build ini.';
+    case 'BELUM_TERSEDIA':
+      return isEn
+        ? 'Payment is not available yet. The backend is still being prepared.'
+        : 'Pembayaran belum tersedia. Backend masih disiapkan.';
     default:
       return isEn
         ? 'Failed to create the payment transaction.'
