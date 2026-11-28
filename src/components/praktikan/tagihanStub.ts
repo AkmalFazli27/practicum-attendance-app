@@ -1,41 +1,12 @@
 /**
- * Tipe dan data stub sementara untuk Task 2.
- * TODO(sprint4): hapus tipe lokal ini setelah tipe resmi PM tersedia.
+ * Data contoh untuk mode dummy (tanpa Firebase).
+ * Tipe mengikuti kontrak resmi `src/data/dummy.ts`.
+ * TODO(sprint4): hapus file ini setelah seed tagihan resmi tersedia.
  */
 
-export type StatusTagihanLokal =
-  | 'UNPAID'
-  | 'PENDING'
-  | 'PAID'
-  | 'FAILED'
-  | 'DIBEBASKAN';
+import type { Pembayaran, Tagihan } from '@/data/dummy';
 
-export type TagihanLokal = {
-  id: string;
-  praktikanId: string;
-  sesiId: string;
-  labId: string;
-  kehadiranId: string;
-  nominal: number;
-  menitTerlambat: number;
-  status: StatusTagihanLokal;
-  dibuatPada: string;
-  dibayarPada?: string;
-};
-
-export type PembayaranLokal = {
-  id: string;
-  tagihanId: string;
-  praktikanId: string;
-  nominal: number;
-  status: 'pending' | 'success' | 'failed';
-  statusMidtrans: string;
-  metode?: string;
-  dibuatPada: string;
-  diperbaruiPada: string;
-};
-
-export const TAGIHAN_STUB: TagihanLokal[] = [
+export const TAGIHAN_STUB: Tagihan[] = [
   {
     id: 'tagihan-ses-1-p1',
     praktikanId: 'p1',
@@ -94,7 +65,7 @@ export const TAGIHAN_STUB: TagihanLokal[] = [
   },
 ];
 
-export const PEMBAYARAN_STUB: PembayaranLokal[] = [
+export const PEMBAYARAN_STUB: Pembayaran[] = [
   {
     id: 'order-ses-1-p1',
     tagihanId: 'tagihan-ses-1-p1',

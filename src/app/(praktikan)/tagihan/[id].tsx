@@ -4,14 +4,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Clock3, MapPin, ReceiptText } from 'lucide-react-native';
 
-import { EmptyState, StatusPembayaranBadge } from '@/components/ui';
+import { EmptyState, StatusPembayaranBadge, Tombol } from '@/components/ui';
+import { BannerGalat } from '@/components/praktikan/BannerGalat';
 import {
   formatRupiah,
   formatTanggalTagihan,
 } from '@/components/praktikan/formatTagihan';
+import { usePembayaranTagihan } from '@/components/praktikan/usePembayaranTagihan';
 import { useTagihanPraktikan } from '@/components/praktikan/useTagihanPraktikan';
 import { usePreferences } from '@/context/PreferencesContext';
 import {
+  fontFamily,
   layout,
   radius,
   shadows,
@@ -28,6 +31,8 @@ export default function DetailTagihanScreen() {
   const isEn = language === 'en';
   const { daftar, pembayaran, kehadiran, loading, error, retrySync } =
     useTagihanPraktikan();
+  const { bayar, cekStatus, memproses, memeriksa, galat, clearGalat } =
+    usePembayaranTagihan();
 
   const item = daftar.find((x) => x.tagihan.id === id);
   const kehadiranItem = item
@@ -42,6 +47,10 @@ export default function DetailTagihanScreen() {
             new Date(a.dibuatPada).getTime(),
         )
     : [];
+  const orderPending = transaksi.find((p) => p.status === 'pending')?.id;
+  const statusTagihan = item?.tagihan.status;
+  const bisaBayarSekarang =
+    statusTagihan === 'UNPAID' || statusTagihan === 'FAILED';
 
   const penjelasanStatus = (status: string): string => {
     switch (status) {
@@ -112,6 +121,10 @@ export default function DetailTagihanScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {galat ? (
+          <BannerGalat pesan={galat} onTutup={clearGalat} />
+        ) : null}
+
         {error ? (
           <EmptyState
             judul={isEn ? 'Failed to load bill' : 'Gagal memuat tagihan'}
@@ -349,6 +362,131 @@ export default function DetailTagihanScreen() {
               )}
             </View>
 
+            {item.tagihan.status === 'PENDING' ? (
+              <View
+                style={[
+                  styles.footerCard,
+                  {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.footerNote,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  {isEn
+                    ? 'Payment is being processed. Do not create a new transaction.'
+                    : 'Pembayaran sedang diproses. Jangan membuat transaksi baru.'}
+                </Text>
+                {orderPending ? (
+                  <Tombol
+                    variant="sekunder"
+                    loading={memeriksa}
+                    onPress={() => cekStatus(orderPending)}
+                  >
+                    {isEn ? 'Check status' : 'Cek status'}
+                  </Tombol>
+                ) : null}
+              </View>
+            ) : statusTagihan === 'PAID' ? (
+              <View
+                style={[
+                  styles.footerCard,
+                  {
+                    backgroundColor: themeColors.pembayaranSuccessBg,
+                    borderColor: themeColors.pembayaranSuccessFg,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.footerTitle,
+                    { color: themeColors.pembayaranSuccessFg },
+                  ]}
+                >
+                  {isEn ? 'Payment successful' : 'Pembayaran berhasil'}
+                </Text>
+                {item.tagihan.dibayarPada ? (
+                  <Text
+                    style={[
+                      styles.footerNote,
+                      { color: themeColors.pembayaranSuccessFg },
+                    ]}
+                  >
+                    {formatTanggalTagihan(item.tagihan.dibayarPada, isEn)} ·{' '}
+                    {formatJam(item.tagihan.dibayarPada)}
+                  </Text>
+                ) : null}
+              </View>
+            ) : statusTagihan === 'DIBEBASKAN' ? (
+              <View
+                style={[
+                  styles.footerCard,
+                  {
+                    backgroundColor: themeColors.pembayaranDibebaskanBg,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.footerTitle,
+                    { color: themeColors.pembayaranDibebaskanFg },
+                  ]}
+                >
+                  {isEn ? 'Waived' : 'Dibebaskan'}
+                </Text>
+                <Text
+                  style={[
+                    styles.footerNote,
+                    { color: themeColors.pembayaranDibebaskanFg },
+                  ]}
+                >
+                  {isEn
+                    ? 'This bill was waived because your leave was accepted.'
+                    : 'Tagihan ini dibebaskan karena izinmu diterima.'}
+                </Text>
+              </View>
+            ) : bisaBayarSekarang ? (
+              <View
+                style={[
+                  styles.footerCard,
+                  {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.footerNote,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  {isEn
+                    ? 'Payment is verified by the server. Your bill status updates automatically.'
+                    : 'Pembayaran diverifikasi server. Status tagihan diperbarui otomatis.'}
+                </Text>
+                <Tombol
+                  variant="primer"
+                  loading={memproses}
+                  onPress={() => bayar(item.tagihan.id)}
+                >
+                  {statusTagihan === 'FAILED'
+                    ? isEn
+                      ? 'Retry payment'
+                      : 'Bayar ulang'
+                    : isEn
+                      ? 'Pay now'
+                      : 'Bayar sekarang'}
+                </Tombol>
+              </View>
+            ) : null}
+
             <Text style={[styles.meta, { color: themeColors.textMuted }]}>
               {isEn ? 'Recorded' : 'Dicatat'}{' '}
               {formatTanggalTagihan(item.tagihan.dibuatPada, isEn)} ·{' '}
@@ -471,6 +609,19 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   emptyTransaction: {
+    ...type.caption,
+  },
+  footerCard: {
+    padding: spacing.s4,
+    borderRadius: radius.cardLg,
+    borderWidth: 1,
+    gap: spacing.s2,
+  },
+  footerTitle: {
+    ...type.bodyStrong,
+    fontFamily: fontFamily.bold,
+  },
+  footerNote: {
     ...type.caption,
   },
   meta: {
