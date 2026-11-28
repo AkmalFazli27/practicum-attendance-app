@@ -14,6 +14,9 @@ const keMs = (tanggal: string, jam: string) =>
 export const waktuSelesaiMs = (s: Jadwal): number =>
   keMs(s.tanggal, s.jamSelesai);
 
+export const waktuMulaiMs = (s: Jadwal): number =>
+  keMs(s.tanggal, s.jamMulai);
+
 export const sudahMulai = (s: Jadwal, now = Date.now()) =>
   now >= keMs(s.tanggal, s.jamMulai);
 
