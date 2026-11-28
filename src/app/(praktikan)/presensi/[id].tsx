@@ -11,6 +11,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -18,11 +19,13 @@ import {
   KeyRound,
   MapPin,
   QrCode,
+  ReceiptText,
   ShieldCheck,
   Users,
   XCircle,
 } from 'lucide-react-native';
 
+import { formatRupiah } from '@/components/praktikan/formatTagihan';
 import {
   EmptyState,
   LokasiStatusCard,
@@ -54,6 +57,10 @@ import { hitungJarak, koordinatValid } from '@/utils/geo';
 import { cekValiditasQr, sudahLewat, sudahMulai } from '@/utils/statusSesi';
 
 const TICK_WAKTU_MS = 5_000;
+
+function sekarangMs(): number {
+  return Date.now();
+}
 
 function terjemahkanAlasanTolak(
   alasan: AlasanTolak,
@@ -193,6 +200,7 @@ export default function HalamanPresensiPraktikan() {
   const {
     currentUser,
     labs,
+    tagihan,
     getSesiById,
     getStatusEfektif,
     sudahPresensi,
@@ -211,22 +219,28 @@ export default function HalamanPresensiPraktikan() {
     coba: muatUlangLokasi,
   } = useLocation();
 
-  const [kodeInput, setKodeInput] = useState<string>(() =>
-    (qrToken ?? '').trim().toUpperCase(),
-  );
+  const [kodeOverride, setKodeOverride] = useState<{
+    token?: string;
+    value: string;
+  } | null>(null);
+  const kodeInput =
+    kodeOverride && kodeOverride.token === qrToken
+      ? kodeOverride.value
+      : (qrToken ?? '').trim().toUpperCase();
+  const setKodeInput = (value: string) =>
+    setKodeOverride({ token: qrToken, value });
   const [memproses, setMemproses] = useState(false);
+  const [hasilTerakhir, setHasilTerakhir] = useState<{
+    status: 'TEPAT_WAKTU' | 'TERLAMBAT';
+    menitTerlambat?: number;
+    tagihanId?: string;
+    jarak?: number;
+  } | null>(null);
   const [galatModal, setGalatModal] = useState<{
     judul: string;
     pesan: string;
   } | null>(null);
   const [now, setNow] = useState<number>(() => Date.now());
-
-  // Sinkronkan bila datang dari Scan QR dengan parameter qrToken
-  useEffect(() => {
-    if (qrToken) {
-      setKodeInput(qrToken.trim().toUpperCase());
-    }
-  }, [qrToken]);
 
   // Periksa ulang waktu secara berkala agar masa berlaku QR 15 menit & PB-06 selalu akurat
   useEffect(() => {
@@ -378,6 +392,15 @@ export default function HalamanPresensiPraktikan() {
   }
 
   const waktuHadirTeks = hadir ? titikJam(formatJam(hadir.waktuHadir)) : null;
+  const statusKehadiranTampil = hadir?.statusKehadiran ?? hasilTerakhir?.status;
+  const menitTerlambatTampil =
+    hadir?.menitTerlambat ?? hasilTerakhir?.menitTerlambat;
+  const tagihanIdTampil = hadir?.tagihanId ?? hasilTerakhir?.tagihanId;
+  const tagihanTerkait = tagihanIdTampil
+    ? tagihan.find((t) => t.id === tagihanIdTampil)
+    : undefined;
+  const nominalDendaTampil = tagihanTerkait?.nominal ?? labSesi?.dendaNominal;
+  const terlambatHadir = statusKehadiranTampil === 'TERLAMBAT';
 
   const tombolKonfirmasiNonaktif =
     !sesiBisaPresensi || !kodeTerverifikasi || !lokasiSiapSubmit || memproses;
@@ -446,7 +469,7 @@ export default function HalamanPresensiPraktikan() {
   const handlePresensi = async () => {
     if (memproses || hadir) return;
 
-    const cekTerakhir = cekValiditasQr(s, kodeInput, Date.now());
+    const cekTerakhir = cekValiditasQr(s, kodeInput, sekarangMs());
     if (!cekTerakhir.ok) {
       setGalatModal({
         judul: isEn ? 'Invalid or Expired Code' : 'Kode Tidak Valid / Kedaluwarsa',
@@ -468,6 +491,54 @@ export default function HalamanPresensiPraktikan() {
       setMemproses(false);
 
       if (hasil.ok) {
+        const hasilEkstra = hasil as typeof hasil & {
+          status?: 'TEPAT_WAKTU' | 'TERLAMBAT';
+          menitTerlambat?: number;
+          tagihanId?: string;
+        };
+        if (hasilEkstra.status) {
+          setHasilTerakhir({
+            status: hasilEkstra.status,
+            menitTerlambat: hasilEkstra.menitTerlambat,
+            tagihanId: hasilEkstra.tagihanId,
+            jarak: hasil.jarak,
+          });
+        }
+
+        if (hasilEkstra.status === 'TEPAT_WAKTU') {
+          showToast(
+            isEn
+              ? 'Attendance recorded on time.'
+              : 'Presensi tercatat tepat waktu.',
+          );
+          return;
+        }
+
+        if (hasilEkstra.status === 'TERLAMBAT') {
+          const menitTeks =
+            typeof hasilEkstra.menitTerlambat === 'number' &&
+            hasilEkstra.menitTerlambat > 0
+              ? isEn
+                ? ` ${hasilEkstra.menitTerlambat} minutes`
+                : ` ${hasilEkstra.menitTerlambat} menit`
+              : '';
+          const nominalToast =
+            tagihan.find((t) => t.id === hasilEkstra.tagihanId)?.nominal ??
+            labSesi?.dendaNominal;
+          const dendaTeks =
+            typeof nominalToast === 'number' && nominalToast > 0
+              ? isEn
+                ? ` Fine ${formatRupiah(nominalToast)}.`
+                : ` Denda ${formatRupiah(nominalToast)}.`
+              : '';
+          showToast(
+            isEn
+              ? `Attendance recorded late${menitTeks ? ` by${menitTeks}` : ''}.${dendaTeks}`
+              : `Presensi tercatat terlambat${menitTeks}.${dendaTeks}`,
+          );
+          return;
+        }
+
         const jarakTeks =
           typeof hasil.jarak === 'number'
             ? isEn
@@ -764,18 +835,33 @@ export default function HalamanPresensiPraktikan() {
             style={[
               styles.attendedCard,
               {
-                borderColor: themeColors.radiusInsideBorder,
-                backgroundColor: themeColors.radiusInsideBg,
+                borderColor: terlambatHadir
+                  ? themeColors.gpsOffBorder
+                  : themeColors.radiusInsideBorder,
+                backgroundColor: terlambatHadir
+                  ? themeColors.kehadiranTerlambatBg
+                  : themeColors.radiusInsideBg,
               },
             ]}
           >
             <View style={styles.attendedHeader}>
-              <CheckCircle2 size={22} color={themeColors.radiusInsideFg} />
+              <CheckCircle2
+                size={22}
+                color={
+                  terlambatHadir
+                    ? themeColors.kehadiranTerlambatFg
+                    : themeColors.radiusInsideFg
+                }
+              />
               <View style={styles.attendedHeaderCopy}>
                 <Text
                   style={[
                     styles.attendedTitle,
-                    { color: themeColors.radiusInsideFg },
+                    {
+                      color: terlambatHadir
+                        ? themeColors.kehadiranTerlambatFg
+                        : themeColors.radiusInsideFg,
+                    },
                   ]}
                 >
                   {isEn
@@ -785,7 +871,11 @@ export default function HalamanPresensiPraktikan() {
                 <Text
                   style={[
                     styles.attendedSub,
-                    { color: themeColors.radiusInsideFg },
+                    {
+                      color: terlambatHadir
+                        ? themeColors.kehadiranTerlambatFg
+                        : themeColors.radiusInsideFg,
+                    },
                   ]}
                 >
                   {isEn
@@ -793,20 +883,118 @@ export default function HalamanPresensiPraktikan() {
                     : `Tercatat pada pukul ${waktuHadirTeks} WIB`}
                 </Text>
               </View>
+              {statusKehadiranTampil ? (
+                <StatusBadge status={statusKehadiranTampil} />
+              ) : null}
             </View>
+
+            {statusKehadiranTampil ? (
+              <View
+                style={[
+                  styles.attendedStatusBox,
+                  {
+                    borderTopColor: terlambatHadir
+                      ? themeColors.gpsOffBorder
+                      : themeColors.radiusInsideBorder,
+                  },
+                ]}
+              >
+                {terlambatHadir ? (
+                  <>
+                    {typeof menitTerlambatTampil === 'number' &&
+                    menitTerlambatTampil > 0 ? (
+                      <Text
+                        style={[
+                          styles.attendedMetaText,
+                          { color: themeColors.kehadiranTerlambatFg },
+                        ]}
+                      >
+                        {isEn
+                          ? `Late by ${menitTerlambatTampil} minutes.`
+                          : `Terlambat ${menitTerlambatTampil} menit.`}
+                      </Text>
+                    ) : null}
+                    <Text
+                      style={[
+                        styles.attendedFineText,
+                        { color: themeColors.kehadiranTerlambatFg },
+                      ]}
+                    >
+                      {typeof nominalDendaTampil === 'number' &&
+                      nominalDendaTampil > 0
+                        ? isEn
+                          ? `Fine ${formatRupiah(nominalDendaTampil)}`
+                          : `Denda ${formatRupiah(nominalDendaTampil)}`
+                        : isEn
+                          ? 'Fine according to lab rules.'
+                          : 'Denda sesuai ketentuan lab.'}
+                    </Text>
+                    {tagihanIdTampil ? (
+                      <Tombol
+                        variant="sekunder"
+                        icon={
+                          <ReceiptText
+                            size={16}
+                            color={themeColors.textPrimary}
+                          />
+                        }
+                        rightIcon={
+                          <ArrowRight
+                            size={16}
+                            color={themeColors.textPrimary}
+                          />
+                        }
+                        onPress={() =>
+                          router.push({
+                            pathname: '/(praktikan)/tagihan/[id]',
+                            params: { id: tagihanIdTampil },
+                          } as any)
+                        }
+                      >
+                        {isEn ? 'View bill' : 'Lihat tagihan'}
+                      </Tombol>
+                    ) : null}
+                  </>
+                ) : (
+                  <Text
+                    style={[
+                      styles.attendedMetaText,
+                      { color: themeColors.radiusInsideFg },
+                    ]}
+                  >
+                    {isEn ? 'No fine.' : 'Tanpa denda.'}
+                  </Text>
+                )}
+              </View>
+            ) : null}
 
             <View
               style={[
                 styles.attendedMetaRow,
-                { borderTopColor: themeColors.radiusInsideBorder },
+                {
+                  borderTopColor: terlambatHadir
+                    ? themeColors.gpsOffBorder
+                    : themeColors.radiusInsideBorder,
+                },
               ]}
             >
               <View style={styles.attendedMetaItem}>
-                <Compass size={14} color={themeColors.radiusInsideFg} />
+                <Compass
+                  size={14}
+                  color={
+                    terlambatHadir
+                      ? themeColors.kehadiranTerlambatFg
+                      : themeColors.radiusInsideFg
+                  }
+                />
                 <Text
                   style={[
                     styles.attendedMetaText,
-                    { color: themeColors.radiusInsideFg },
+                    {
+                      color: terlambatHadir
+                        ? themeColors.kehadiranTerlambatFg
+                        : themeColors.radiusInsideFg,
+                    },
                   ]}
                 >
                   {isEn ? 'Recorded distance: ' : 'Jarak tercatat: '}
@@ -820,11 +1008,22 @@ export default function HalamanPresensiPraktikan() {
                 </Text>
               </View>
               <View style={styles.attendedMetaItem}>
-                <ShieldCheck size={14} color={themeColors.radiusInsideFg} />
+                <ShieldCheck
+                  size={14}
+                  color={
+                    terlambatHadir
+                      ? themeColors.kehadiranTerlambatFg
+                      : themeColors.radiusInsideFg
+                  }
+                />
                 <Text
                   style={[
                     styles.attendedMetaText,
-                    { color: themeColors.radiusInsideFg },
+                    {
+                      color: terlambatHadir
+                        ? themeColors.kehadiranTerlambatFg
+                        : themeColors.radiusInsideFg,
+                    },
                   ]}
                 >
                   {currentUser.nama} ({currentUser.nim ?? '-'})
@@ -1154,6 +1353,15 @@ const styles = StyleSheet.create({
   },
   attendedSub: {
     ...type.caption,
+  },
+  attendedStatusBox: {
+    gap: spacing.s2,
+    paddingTop: spacing.s2,
+    borderTopWidth: 1,
+  },
+  attendedFineText: {
+    ...type.bodyStrong,
+    fontFamily: fontFamily.bold,
   },
   attendedMetaRow: {
     gap: 6,
