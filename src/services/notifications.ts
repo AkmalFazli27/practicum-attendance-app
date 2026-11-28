@@ -8,7 +8,7 @@ import {
 } from 'firebase/firestore';
 
 import { db, isFirebaseConfigured } from '@/config/firebase';
-import type { Izin, Sesi } from '@/data/dummy';
+import type { Izin, Sesi, Tagihan, Pembayaran } from '@/data/dummy';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const BATAS_WAKTU_MS = 8000;
@@ -18,13 +18,18 @@ const POLA_TOKEN = /^Expo(nent)?PushToken\[.+\]$/;
 export type JenisNotifikasi =
   | 'SESI_DIBUKA'
   | 'JADWAL_BERUBAH'
-  | 'KEPUTUSAN_IZIN';
+  | 'KEPUTUSAN_IZIN'
+  | 'TAGIHAN_BARU'
+  | 'PEMBAYARAN_BERHASIL'
+  | 'PEMBAYARAN_GAGAL';
 
 type Pesan = {
   title: string;
   body: string;
-  data: { jenis: JenisNotifikasi; sesiId: string };
+  data: { jenis: JenisNotifikasi; sesiId?: string; tagihanId?: string };
 };
+
+const rupiah = (n: number) => `Rp${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 
 function tokenValid(t: unknown): t is string {
   return typeof t === 'string' && POLA_TOKEN.test(t);
@@ -134,6 +139,50 @@ export async function notifyKeputusanIzin(
         ? 'Pengajuan izinmu telah diterima oleh asisten.'
         : 'Pengajuan izinmu ditolak oleh asisten.',
       data: { jenis: 'KEPUTUSAN_IZIN', sesiId: izin.sesiId },
+    });
+  } catch {
+    return false;
+  }
+}
+
+export async function notifyTagihanBaru(tagihan: Tagihan): Promise<boolean> {
+  if (!isFirebaseConfigured) return true;
+  try {
+    const tokens = await tokenPengguna(tagihan.praktikanId);
+    return await kirim(tokens, {
+      title: 'Tagihan denda baru',
+      body: `Kamu terlambat ${tagihan.menitTerlambat} menit. Denda ${rupiah(tagihan.nominal)}. Ketuk untuk membayar.`,
+      data: { jenis: 'TAGIHAN_BARU', sesiId: tagihan.sesiId, tagihanId: tagihan.id },
+    });
+  } catch {
+    return false;
+  }
+}
+
+// Server (webhook) sudah mengirim push berhasil/gagal. Dua fungsi ini disediakan sesuai
+// kontrak, tetapi JANGAN dipanggil dari context agar notifikasi tidak ganda.
+export async function notifyPembayaranBerhasil(p: Pembayaran): Promise<boolean> {
+  if (!isFirebaseConfigured) return true;
+  try {
+    const tokens = await tokenPengguna(p.praktikanId);
+    return await kirim(tokens, {
+      title: 'Pembayaran berhasil',
+      body: 'Pembayaran dendamu sudah diterima.',
+      data: { jenis: 'PEMBAYARAN_BERHASIL', tagihanId: p.tagihanId },
+    });
+  } catch {
+    return false;
+  }
+}
+
+export async function notifyPembayaranGagal(p: Pembayaran): Promise<boolean> {
+  if (!isFirebaseConfigured) return true;
+  try {
+    const tokens = await tokenPengguna(p.praktikanId);
+    return await kirim(tokens, {
+      title: 'Pembayaran gagal',
+      body: 'Pembayaran dendamu gagal. Coba bayar ulang.',
+      data: { jenis: 'PEMBAYARAN_GAGAL', tagihanId: p.tagihanId },
     });
   } catch {
     return false;
