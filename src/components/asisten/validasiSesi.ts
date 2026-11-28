@@ -113,6 +113,12 @@ export function validasiFormSesi(
       pesan: 'Format jam tidak valid. Gunakan HH:mm antara 00:00 dan 23:59, contoh 08:00.',
     };
   }
+  if (jamMulai < '07:00' || jamSelesai > '20:00') {
+    return {
+      ok: false,
+      pesan: 'Sesi hanya dapat dijadwalkan dalam jam operasional lab (07.00–20.00 WIB).',
+    };
+  }
   if (jamSelesai <= jamMulai) {
     return { ok: false, pesan: 'Jam selesai harus lebih akhir dari jam mulai.' };
   }

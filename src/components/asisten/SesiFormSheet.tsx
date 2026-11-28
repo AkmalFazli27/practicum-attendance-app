@@ -11,6 +11,7 @@ import { validasiJadwal } from '@/utils/statusSesi';
 import { PickerJam } from './PickerJam';
 import { PilihLab } from './PilihLab';
 import { PickerTanggal } from './PickerTanggal';
+import { useSesiAsprak } from './useSesiAsprak';
 import { validasiFormSesi } from './validasiSesi';
 
 export interface SesiFormSheetProps {
@@ -26,7 +27,8 @@ export function SesiFormSheet({
   initialSesi = null,
   onClose,
 }: SesiFormSheetProps) {
-  const { createSession, updateSession, labs } = useSession();
+  const { createSession, updateSession } = useSession();
+  const { labsSaya } = useSesiAsprak();
   const { showToast } = useToast();
   const { themeColors, language } = usePreferences();
   const isEn = language === 'en';
@@ -55,8 +57,8 @@ export function SesiFormSheet({
       setKelas(initialSesi.kelas);
       setLabId(
         initialSesi.labId ??
-        labs.find((l) => l.nama === initialSesi.lab)?.id ??
-        '',
+          labsSaya.find((l) => l.nama === initialSesi.lab)?.id ??
+          '',
       );
       setTanggal(initialSesi.tanggal);
       setJamMulai(initialSesi.jamMulai);
@@ -67,7 +69,7 @@ export function SesiFormSheet({
       setNamaPraktikum('');
       setTopik('');
       setKelas('IF-2A');
-      setLabId('');
+      setLabId(labsSaya.length === 1 ? labsSaya[0].id : '');
       setTanggal(hariIni());
       setJamMulai('08:00');
       setJamSelesai('10:00');
@@ -76,7 +78,7 @@ export function SesiFormSheet({
     }
   }, [visible, initialSesi]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const labTerpilih = labs.find((l) => l.id === labId);
+  const labTerpilih = labsSaya.find((l) => l.id === labId);
 
   const handleSimpan = async () => {
     if (menyimpan) return;
@@ -95,10 +97,10 @@ export function SesiFormSheet({
       },
       initialSesi
         ? {
-          tanggal: initialSesi.tanggal,
-          jamMulai: initialSesi.jamMulai,
-          jamSelesai: initialSesi.jamSelesai,
-        }
+            tanggal: initialSesi.tanggal,
+            jamMulai: initialSesi.jamMulai,
+            jamSelesai: initialSesi.jamSelesai,
+          }
         : undefined,
     );
     if (!hasil.ok) {
@@ -272,7 +274,7 @@ export function SesiFormSheet({
       </View>
 
       <PilihLab
-        labs={labs}
+        labs={labsSaya}
         value={labId}
         onChange={(l) => {
           setLabId(l.id);
@@ -300,6 +302,8 @@ export function SesiFormSheet({
         <PickerJam
           label={isEn ? 'Start time' : 'Jam mulai'}
           value={jamMulai}
+          minJam={7}
+          maxJam={20}
           onChange={(j) => {
             setJamMulai(j);
             setGalat(null);
@@ -309,6 +313,8 @@ export function SesiFormSheet({
         <PickerJam
           label={isEn ? 'End time' : 'Jam selesai'}
           value={jamSelesai}
+          minJam={7}
+          maxJam={20}
           onChange={(j) => {
             setJamSelesai(j);
             setGalat(null);
@@ -409,4 +415,3 @@ const styles = StyleSheet.create({
     flex: 1.15,
   },
 });
-

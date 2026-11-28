@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowRight, DoorOpen, MapPin, Plus, Users } from 'lucide-react-native';
+import { ArrowRight, DoorOpen, Plus, Users } from 'lucide-react-native';
 
 import {
   EmptyState,
@@ -16,25 +16,17 @@ import { colors, fontFamily, layout, radius, spacing, type } from '@/theme/token
 import { titikJam } from '@/utils/format';
 import { SesiFormSheet } from './SesiFormSheet';
 import { SinkronGuard } from './SyncState';
+import { useSesiAsprak } from './useSesiAsprak';
 import { useStatusSesi } from './useStatusSesi';
 
 export function BerandaAsisten() {
   const router = useRouter();
-  const { currentUser, sesi, getKehadiranSesi, getIzinSesi } = useSession();
+  const { currentUser, getKehadiranSesi, getIzinSesi } = useSession();
+  const { sesiSaya } = useSesiAsprak();
   const { themeColors, language } = usePreferences();
   const isEn = language === 'en';
   const [tambahVisible, setTambahVisible] = useState(false);
   const { statusEfektif } = useStatusSesi();
-
-  const sesiSaya = useMemo(
-    () =>
-      sesi
-        .filter((s) => s.asistenId === currentUser?.id)
-        .sort((a, b) =>
-          `${a.tanggal} ${a.jamMulai}`.localeCompare(`${b.tanggal} ${b.jamMulai}`),
-        ),
-    [sesi, currentUser?.id],
-  );
 
   if (!currentUser) return null;
 
@@ -83,136 +75,113 @@ export function BerandaAsisten() {
         </View>
 
         <SinkronGuard adaData={sesiSaya.length > 0}>
-        {/* 2. Metric Grid 2 Kolom */}
-        <View style={styles.metricGrid}>
-          <MetricCard
-            icon={<DoorOpen size={20} color={themeColors.textPrimary} />}
-            value={jumlahAktif}
-            label={isEn ? 'Active sessions' : 'Sesi aktif'}
-          />
-          <MetricCard
-            icon={<Users size={20} color={themeColors.textPrimary} />}
-            value={totalHadir}
-            label={isEn ? 'Total attended' : 'Total hadir'}
-          />
-        </View>
-
-        {/* 3. Kartu Sesi Berjalan */}
-        {sesiAktif ? (
-          <View
-            style={[
-              styles.activeSessionCard,
-              {
-                backgroundColor: themeColors.surface,
-                borderColor: themeColors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-              {isEn ? 'IN PROGRESS' : 'SEDANG BERLANGSUNG'}
-            </Text>
-            <View style={styles.activeMainRow}>
-              <View style={styles.activeInfoLeft}>
-                <Text
-                  style={[
-                    styles.activeTitle,
-                    { color: themeColors.textPrimary },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {sesiAktif.namaPraktikum}
-                </Text>
-                <Text
-                  style={[
-                    styles.activeSub,
-                    { color: themeColors.textSecondary },
-                  ]}
-                >
-                  {titikJam(sesiAktif.jamMulai)}–{titikJam(sesiAktif.jamSelesai)} ·{' '}
-                  {sesiAktif.lab}
-                </Text>
-              </View>
-              <Text
-                style={[styles.bigCount, { color: themeColors.textPrimary }]}
-              >
-                {hadirSesiAktif}
-                <Text
-                  style={[
-                    styles.bigCountSub,
-                    { color: themeColors.textMuted },
-                  ]}
-                >
-                  /{kapasitasAktif}
-                </Text>
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.progressTrack,
-                { backgroundColor: themeColors.surfaceMuted },
-              ]}
-            >
-              <View
-                style={[styles.progressFill, { width: `${persenAktif}%` }]}
-              />
-            </View>
-
-            <Tombol
-              variant="primer"
-              onPress={() => bukaDetail(sesiAktif.id)}
-              rightIcon={<ArrowRight size={18} color={themeColors.onPrimary} />}
-            >
-              {isEn ? 'Manage session' : 'Kelola sesi'}
-            </Tombol>
-          </View>
-        ) : (
-          <View style={styles.noActiveWrapper}>
-            <EmptyState
-              judul={isEn ? 'No active sessions' : 'Tidak ada sesi aktif'}
-              pesan={
-                isEn
-                  ? 'Open a scheduled session when the practicum starts.'
-                  : 'Buka salah satu sesi terjadwal saat kegiatan praktikum dimulai.'
-              }
+          {/* 2. Metric Grid 2 Kolom */}
+          <View style={styles.metricGrid}>
+            <MetricCard
+              icon={<DoorOpen size={20} color={themeColors.textPrimary} />}
+              value={jumlahAktif}
+              label={isEn ? 'Active sessions' : 'Sesi aktif'}
+            />
+            <MetricCard
+              icon={<Users size={20} color={themeColors.textPrimary} />}
+              value={totalHadir}
+              label={isEn ? 'Total attended' : 'Total hadir'}
             />
           </View>
-        )}
 
-        {/* 4. Daftar Sesi Kamu */}
-        <SectionHeading
-          kicker={isEn ? 'TODAY & UPCOMING' : 'HARI INI & MENDATANG'}
-          title={isEn ? 'Your sessions' : 'Sesi kamu'}
-          style={styles.sectionHeading}
-          right={
-            <View style={styles.headingActions}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Kelola lokasi dan radius laboratorium"
-                onPress={() => router.push('/kelola-lab' as any)}
-                style={({ pressed }) => [
-                  styles.labChip,
-                  {
-                    backgroundColor: themeColors.surface,
-                    borderColor: themeColors.border,
-                  },
-                  pressed && styles.addChipPressed,
+          {/* 3. Kartu Sesi Berjalan */}
+          {sesiAktif ? (
+            <View
+              style={[
+                styles.activeSessionCard,
+                {
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
+                {isEn ? 'IN PROGRESS' : 'SEDANG BERLANGSUNG'}
+              </Text>
+              <View style={styles.activeMainRow}>
+                <View style={styles.activeInfoLeft}>
+                  <Text
+                    style={[
+                      styles.activeTitle,
+                      { color: themeColors.textPrimary },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {sesiAktif.namaPraktikum}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.activeSub,
+                      { color: themeColors.textSecondary },
+                    ]}
+                  >
+                    {titikJam(sesiAktif.jamMulai)}–{titikJam(sesiAktif.jamSelesai)} ·{' '}
+                    {sesiAktif.lab}
+                  </Text>
+                </View>
+                <Text
+                  style={[styles.bigCount, { color: themeColors.textPrimary }]}
+                >
+                  {hadirSesiAktif}
+                  <Text
+                    style={[
+                      styles.bigCountSub,
+                      { color: themeColors.textMuted },
+                    ]}
+                  >
+                    /{kapasitasAktif}
+                  </Text>
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.progressTrack,
+                  { backgroundColor: themeColors.surfaceMuted },
                 ]}
               >
-                <MapPin size={14} color={themeColors.textPrimary} />
-                <Text
-                  style={[
-                    styles.addChipText,
-                    { color: themeColors.textPrimary },
-                  ]}
-                >
-                  {isEn ? 'Manage Labs' : 'Kelola Lab'}
-                </Text>
-              </Pressable>
+                <View
+                  style={[styles.progressFill, { width: `${persenAktif}%` }]}
+                />
+              </View>
 
+              <Tombol
+                variant="primer"
+                onPress={() => bukaDetail(sesiAktif.id)}
+                rightIcon={<ArrowRight size={18} color={themeColors.onPrimary} />}
+              >
+                {isEn ? 'Manage session' : 'Kelola sesi'}
+              </Tombol>
+            </View>
+          ) : (
+            <View style={styles.noActiveWrapper}>
+              <EmptyState
+                judul={isEn ? 'No active sessions' : 'Tidak ada sesi aktif'}
+                pesan={
+                  isEn
+                    ? 'Open a scheduled session when the practicum starts.'
+                    : 'Buka salah satu sesi terjadwal saat kegiatan praktikum dimulai.'
+                }
+              />
+            </View>
+          )}
+
+          {/* 4. Daftar Sesi Kamu */}
+          <SectionHeading
+            kicker={isEn ? 'TODAY & UPCOMING' : 'HARI INI & MENDATANG'}
+            title={isEn ? 'Your sessions' : 'Sesi kamu'}
+            style={styles.sectionHeading}
+            right={
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Tambah sesi praktikum baru"
+                accessibilityLabel={
+                  isEn ? 'Add new practicum session' : 'Tambah sesi praktikum baru'
+                }
                 onPress={() => setTambahVisible(true)}
                 style={({ pressed }) => [
                   styles.addChip,
@@ -233,44 +202,43 @@ export function BerandaAsisten() {
                   {isEn ? 'New Session' : 'Sesi Baru'}
                 </Text>
               </Pressable>
-            </View>
-          }
-        />
-
-        {sesiSaya.length === 0 ? (
-          <EmptyState
-            judul={isEn ? 'No sessions yet' : 'Belum ada sesi'}
-            pesan={
-              isEn
-                ? 'Add a new practicum session to start managing attendance.'
-                : 'Tambahkan sesi praktikum baru untuk mulai mengelola kehadiran.'
             }
-            aksi={{
-              label: isEn ? 'Add New Session' : 'Tambah Sesi Baru',
-              onPress: () => setTambahVisible(true),
-            }}
           />
-        ) : (
-          <View style={styles.sessionList}>
-            {sesiSaya.slice(0, 3).map((item) => {
-              const hadirCount = getKehadiranSesi(item.id).length;
-              const pendingIzin = getIzinSesi(item.id).filter(
-                (iz) => iz.status === 'MENUNGGU',
-              ).length;
-              return (
-                <SessionCard
-                  key={item.id}
-                  session={{ ...item, status: statusEfektif(item) }}
-                  assistant
-                  attendance={hadirCount}
-                  attendanceTotal={item.kapasitas ?? 32}
-                  pendingIzinCount={pendingIzin}
-                  onPress={() => bukaDetail(item.id)}
-                />
-              );
-            })}
-          </View>
-        )}
+
+          {sesiSaya.length === 0 ? (
+            <EmptyState
+              judul={isEn ? 'No sessions yet' : 'Belum ada sesi'}
+              pesan={
+                isEn
+                  ? 'Add a new practicum session to start managing attendance.'
+                  : 'Tambahkan sesi praktikum baru untuk mulai mengelola kehadiran.'
+              }
+              aksi={{
+                label: isEn ? 'Add New Session' : 'Tambah Sesi Baru',
+                onPress: () => setTambahVisible(true),
+              }}
+            />
+          ) : (
+            <View style={styles.sessionList}>
+              {sesiSaya.slice(0, 3).map((item) => {
+                const hadirCount = getKehadiranSesi(item.id).length;
+                const pendingIzin = getIzinSesi(item.id).filter(
+                  (iz) => iz.status === 'MENUNGGU',
+                ).length;
+                return (
+                  <SessionCard
+                    key={item.id}
+                    session={{ ...item, status: statusEfektif(item) }}
+                    assistant
+                    attendance={hadirCount}
+                    attendanceTotal={item.kapasitas ?? 32}
+                    pendingIzinCount={pendingIzin}
+                    onPress={() => bukaDetail(item.id)}
+                  />
+                );
+              })}
+            </View>
+          )}
         </SinkronGuard>
       </ScrollView>
 
@@ -376,22 +344,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.s6 + 4,
     marginBottom: spacing.s3 + 2,
   },
-  headingActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.s2,
-  },
-  labChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: spacing.s3,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   addChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -415,4 +367,3 @@ const styles = StyleSheet.create({
     gap: spacing.s3,
   },
 });
-
