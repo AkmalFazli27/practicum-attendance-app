@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useSession } from '@/context/SessionContext';
 import type { Sesi } from '@/data/dummy';
@@ -21,6 +22,7 @@ const tanggalWIB = () =>
  * (bukan dari field status langsung) dan dihitung ulang berkala.
  */
 export function useStatusSesi() {
+  const { t } = useTranslation();
   const { getStatusEfektif } = useSession();
   const [, setTick] = useState(0);
 
@@ -42,8 +44,11 @@ export function useStatusSesi() {
       aktif: false,
       keterangan:
         s.tanggal === tanggalWIB()
-          ? `Bisa dibuka pukul ${jam}`
-          : `Bisa dibuka ${formatHariTanggalSingkat(s.tanggal)}, pukul ${jam}`,
+          ? t('asprak.canOpenAt', { jam })
+          : t('asprak.canOpenOnDateAt', {
+              tanggal: formatHariTanggalSingkat(s.tanggal),
+              jam,
+            }),
     };
   };
 

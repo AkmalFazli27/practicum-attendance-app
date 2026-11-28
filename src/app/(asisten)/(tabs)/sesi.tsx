@@ -1,30 +1,31 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { SesiFormSheet } from '@/components/asisten/SesiFormSheet';
 import { SinkronGuard } from '@/components/asisten/SyncState';
 import { useAksiSesi } from '@/components/asisten/useAksiSesi';
+import { useSesiAsprak } from '@/components/asisten/useSesiAsprak';
 import { useStatusSesi } from '@/components/asisten/useStatusSesi';
 import { EmptyState, SessionCard, Tombol } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
 import { type Sesi } from '@/data/dummy';
 import { colors, layout, spacing, type } from '@/theme/tokens';
-import { useSesiAsprak } from '@/components/asisten/useSesiAsprak';
 
 export default function SesiAsistenScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { currentUser, getKehadiranSesi, getIzinSesi } = useSession();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { sesiSaya } = useSesiAsprak();
+  const { themeColors } = usePreferences();
   const { mulai, sheet } = useAksiSesi();
   const { statusEfektif, aksiUtama } = useStatusSesi();
 
   const [formVisible, setFormVisible] = useState(false);
   const [sesiDiedit, setSesiDiedit] = useState<Sesi | null>(null);
-  const { sesiSaya } = useSesiAsprak();
 
   if (!currentUser) return null;
 
@@ -47,19 +48,16 @@ export default function SesiAsistenScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Page Title + Tombol Tambah Sesi */}
         <View style={styles.headerRow}>
           <View style={styles.pageTitle}>
             <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-              {isEn ? 'MANAGE' : 'KELOLA'}
+              {t('asprak.manageKicker')}
             </Text>
             <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
-              {isEn ? 'Practicum sessions' : 'Sesi praktikum'}
+              {t('asprak.sessionsTitle')}
             </Text>
             <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
-              {isEn
-                ? 'Open, close, edit, and monitor every session.'
-                : 'Buka, tutup, ubah, dan pantau setiap sesi.'}
+              {t('asprak.sessionsSub')}
             </Text>
           </View>
           <Tombol
@@ -68,21 +66,17 @@ export default function SesiAsistenScreen() {
             onPress={bukaTambah}
             style={styles.addBtn}
           >
-            {isEn ? 'Add' : 'Tambah'}
+            {t('asprak.addBtn')}
           </Tombol>
         </View>
 
         <SinkronGuard adaData={sesiSaya.length > 0}>
           {sesiSaya.length === 0 ? (
             <EmptyState
-              judul={isEn ? 'No sessions yet' : 'Belum ada sesi'}
-              pesan={
-                isEn
-                  ? 'Sessions you manage will appear here.'
-                  : 'Sesi yang kamu kelola akan tampil di sini.'
-              }
+              judul={t('asprak.emptySessionsTitle')}
+              pesan={t('asprak.emptyManageBody')}
               aksi={{
-                label: isEn ? 'Add New Session' : 'Tambah Sesi Baru',
+                label: t('asprak.addNewSessionBtn'),
                 onPress: bukaTambah,
               }}
             />
@@ -118,7 +112,7 @@ export default function SesiAsistenScreen() {
                           disabled={!aksi.aktif}
                           onPress={() => mulai(s.id, 'buka')}
                         >
-                          {isEn ? 'Open' : 'Buka'}
+                          {t('asprak.openBtn')}
                         </Tombol>
                       )}
                       {aksi.jenis === 'tutup' && (
@@ -127,7 +121,7 @@ export default function SesiAsistenScreen() {
                           style={styles.smallBtn}
                           onPress={() => mulai(s.id, 'tutup')}
                         >
-                          {isEn ? 'Close' : 'Tutup'}
+                          {t('asprak.closeBtn')}
                         </Tombol>
                       )}
                       {!sesiSelesai && (
@@ -136,7 +130,7 @@ export default function SesiAsistenScreen() {
                           style={styles.smallBtn}
                           onPress={() => bukaEdit(s)}
                         >
-                          {isEn ? 'Edit' : 'Ubah'}
+                          {t('asprak.editBtn')}
                         </Tombol>
                       )}
                       <Tombol
@@ -144,7 +138,7 @@ export default function SesiAsistenScreen() {
                         style={styles.smallBtn}
                         onPress={() => bukaDetail(s.id)}
                       >
-                        Detail
+                        {t('asprak.detailBtn')}
                       </Tombol>
                     </View>
                   </View>

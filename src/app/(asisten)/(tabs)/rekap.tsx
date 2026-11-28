@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ChevronUp,
 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { BadgeKehadiran } from '@/components/asisten/BadgeKehadiran';
 import { formatJarak } from '@/components/asisten/formatJarak';
@@ -49,6 +50,7 @@ type RingkasanPraktikum = {
 };
 
 export default function RekapScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams<{ sesiId?: string; t?: string }>();
   const {
@@ -63,8 +65,7 @@ export default function RekapScreen() {
     retrySync,
   } = useSession();
   const { sesiSaya } = useSesiAsprak();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
 
   // Level 1 = daftar praktikum (null). Level 2 = daftar praktikan per sesi.
   const [praktikum, setPraktikum] = useState<string | null>(null);
@@ -89,7 +90,7 @@ export default function RekapScreen() {
       nama?: string,
       nim?: string,
     ): { nama: string; nim: string } => ({
-      nama: nama || peta.get(praktikanId)?.nama || 'Praktikan',
+      nama: nama || peta.get(praktikanId)?.nama || t('asprak.studentLabel'),
       nim: nim || peta.get(praktikanId)?.nim || '-',
     });
 
@@ -155,7 +156,7 @@ export default function RekapScreen() {
         ] as const;
       }),
     );
-  }, [sesiSaya, users, kehadiran, izin, keanggotaanLab, getStatusEfektif]);
+  }, [sesiSaya, users, kehadiran, izin, keanggotaanLab, getStatusEfektif, t]);
 
   const daftarPraktikum = useMemo(() => {
     const peta = new Map<string, RingkasanPraktikum>();
@@ -251,7 +252,7 @@ export default function RekapScreen() {
             >
               {titikJam(session.jamMulai)}–{titikJam(session.jamSelesai)}
               {data.menunggu > 0
-                ? ` · ${data.menunggu} ${isEn ? 'pending leave' : 'izin menunggu'}`
+                ? t('asprak.recapPendingMeta', { count: data.menunggu })
                 : ''}
             </Text>
           </View>
@@ -265,7 +266,7 @@ export default function RekapScreen() {
             <Text
               style={[styles.recapCountLabel, { color: themeColors.textMuted }]}
             >
-              {isEn ? 'present' : 'hadir'}
+              {t('asprak.recapPresentUnit')}
             </Text>
           </View>
 
@@ -304,7 +305,7 @@ export default function RekapScreen() {
                     { color: themeColors.textSecondary },
                   ]}
                 >
-                  {isEn ? 'Present' : 'Hadir'}
+                  {t('asprak.recapStatPresent')}
                 </Text>
               </View>
               <View
@@ -327,7 +328,7 @@ export default function RekapScreen() {
                     { color: themeColors.textSecondary },
                   ]}
                 >
-                  {isEn ? 'Excused / Leave' : 'Izin / Sakit'}
+                  {t('asprak.recapStatLeave')}
                 </Text>
               </View>
               <View
@@ -358,7 +359,7 @@ export default function RekapScreen() {
                     { color: themeColors.textSecondary },
                   ]}
                 >
-                  Alpha
+                  {t('asprak.recapStatAlpha')}
                 </Text>
               </View>
             </View>
@@ -367,9 +368,7 @@ export default function RekapScreen() {
               <Text
                 style={[styles.emptyList, { color: themeColors.textMuted }]}
               >
-                {isEn
-                  ? 'No attendance or leave requests recorded for this session yet.'
-                  : 'Belum ada presensi atau pengajuan izin pada sesi ini.'}
+                {t('asprak.recapEmptyEntries')}
               </Text>
             ) : (
               <View>
@@ -406,9 +405,7 @@ export default function RekapScreen() {
                             { color: themeColors.kehadiranTepatWaktuFg },
                           ]}
                         >
-                          {isEn
-                            ? 'Excused absence · no fine'
-                            : 'Tidak hadir dengan izin · bebas denda'}
+                          {t('izin.excused')}
                         </Text>
                       )}
                     </View>
@@ -420,8 +417,9 @@ export default function RekapScreen() {
                             { color: themeColors.sesiDibukaFg },
                           ]}
                         >
-                          {isEn ? 'Present' : 'Hadir'}{' '}
-                          {titikJam(formatJam(e.waktu))}
+                          {t('asprak.recapPresentAt', {
+                            jam: titikJam(formatJam(e.waktu)),
+                          })}
                         </Text>
                         {e.jarak !== undefined && (
                           <Text
@@ -453,7 +451,7 @@ export default function RekapScreen() {
               onPress={() => bukaDetail(session.id)}
               style={styles.detailBtn}
             >
-              {isEn ? 'Open session details' : 'Buka detail sesi'}
+              {t('asprak.recapOpenDetail')}
             </Tombol>
           </View>
         )}
@@ -492,9 +490,9 @@ export default function RekapScreen() {
           style={[styles.recapMeta, { color: themeColors.textMuted }]}
           numberOfLines={1}
         >
-          {p.sesi.length} {isEn ? 'sessions' : 'sesi'}
+          {t('asprak.recapSessionMeta', { count: p.sesi.length })}
           {p.menunggu > 0
-            ? ` · ${p.menunggu} ${isEn ? 'pending leave' : 'izin menunggu'}`
+            ? t('asprak.recapPendingMeta', { count: p.menunggu })
             : ''}
         </Text>
       </View>
@@ -505,7 +503,7 @@ export default function RekapScreen() {
         <Text
           style={[styles.recapCountLabel, { color: themeColors.textMuted }]}
         >
-          {isEn ? 'attended' : 'hadir'}
+          {t('asprak.recapPresentUnit')}
         </Text>
       </View>
       <ChevronRight size={18} color={themeColors.textSecondary} />
@@ -514,7 +512,7 @@ export default function RekapScreen() {
 
   const renderIsi = () => {
     if (belumAdaData && loading) {
-      return <LoadingBlock pesan={isEn ? 'Loading recap...' : 'Memuat rekap...'} />;
+      return <LoadingBlock pesan={t('asprak.recapLoading')} />;
     }
     if (belumAdaData && error) {
       return <ErrorBlock pesan={error} onRetry={retrySync} />;
@@ -524,12 +522,8 @@ export default function RekapScreen() {
       if (daftarPraktikum.length === 0) {
         return (
           <EmptyState
-            judul={isEn ? 'No sessions yet' : 'Belum ada sesi'}
-            pesan={
-              isEn
-                ? 'Sessions you manage will appear here.'
-                : 'Sesi yang kamu kelola akan tampil di sini.'
-            }
+            judul={t('asprak.emptySessionsTitle')}
+            pesan={t('asprak.emptyManageBody')}
           />
         );
       }
@@ -539,12 +533,8 @@ export default function RekapScreen() {
     if (sesiPraktikum.length === 0) {
       return (
         <EmptyState
-          judul={isEn ? 'Session not found' : 'Sesi tidak ditemukan'}
-          pesan={
-            isEn
-              ? 'This practicum no longer has sessions. Go back to select another practicum.'
-              : 'Praktikum ini tidak lagi memiliki sesi. Kembali untuk memilih praktikum lain.'
-          }
+          judul={t('asprak.sessionNotFound')}
+          pesan={t('asprak.recapPracticumNotFound')}
         />
       );
     }
@@ -561,9 +551,7 @@ export default function RekapScreen() {
           {praktikum !== null && (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={
-                isEn ? 'Back to practicum list' : 'Kembali ke daftar praktikum'
-              }
+              accessibilityLabel={t('asprak.recapBackAria')}
               onPress={kembaliKePraktikum}
               style={({ pressed }) => [
                 styles.backBtn,
@@ -579,7 +567,7 @@ export default function RekapScreen() {
               <Text
                 style={[styles.backText, { color: themeColors.textPrimary }]}
               >
-                {isEn ? 'All practicums' : 'Semua praktikum'}
+                {t('asprak.recapBackAll')}
               </Text>
             </Pressable>
           )}
@@ -587,16 +575,12 @@ export default function RekapScreen() {
             MONITOR
           </Text>
           <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
-            {praktikum ?? (isEn ? 'Attendance recap' : 'Rekap kehadiran')}
+            {praktikum ?? t('asprak.recapTitle')}
           </Text>
           <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
             {praktikum
-              ? isEn
-                ? 'Student list, punctuality status, and check-in distances per session.'
-                : 'Daftar praktikan, ketepatan waktu, dan jarak presensi per sesi.'
-              : isEn
-                ? 'Select a practicum to view attendance and leave recaps.'
-                : 'Pilih praktikum untuk melihat rekap kehadiran dan izin.'}
+              ? t('asprak.recapSubDetail')
+              : t('asprak.recapSubList')}
           </Text>
         </View>
 

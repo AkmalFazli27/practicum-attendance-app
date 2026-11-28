@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/context/PreferencesContext';
 import { fontFamily, radius, spacing } from '@/theme/tokens';
 
@@ -11,15 +12,15 @@ export function BadgeKehadiran({
   status?: 'TEPAT_WAKTU' | 'TERLAMBAT';
   menit?: number;
 }) {
-  const { themeColors: tc, language } = usePreferences();
-  if (!status) return null;
-  const en = language === 'en';
-  const telat = status === 'TERLAMBAT';
-  const label = telat
-    ? `${en ? 'Late' : 'Terlambat'}${menit ? ` ${menit}${en ? 'm' : ' mnt'}` : ''}`
-    : en
-      ? 'On time'
-      : 'Tepat waktu';
+  const { t } = useTranslation();
+    const { themeColors: tc } = usePreferences();
+    if (!status) return null;
+    const telat = status === 'TERLAMBAT';
+    const label = telat
+    ? menit
+        ? t('asprak.lateMinutesBadge', { menit })
+        : t('status.terlambat')
+    : t('status.tepatWaktu');
 
   return (
     <View

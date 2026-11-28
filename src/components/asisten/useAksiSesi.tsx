@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { DoorOpen, LockKeyhole } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { ConfirmSheet, useToast } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
@@ -11,66 +12,46 @@ export type AksiSesi = 'buka' | 'tutup';
 
 type Target = { sesiId: string; aksi: AksiSesi };
 
-const COPY_ID: Record<
-  AksiSesi,
-  { judul: string; isi: string; ya: string; toast: string }
-> = {
-  buka: {
-    judul: 'Buka sesi ini?',
-    isi: 'Sesi akan aktif dan praktikan dapat mulai melakukan presensi.',
-    ya: 'Ya, lanjutkan',
-    toast: 'Sesi berhasil dibuka.',
-  },
-  tutup: {
-    judul: 'Tutup sesi ini?',
-    isi: 'Praktikan tidak dapat melakukan presensi setelah sesi ditutup.',
-    ya: 'Ya, tutup sesi',
-    toast: 'Sesi berhasil ditutup.',
-  },
-};
-
-const COPY_EN: Record<
-  AksiSesi,
-  { judul: string; isi: string; ya: string; toast: string }
-> = {
-  buka: {
-    judul: 'Open this session?',
-    isi: 'The session will become active and students can start checking in.',
-    ya: 'Yes, continue',
-    toast: 'Session opened successfully.',
-  },
-  tutup: {
-    judul: 'Close this session?',
-    isi: 'Students will no longer be able to check in once this session is closed.',
-    ya: 'Yes, close session',
-    toast: 'Session closed successfully.',
-  },
-};
-
-const PESAN_TOLAK: Partial<Record<AlasanTolak, string>> = {
-  BELUM_WAKTUNYA: 'Sesi belum bisa dibuka. Tunggu sampai jam mulai.',
-  WAKTU_HABIS: 'Waktu sesi sudah berakhir, sesi tidak dapat dibuka.',
-  SESI_SUDAH_DITUTUP: 'Sesi yang sudah ditutup tidak dapat dibuka lagi.',
-  SESI_TIDAK_DIBUKA: 'Sesi tidak ditemukan.',
-  DI_LUAR_JAM_OPERASIONAL:
-    'Sesi hanya dapat dibuka pada jam operasional lab (07.00–20.00 WIB).',
-  JARINGAN: 'Gagal mengubah status sesi. Periksa koneksi lalu coba lagi.',
+const KEY_TOLAK: Partial<Record<AlasanTolak, string>> = {
+  BELUM_WAKTUNYA: 'asprak.rejectNotYetTime',
+  WAKTU_HABIS: 'asprak.rejectTimeUp',
+  SESI_SUDAH_DITUTUP: 'asprak.rejectAlreadyClosed',
+  SESI_TIDAK_DIBUKA: 'asprak.sessionNotFound',
+  DI_LUAR_JAM_OPERASIONAL: 'asprak.aksiOutOfHours',
+  JARINGAN: 'asprak.rejectNetwork',
 };
 
 export function useAksiSesi(onTidakDitemukan?: () => void) {
+  const { t } = useTranslation();
   const { openSession, closeSession, getSesiById } = useSession();
   const { showToast } = useToast();
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
-  const COPY = isEn ? COPY_EN : COPY_ID;
+  const { themeColors } = usePreferences();
   const [target, setTarget] = useState<Target | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const copyMap: Record<
+    AksiSesi,
+    { judul: string; isi: string; ya: string; toast: string }
+  > = {
+    buka: {
+      judul: t('asprak.aksiOpenTitle'),
+      isi: t('asprak.aksiOpenBody'),
+      ya: t('asprak.aksiOpenConfirm'),
+      toast: t('asprak.aksiOpenToast'),
+    },
+    tutup: {
+      judul: t('asprak.aksiCloseTitle'),
+      isi: t('asprak.aksiCloseBody'),
+      ya: t('asprak.aksiCloseConfirm'),
+      toast: t('asprak.aksiCloseToast'),
+    },
+  };
 
   const terakhir = useRef<Target | null>(null);
   if (target) terakhir.current = target;
   const tampil = target ?? terakhir.current;
   const sesiTampil = tampil ? getSesiById(tampil.sesiId) : undefined;
-  const copy = tampil ? COPY[tampil.aksi] : COPY.buka;
+  const copy = tampil ? copyMap[tampil.aksi] : copyMap.buka;
 
   function mulai(sesiId: string, aksi: AksiSesi) {
     setTarget({ sesiId, aksi });
@@ -87,7 +68,7 @@ export function useAksiSesi(onTidakDitemukan?: () => void) {
 
     if (!getSesiById(sesiId)) {
       setTarget(null);
-      showToast('Sesi tidak ditemukan.');
+      showToast(t('asprak.sessionNotFound'));
       onTidakDitemukan?.();
       return;
     }
@@ -98,16 +79,14 @@ export function useAksiSesi(onTidakDitemukan?: () => void) {
       setLoading(false);
       setTarget(null);
       if (!hasil.ok) {
-        showToast(
-          PESAN_TOLAK[hasil.alasan] ??
-            'Gagal mengubah status sesi praktikum. Silakan coba lagi.',
-        );
+        const key = KEY_TOLAK[hasil.alasan];
+        showToast(key ? t(key as any) : t('asprak.aksiActionError'));
         return;
       }
       showToast(
         hasil.notifGagal
-          ? 'Sesi dibuka, tetapi notifikasi ke praktikan gagal terkirim.'
-          : COPY.buka.toast,
+          ? t('asprak.aksiOpenNotifFailed')
+          : copyMap.buka.toast,
       );
       return;
     }
@@ -115,11 +94,7 @@ export function useAksiSesi(onTidakDitemukan?: () => void) {
     const berhasil = await closeSession(sesiId);
     setLoading(false);
     setTarget(null);
-    showToast(
-      berhasil
-        ? COPY.tutup.toast
-        : 'Gagal mengubah status sesi praktikum. Silakan coba lagi.',
-    );
+    showToast(berhasil ? copyMap.tutup.toast : t('asprak.aksiActionError'));
   }
 
   const isTutup = tampil?.aksi === 'tutup';
@@ -143,15 +118,15 @@ export function useAksiSesi(onTidakDitemukan?: () => void) {
         sesiTampil
           ? [
               {
-                label: isEn ? 'Practicum' : 'Praktikum',
+                label: t('asprak.summaryPracticum'),
                 value: sesiTampil.namaPraktikum,
               },
               {
-                label: isEn ? 'Class & Lab' : 'Kelas & Lab',
+                label: t('asprak.summaryClassLab'),
                 value: `${sesiTampil.kelas} · ${sesiTampil.lab}`,
               },
               {
-                label: isEn ? 'Schedule' : 'Jadwal',
+                label: t('asprak.summarySchedule'),
                 value: `${formatHariTanggalSingkat(sesiTampil.tanggal)}, ${titikJam(sesiTampil.jamMulai)}`,
               },
             ]

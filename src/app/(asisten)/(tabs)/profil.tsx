@@ -8,6 +8,7 @@ import {
   Settings,
   ShieldCheck,
 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { useAslabStore } from '@/components/aslab/lab/aslabStore';
 import { Tombol, useToast } from '@/components/ui';
@@ -29,8 +30,8 @@ export default function ProfilAsistenScreen() {
   const { currentUser, sesi, logout } = useSession();
   const { keanggotaanAll } = useAslabStore();
   const { showToast } = useToast();
-  const { themeColors, language, t } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors, t } = usePreferences();
+  const { t: tI18n } = useTranslation();
   const [sedangKeluar, setSedangKeluar] = useState(false);
 
   const jumlahKelasDikelola = useMemo(() => {
@@ -131,7 +132,7 @@ export default function ProfilAsistenScreen() {
             <Text
               style={[styles.rowLabel, { color: themeColors.textSecondary }]}
             >
-              NIM
+              {tI18n('asprak.nimLabel')}
             </Text>
             <Text
               style={[styles.rowValue, { color: themeColors.textPrimary }]}
@@ -176,7 +177,7 @@ export default function ProfilAsistenScreen() {
             <Text
               style={[styles.rowLabel, { color: themeColors.textSecondary }]}
             >
-              Role
+              {tI18n('asprak.roleLabel')}
             </Text>
             <View
               style={[
@@ -206,10 +207,10 @@ export default function ProfilAsistenScreen() {
             <Text
               style={[styles.rowLabel, { color: themeColors.textSecondary }]}
             >
-              {isEn ? 'Managed classes' : 'Kelas praktikum dikelola'}
+              {tI18n('asprak.managedClasses')}
             </Text>
             <Text style={[styles.rowValue, { color: themeColors.textPrimary }]}>
-              {jumlahKelasDikelola} {isEn ? 'classes' : 'kelas'}
+              {jumlahKelasDikelola} {tI18n('asprak.classesUnit')}
             </Text>
           </View>
         </View>

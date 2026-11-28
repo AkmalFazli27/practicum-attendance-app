@@ -1,16 +1,18 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle, X } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Tombol } from '@/components/ui';
 import { useSession } from '@/context/SessionContext';
 import { colors, fontFamily, radius, spacing, type } from '@/theme/tokens';
 
-export function LoadingBlock({ pesan = 'Memuat data...' }: { pesan?: string }) {
+export function LoadingBlock({ pesan }: { pesan?: string }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.center} accessibilityRole="progressbar">
       <ActivityIndicator size="small" color={colors.graphite} />
-      <Text style={styles.centerText}>{pesan}</Text>
+      <Text style={styles.centerText}>{pesan ?? t('asprak.syncLoading')}</Text>
     </View>
   );
 }
@@ -22,15 +24,16 @@ export function ErrorBlock({
   pesan: string;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.errorCard} accessibilityRole="alert">
       <View style={styles.errorIcon}>
         <AlertTriangle size={22} color={colors.errorFg} />
       </View>
-      <Text style={styles.errorTitle}>Data belum bisa dimuat</Text>
+      <Text style={styles.errorTitle}>{t('asprak.syncErrorTitle')}</Text>
       <Text style={styles.errorBody}>{pesan}</Text>
       <Tombol variant="sekunder" onPress={onRetry}>
-        Coba lagi
+        {t('common.retry')}
       </Tombol>
     </View>
   );
@@ -49,6 +52,7 @@ export function SinkronGuard({
   adaData: boolean;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   const { loading, error, retrySync, clearError } = useSession();
 
   if (loading && !adaData) return <LoadingBlock />;
@@ -67,11 +71,11 @@ export function SinkronGuard({
             onPress={retrySync}
             hitSlop={8}
           >
-            <Text style={styles.bannerAksi}>Coba lagi</Text>
+            <Text style={styles.bannerAksi}>{t('common.retry')}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Tutup pesan error"
+            accessibilityLabel={t('asprak.syncCloseErrorAria')}
             onPress={clearError}
             hitSlop={8}
           >

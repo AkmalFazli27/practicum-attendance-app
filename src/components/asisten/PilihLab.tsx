@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { usePreferences } from '@/context/PreferencesContext';
 import type { Lab } from '@/data/dummy';
@@ -14,19 +15,19 @@ export interface PilihLabProps {
 }
 
 export function PilihLab({ labs, value, onChange, disabled = false }: PilihLabProps) {
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { t } = useTranslation();
+  const { themeColors } = usePreferences();
   const [terbuka, setTerbuka] = useState(false);
   const terpilih = labs.find((l) => l.id === value);
 
   return (
     <View style={styles.group}>
       <Text style={[styles.label, { color: themeColors.textPrimary }]}>
-        {isEn ? 'Laboratory' : 'Laboratorium'}
+        {t('asprak.formLabLabel')}
       </Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${isEn ? 'Laboratory' : 'Laboratorium'}: ${terpilih?.nama ?? (isEn ? 'not selected' : 'belum dipilih')}`}
+        accessibilityLabel={`${t('asprak.formLabLabel')}: ${terpilih?.nama ?? t('asprak.labNotSelected')}`}
         disabled={disabled}
         onPress={() => setTerbuka((v) => !v)}
         style={[
@@ -50,8 +51,7 @@ export function PilihLab({ labs, value, onChange, disabled = false }: PilihLabPr
             },
           ]}
         >
-          {terpilih?.nama ??
-            (isEn ? 'Select laboratory' : 'Pilih laboratorium')}
+          {terpilih?.nama ?? t('asprak.selectLabPlaceholder')}
         </Text>
         <Text style={[styles.caret, { color: themeColors.textMuted }]}>
           {terbuka ? '▴' : '▾'}
@@ -70,9 +70,7 @@ export function PilihLab({ labs, value, onChange, disabled = false }: PilihLabPr
         >
           {labs.length === 0 ? (
             <Text style={[styles.kosong, { color: themeColors.textMuted }]}>
-              {isEn
-                ? 'No laboratory data available.'
-                : 'Data laboratorium belum tersedia.'}
+              {t('asprak.noLabData')}
             </Text>
           ) : (
             labs.map((l, i) => {
