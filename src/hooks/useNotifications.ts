@@ -1,21 +1,69 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
+import expoConstants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
+import {
+  addNotificationReceivedListener,
+  addNotificationResponseReceivedListener,
+  AndroidImportance,
+  dismissAllNotificationsAsync,
+  getExpoPushTokenAsync,
+  getLastNotificationResponseAsync,
+  getPermissionsAsync,
+  getPresentedNotificationsAsync,
+  IosAuthorizationStatus,
+  requestPermissionsAsync,
+  setNotificationChannelAsync,
+  setNotificationHandler,
+  type Notification,
+  type NotificationResponse,
+} from 'expo-notifications';
 import { useRouter } from 'expo-router';
 
 import { useToast } from '@/components/ui';
+import { getActiveLanguage } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
+import type { Peran } from '@/data/dummy';
+
+export type JenisNotifikasiRiwayat =
+  | 'SESI_DIBUKA'
+  | 'JADWAL_BERUBAH'
+  | 'KEPUTUSAN_IZIN'
+  | 'TAGIHAN_BARU'
+  | 'PEMBAYARAN_BERHASIL'
+  | 'PEMBAYARAN_GAGAL'
+  | 'AKSI_SESI';
 
 export interface NotifikasiRiwayatItem {
   id: string;
   judul: string;
   pesan: string;
   waktu: string;
+  jenis?: JenisNotifikasiRiwayat;
   sesiId?: string;
+  tagihanId?: string;
+  orderId?: string;
+  dibaca?: boolean;
 }
+
+export type TujuanNotifikasi =
+  | { pathname: '/(praktikan)/tagihan/[id]'; params: { id: string } }
+  | { pathname: '/(praktikan)/riwayat-pembayaran'; params?: undefined }
+  | { pathname: '/(praktikan)/sesi/[id]'; params: { id: string } }
+  | { pathname: '/(asisten)/sesi/[id]'; params: { id: string } }
+  | { pathname: '/(aslab)/(tabs)/beranda-aslab'; params?: undefined }
+  | null;
+
+const JENIS_VALID: readonly JenisNotifikasiRiwayat[] = [
+  'SESI_DIBUKA',
+  'JADWAL_BERUBAH',
+  'KEPUTUSAN_IZIN',
+  'TAGIHAN_BARU',
+  'PEMBAYARAN_BERHASIL',
+  'PEMBAYARAN_GAGAL',
+  'AKSI_SESI',
+];
 
 const keyRiwayat = (uid: string) => `@tapin_notif_history_${uid}`;
 
@@ -36,6 +84,83 @@ function kabariRiwayatBerubah() {
   });
 }
 
+function ekstrakString(
+  data: Record<string, unknown> | undefined | null,
+  key: string,
+): string | null {
+  if (!data || typeof data !== 'object') return null;
+  const value = data[key];
+  return typeof value === 'string' && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function ekstrakTagihanId(
+  data: Record<string, unknown> | undefined | null,
+): string | null {
+  return ekstrakString(data, 'tagihanId');
+}
+
+function ekstrakOrderId(
+  data: Record<string, unknown> | undefined | null,
+): string | null {
+  return ekstrakString(data, 'orderId');
+}
+
+function ekstrakJenis(
+  data: Record<string, unknown> | undefined | null,
+): JenisNotifikasiRiwayat | undefined {
+  const kandidat = ekstrakString(data, 'jenis');
+  if (!kandidat) return undefined;
+  return JENIS_VALID.includes(kandidat as JenisNotifikasiRiwayat)
+    ? (kandidat as JenisNotifikasiRiwayat)
+    : undefined;
+}
+
+function ekstrakSesiId(
+  data: Record<string, unknown> | undefined | null,
+): string | null {
+  if (!data || typeof data !== 'object') return null;
+  const langsung =
+    ekstrakString(data, 'sesiId') ?? ekstrakString(data, 'sessionId');
+  if (langsung) return langsung;
+  if (ekstrakTagihanId(data) || ekstrakOrderId(data)) return null;
+  return ekstrakString(data, 'id');
+}
+
+export function tujuanNotifikasi(
+  item: Pick<NotifikasiRiwayatItem, 'tagihanId' | 'orderId' | 'sesiId'>,
+  peran: Peran,
+): TujuanNotifikasi {
+  if (item.tagihanId && peran === 'praktikan') {
+    return {
+      pathname: '/(praktikan)/tagihan/[id]',
+      params: { id: item.tagihanId },
+    };
+  }
+  if (item.orderId && peran === 'praktikan') {
+    return { pathname: '/(praktikan)/riwayat-pembayaran' };
+  }
+  if (item.sesiId) {
+    if (peran === 'asisten') {
+      return {
+        pathname: '/(asisten)/sesi/[id]',
+        params: { id: item.sesiId },
+      };
+    }
+    if (peran === 'praktikan') {
+      return {
+        pathname: '/(praktikan)/sesi/[id]',
+        params: { id: item.sesiId },
+      };
+    }
+    if (peran === 'aslab') {
+      return { pathname: '/(aslab)/(tabs)/beranda-aslab' };
+    }
+  }
+  return null;
+}
+
 export async function bacaRiwayatNotifikasi(
   uid: string,
 ): Promise<NotifikasiRiwayatItem[]> {
@@ -53,10 +178,18 @@ export async function simpanRiwayatNotifikasi(
   uid: string,
   item: NotifikasiRiwayatItem,
 ): Promise<void> {
+  if (!uid) return;
   try {
     const lama = await bacaRiwayatNotifikasi(uid);
+    const existing = lama.find((x) => x.id === item.id);
+    const itemBaru: NotifikasiRiwayatItem = {
+      ...existing,
+      ...item,
+      // Jangan kembalikan notifikasi yang sudah dibaca menjadi belum dibaca saat tray sync.
+      dibaca: existing?.dibaca ? true : (item.dibaca ?? false),
+    };
     const tanpaDuplikat = lama.filter((x) => x.id !== item.id);
-    const baru = [item, ...tanpaDuplikat]
+    const baru = [itemBaru, ...tanpaDuplikat]
       .sort((a, b) => (b.waktu || '').localeCompare(a.waktu || ''))
       .slice(0, 50);
     await AsyncStorage.setItem(keyRiwayat(uid), JSON.stringify(baru));
@@ -66,7 +199,41 @@ export async function simpanRiwayatNotifikasi(
   }
 }
 
+export async function tandaiSemuaNotifikasiDibaca(uid: string): Promise<void> {
+  if (!uid) return;
+  try {
+    const lama = await bacaRiwayatNotifikasi(uid);
+    if (lama.length === 0) return;
+    if (lama.every((item) => item.dibaca === true)) return;
+    const baru = lama.map((item) => ({ ...item, dibaca: true }));
+    await AsyncStorage.setItem(keyRiwayat(uid), JSON.stringify(baru));
+    kabariRiwayatBerubah();
+  } catch {
+    // Abaikan kegagalan storage lokal
+  }
+}
+
+export async function tandaiNotifikasiDibaca(
+  uid: string,
+  id: string,
+): Promise<void> {
+  if (!uid || !id) return;
+  try {
+    const lama = await bacaRiwayatNotifikasi(uid);
+    const target = lama.find((item) => item.id === id);
+    if (!target || target.dibaca === true) return;
+    const baru = lama.map((item) =>
+      item.id === id ? { ...item, dibaca: true } : item,
+    );
+    await AsyncStorage.setItem(keyRiwayat(uid), JSON.stringify(baru));
+    kabariRiwayatBerubah();
+  } catch {
+    // Abaikan kegagalan storage lokal
+  }
+}
+
 export async function hapusRiwayatNotifikasi(uid: string): Promise<void> {
+  if (!uid) return;
   try {
     await AsyncStorage.removeItem(keyRiwayat(uid));
     kabariRiwayatBerubah();
@@ -75,12 +242,99 @@ export async function hapusRiwayatNotifikasi(uid: string): Promise<void> {
   }
 }
 
-function ubahKeItemRiwayat(
-  notification: Notifications.Notification,
-): NotifikasiRiwayatItem {
+export async function catatHasilAksiSesi(
+  uid: string,
+  input: {
+    aksi: 'BUKA' | 'TUTUP';
+    berhasil: boolean;
+    sesiId: string;
+    namaSesi: string;
+    pesan?: string;
+  },
+): Promise<void> {
+  if (!uid) return;
+  const isEn = getActiveLanguage() === 'en';
+
+  const judul =
+    input.aksi === 'BUKA'
+      ? input.berhasil
+        ? isEn
+          ? 'Session opened'
+          : 'Sesi dibuka'
+        : isEn
+          ? 'Failed to open session'
+          : 'Gagal membuka sesi'
+      : input.berhasil
+        ? isEn
+          ? 'Session closed'
+          : 'Sesi ditutup'
+        : isEn
+          ? 'Failed to close session'
+          : 'Gagal menutup sesi';
+
+  const defaultPesan =
+    input.aksi === 'BUKA'
+      ? input.berhasil
+        ? isEn
+          ? `Session ${input.namaSesi} was opened.`
+          : `Sesi ${input.namaSesi} berhasil dibuka.`
+        : isEn
+          ? `Failed to open session ${input.namaSesi}.`
+          : `Gagal membuka sesi ${input.namaSesi}.`
+      : input.berhasil
+        ? isEn
+          ? `Session ${input.namaSesi} was closed.`
+          : `Sesi ${input.namaSesi} berhasil ditutup.`
+        : isEn
+          ? `Failed to close session ${input.namaSesi}.`
+          : `Gagal menutup sesi ${input.namaSesi}.`;
+
+  await simpanRiwayatNotifikasi(uid, {
+    id: `aksi-sesi-${input.aksi}-${input.sesiId}-${Date.now()}`,
+    judul,
+    pesan: input.pesan ?? defaultPesan,
+    waktu: new Date().toISOString(),
+    jenis: 'AKSI_SESI',
+    sesiId: input.sesiId,
+    dibaca: false,
+  });
+}
+
+export function useUnreadNotificationCount(uid?: string): number {
+  const [state, setState] = useState<{ uid?: string; jumlah: number }>({
+    jumlah: 0,
+  });
+
+  useEffect(() => {
+    if (!uid) return;
+    let aktif = true;
+    const muat = async () => {
+      const items = await bacaRiwayatNotifikasi(uid);
+      if (!aktif) return;
+      // Item lama tanpa field dibaca tidak dihitung belum dibaca.
+      setState({
+        uid,
+        jumlah: items.filter((x) => x.dibaca === false).length,
+      });
+    };
+    void muat();
+    const unsub = subscribeRiwayatNotifikasi(() => void muat());
+    return () => {
+      aktif = false;
+      unsub();
+    };
+  }, [uid]);
+
+  return uid && state.uid === uid ? state.jumlah : 0;
+}
+
+function ubahKeItemRiwayat(notification: Notification): NotifikasiRiwayatItem {
   const content = notification.request.content;
   const rawData = content.data as Record<string, unknown> | undefined;
+  const jenis = ekstrakJenis(rawData);
   const sesiId = ekstrakSesiId(rawData) ?? undefined;
+  const tagihanId = ekstrakTagihanId(rawData) ?? undefined;
+  const orderId = ekstrakOrderId(rawData) ?? undefined;
   const rawDate = notification.date;
   // iOS mengirim detik, Android mengirim milidetik
   const ms =
@@ -96,7 +350,11 @@ function ubahKeItemRiwayat(
     judul: content.title || 'Notifikasi TapIn',
     pesan: content.body || '',
     waktu: new Date(ms).toISOString(),
-    sesiId,
+    ...(jenis ? { jenis } : {}),
+    ...(sesiId ? { sesiId } : {}),
+    ...(tagihanId ? { tagihanId } : {}),
+    ...(orderId ? { orderId } : {}),
+    dibaca: false,
   };
 }
 
@@ -108,8 +366,8 @@ export async function sinkronkanNotifikasiTerkirim(uid: string): Promise<void> {
   if (Platform.OS === 'web' || !uid) return;
   try {
     const [disajikan, responTerakhir] = await Promise.all([
-      Notifications.getPresentedNotificationsAsync().catch(() => []),
-      Notifications.getLastNotificationResponseAsync().catch(() => null),
+      getPresentedNotificationsAsync().catch(() => []),
+      getLastNotificationResponseAsync().catch(() => null),
     ]);
 
     const kandidat: NotifikasiRiwayatItem[] = [];
@@ -146,7 +404,7 @@ export async function sinkronkanNotifikasiTerkirim(uid: string): Promise<void> {
 }
 
 try {
-  Notifications.setNotificationHandler({
+  setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
       shouldShowBanner: true,
@@ -159,24 +417,12 @@ try {
   // Abaikan bila dijalankan di lingkungan yang tidak mendukung handler native
 }
 
-function ekstrakSesiId(
-  data: Record<string, unknown> | undefined | null,
-): string | null {
-  if (!data || typeof data !== 'object') return null;
-  const kandidat = data.sesiId ?? data.sessionId ?? data.id;
-  if (typeof kandidat === 'string' && kandidat.trim().length > 0) {
-    return kandidat.trim();
-  }
-  return null;
-}
-
 /**
- * Hook klien push notification (FR-24 & FR-25).
+ * Hook klien push notification (FR-24, FR-25, FR-39, FR-42 s.d. FR-45).
  * - Meminta izin notifikasi saat pengguna login.
  * - Mendaftarkan Expo Push Token melalui `savePushToken` dari `useSession()`.
- * - Mencatat setiap notifikasi yang muncul (foreground, background, ditekan maupun tidak)
- *   ke riwayat notifikasi lokal.
- * - Menangani navigasi ke detail sesi saat notifikasi diketuk.
+ * - Mencatat setiap notifikasi yang muncul ke riwayat notifikasi per akun (`uid`).
+ * - Mengarahkan ketukan notifikasi ke tagihan, pembayaran, atau sesi sesuai peran.
  */
 export function useNotifications(): void {
   const router = useRouter();
@@ -186,6 +432,17 @@ export function useNotifications(): void {
   const lastRegisteredKeyRef = useRef<string | null>(null);
   const warnedDeniedUidRef = useRef<string | null>(null);
   const handledResponseIdRef = useRef<string | null>(null);
+
+  // Isolasi antar akun: bersihkan ref & tray saat logout tanpa menghapus riwayat akun lama.
+  useEffect(() => {
+    if (currentUser) return;
+    lastRegisteredKeyRef.current = null;
+    handledResponseIdRef.current = null;
+    warnedDeniedUidRef.current = null;
+    if (Platform.OS !== 'web') {
+      void dismissAllNotificationsAsync().catch(() => {});
+    }
+  }, [currentUser]);
 
   // 1. Registrasi izin & Expo Push Token ketika pengguna terautentikasi
   useEffect(() => {
@@ -204,25 +461,23 @@ export function useNotifications(): void {
     const siapkanNotifikasi = async () => {
       try {
         if (Platform.OS === 'android') {
-          await Notifications.setNotificationChannelAsync('default', {
+          await setNotificationChannelAsync('default', {
             name: 'Notifikasi Praktikum TapIn',
-            importance: Notifications.AndroidImportance.MAX,
+            importance: AndroidImportance.MAX,
             vibrationPattern: [0, 250, 250, 250],
           });
         }
 
-        const izinAwal = await Notifications.getPermissionsAsync();
+        const izinAwal = await getPermissionsAsync();
         let diizinkan =
           izinAwal.granted ||
-          izinAwal.ios?.status ===
-            Notifications.IosAuthorizationStatus.PROVISIONAL;
+          izinAwal.ios?.status === IosAuthorizationStatus.PROVISIONAL;
 
         if (!diizinkan && izinAwal.canAskAgain) {
-          const hasilMinta = await Notifications.requestPermissionsAsync();
+          const hasilMinta = await requestPermissionsAsync();
           diizinkan =
             hasilMinta.granted ||
-            hasilMinta.ios?.status ===
-              Notifications.IosAuthorizationStatus.PROVISIONAL;
+            hasilMinta.ios?.status === IosAuthorizationStatus.PROVISIONAL;
         }
 
         if (cancelled) return;
@@ -242,12 +497,12 @@ export function useNotifications(): void {
         }
 
         const projectId =
-          Constants?.expoConfig?.extra?.eas?.projectId ??
-          Constants?.easConfig?.projectId;
+          expoConstants?.expoConfig?.extra?.eas?.projectId ??
+          expoConstants?.easConfig?.projectId;
 
         const tokenRes = projectId
-          ? await Notifications.getExpoPushTokenAsync({ projectId })
-          : await Notifications.getExpoPushTokenAsync();
+          ? await getExpoPushTokenAsync({ projectId })
+          : await getExpoPushTokenAsync();
 
         if (cancelled) return;
 
@@ -288,60 +543,48 @@ export function useNotifications(): void {
       }
     });
 
-    const arahkanKeSesi = (
-      response: Notifications.NotificationResponse | null,
-    ) => {
+    const arahkanKeTujuan = (response: NotificationResponse | null) => {
       if (!response) return;
       const identifier = response.notification.request.identifier;
       if (identifier && handledResponseIdRef.current === identifier) {
         return;
       }
 
-      const rawData = response.notification.request.content.data as
-        | Record<string, unknown>
-        | undefined;
-      const sesiId = ekstrakSesiId(rawData);
-      if (!sesiId) return;
+      const item = ubahKeItemRiwayat(response.notification);
+      const tujuan = tujuanNotifikasi(item, currentUser.peran);
+      if (!tujuan) return;
 
       if (identifier) {
         handledResponseIdRef.current = identifier;
       }
 
-      const pathname =
-        currentUser.peran === 'asisten'
-          ? '/(asisten)/sesi/[id]'
-          : '/(praktikan)/sesi/[id]';
-
-      router.push({ pathname, params: { id: sesiId } } as any);
+      void tandaiNotifikasiDibaca(uid, item.id);
+      router.push(tujuan as any);
     };
 
-    Notifications.getLastNotificationResponseAsync()
-      .then((lastResponse) => {
+    getLastNotificationResponseAsync()
+      .then(async (lastResponse) => {
         if (lastResponse) {
-          void simpanRiwayatNotifikasi(
+          await simpanRiwayatNotifikasi(
             uid,
             ubahKeItemRiwayat(lastResponse.notification),
           );
-          arahkanKeSesi(lastResponse);
+          arahkanKeTujuan(lastResponse);
         }
       })
       .catch(() => {});
 
-    const subReceived = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        void simpanRiwayatNotifikasi(uid, ubahKeItemRiwayat(notification));
-      },
-    );
+    const subReceived = addNotificationReceivedListener((notification) => {
+      void simpanRiwayatNotifikasi(uid, ubahKeItemRiwayat(notification));
+    });
 
-    const subTap = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        void simpanRiwayatNotifikasi(
-          uid,
-          ubahKeItemRiwayat(response.notification),
-        );
-        arahkanKeSesi(response);
-      },
-    );
+    const subTap = addNotificationResponseReceivedListener(async (response) => {
+      await simpanRiwayatNotifikasi(
+        uid,
+        ubahKeItemRiwayat(response.notification),
+      );
+      arahkanKeTujuan(response);
+    });
 
     return () => {
       subAppState.remove();
