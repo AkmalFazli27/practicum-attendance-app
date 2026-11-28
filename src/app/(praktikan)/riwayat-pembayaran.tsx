@@ -230,8 +230,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 13,
     borderWidth: 1,
     alignItems: 'center',
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     ...type.h2,
   },
   headerSpacer: {
-    width: 42,
+    width: 44,
   },
   content: {
     paddingHorizontal: layout.screenPadding,

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AlertCircle, Check, FileText, Sparkles } from 'lucide-react-native';
 
@@ -29,8 +30,9 @@ type Catatan = {
 };
 
 export default function RiwayatScreen() {
-  const { themeColors, language } = usePreferences();
-  const isEn = language === 'en';
+  const { themeColors } = usePreferences();
+  const { t, i18n } = useTranslation();
+  const isEn = i18n.language === 'en';
   const {
     currentUser,
     sesi,
@@ -109,40 +111,34 @@ export default function RiwayatScreen() {
       >
         <View style={styles.pageTitle}>
           <Text style={[styles.kicker, { color: themeColors.textMuted }]}>
-            {isEn ? 'YOUR RECORDS' : 'CATATANMU'}
+            {t('riwayat.kicker')}
           </Text>
           <Text style={[styles.h1, { color: themeColors.textPrimary }]}>
-            {isEn ? 'Attendance history' : 'Riwayat kehadiran'}
+            {t('riwayat.title')}
           </Text>
           <Text style={[styles.sub, { color: themeColors.textSecondary }]}>
-            {isEn
-              ? 'All your check-ins and leave requests.'
-              : 'Semua presensi dan status pengajuan izinmu.'}
+            {t('riwayat.subtitle')}
           </Text>
         </View>
 
         {error ? (
           <EmptyState
-            judul={isEn ? 'Failed to load history' : 'Gagal memuat riwayat'}
+            judul={t('riwayat.loadError')}
             pesan={error}
             aksi={{
-              label: isEn ? 'Try again' : 'Coba lagi',
+              label: t('common.retry'),
               onPress: retrySync,
             }}
           />
         ) : loading ? (
           <EmptyState
-            judul={isEn ? 'Loading history…' : 'Memuat riwayat…'}
-            pesan={isEn ? 'Please wait a moment.' : 'Mohon tunggu sebentar.'}
+            judul={t('riwayat.loadingTitle')}
+            pesan={t('common.pleaseWait')}
           />
         ) : daftarCatatan.length === 0 ? (
           <EmptyState
-            judul={isEn ? 'No history yet' : 'Belum ada riwayat'}
-            pesan={
-              isEn
-                ? 'Completed check-ins and leave requests will appear here.'
-                : 'Presensi berhasil dan pengajuan izin akan muncul di halaman ini.'
-            }
+            judul={t('riwayat.emptyTitle')}
+            pesan={t('riwayat.emptyBody')}
           />
         ) : (
           <View style={styles.historyList}>
@@ -245,13 +241,9 @@ export default function RiwayatScreen() {
                             ]}
                           >
                             {item.statusIzin === 'DITERIMA'
-                              ? isEn
-                                ? 'Excused absence · no fine'
-                                : 'Tidak hadir dengan izin · bebas denda'
+                              ? t('izin.excused')
                               : item.statusIzin === 'MENUNGGU'
-                                ? isEn
-                                  ? 'You can still check in while awaiting decision.'
-                                  : 'Masih bisa presensi selama menunggu keputusan.'
+                                ? t('riwayat.pendingNote')
                                 : statusInfo.keterangan}
                           </Text>
                         ) : null}
@@ -271,9 +263,7 @@ export default function RiwayatScreen() {
                               ]}
                               numberOfLines={1}
                             >
-                              {isEn
-                                ? 'AI analysis unavailable'
-                                : 'Analisis AI tidak tersedia'}
+                              {t('izin.aiUnavailable')}
                             </Text>
                           </View>
                         ) : (
@@ -295,7 +285,7 @@ export default function RiwayatScreen() {
                                 ]}
                                 numberOfLines={1}
                               >
-                                {`AI: ${infoAi.label}`}
+                                {t('riwayat.aiLabelChip', { label: infoAi.label })}
                               </Text>
                             </View>
 
@@ -329,10 +319,8 @@ export default function RiwayatScreen() {
                                 numberOfLines={1}
                               >
                                 {sentimen.tersedia
-                                  ? `${isEn ? 'AI Sentiment' : 'Sentimen AI'}: ${sentimen.label}`
-                                  : isEn
-                                    ? 'Sentiment unavailable'
-                                    : 'Sentimen tidak tersedia'}
+                                  ? t('izin.sentiment', { label: sentimen.label })
+                                  : t('izin.sentimentUnavailable')}
                               </Text>
                             </View>
                           </View>
@@ -354,7 +342,7 @@ export default function RiwayatScreen() {
                           { color: themeColors.sesiDibukaFg },
                         ]}
                       >
-                        {isEn ? 'Present' : 'Hadir'}
+                        {t('riwayat.presentBadge')}
                       </Text>
                     </View>
                   ) : isAlpha ? (

@@ -2,19 +2,23 @@ import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Redirect, Stack } from 'expo-router';
 
+import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
-import { colors } from '@/theme/tokens';
-
-// TODO(sprint4): ganti dengan tipe Peran resmi setelah kontrak PM merge.
-type PeranSprint4 = 'praktikan' | 'asisten' | 'aslab';
+import type { Peran } from '@/data/dummy';
 
 export default function AslabLayout() {
   const { currentUser, loading } = useSession();
+  const { themeColors } = usePreferences();
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: themeColors.background },
+        ]}
+      >
+        <ActivityIndicator size="large" color={themeColors.primary} />
       </View>
     );
   }
@@ -23,7 +27,7 @@ export default function AslabLayout() {
     return <Redirect href="/" />;
   }
 
-  const peran = currentUser.peran as PeranSprint4;
+  const peran = currentUser.peran as Peran;
 
   if (peran !== 'aslab') {
     return (
@@ -41,7 +45,7 @@ export default function AslabLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: colors.background },
+        contentStyle: { backgroundColor: themeColors.background },
       }}
     />
   );
@@ -52,6 +56,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
   },
 });
