@@ -6,14 +6,7 @@
 
 import type { Pembayaran, Tagihan } from '@/data/dummy';
 
-export type StatusTagihanLokal = Tagihan['status'];
-
-export type TagihanLokal = Tagihan;
-
-export type PembayaranLokal = Pembayaran;
-
-
-export const TAGIHAN_STUB: TagihanLokal[] = [
+export const TAGIHAN_STUB: Tagihan[] = [
   {
     id: 'tagihan-ses-1-p1',
     praktikanId: 'p1',
@@ -72,7 +65,7 @@ export const TAGIHAN_STUB: TagihanLokal[] = [
   },
 ];
 
-export const PEMBAYARAN_STUB: PembayaranLokal[] = [
+export const PEMBAYARAN_STUB: Pembayaran[] = [
   {
     id: 'order-ses-1-p1',
     tagihanId: 'tagihan-ses-1-p1',
