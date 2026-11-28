@@ -295,6 +295,56 @@ function mapPembayaran(id: string, d: Record<string, any>): Pembayaran {
   };
 }
 
+const PAYMENT_API = (process.env.EXPO_PUBLIC_PAYMENT_API_URL || '').replace(/\/+$/, '');
+const ALASAN_BAYAR = [
+  'TAGIHAN_TIDAK_DITEMUKAN',
+  'SUDAH_LUNAS',
+  'TIDAK_BERHAK',
+  'JARINGAN',
+  'SERVER_ERROR',
+];
+
+type HasilServer =
+  | { ok: true; data: Record<string, any> }
+  | { ok: false; alasan: string };
+
+async function panggilServerBayar(
+  path: string,
+  body: Record<string, unknown>,
+): Promise<HasilServer> {
+  if (!isFirebaseConfigured || !PAYMENT_API) {
+    return { ok: false, alasan: 'SERVER_ERROR' };
+  }
+  const fbUser = auth.currentUser;
+  if (!fbUser) return { ok: false, alasan: 'TIDAK_BERHAK' };
+
+  const kontrol = new AbortController();
+  // Server gratis Render bisa butuh sekitar satu menit saat bangun dari tidur.
+  const timer = setTimeout(() => kontrol.abort(), 60000);
+  try {
+    const token = await fbUser.getIdToken();
+    const res = await fetch(`${PAYMENT_API}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+      signal: kontrol.signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data?.ok === false) {
+      const alasan = ALASAN_BAYAR.includes(data?.alasan) ? data.alasan : 'SERVER_ERROR';
+      return { ok: false, alasan };
+    }
+    return { ok: true, data };
+  } catch {
+    return { ok: false, alasan: 'JARINGAN' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
@@ -1807,8 +1857,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const createLabsBulk = async (): Promise<HasilBulk> => ({ berhasil: 0, gagal: [] });
   const addAnggotaBulk = async (): Promise<HasilBulk> => ({ berhasil: 0, gagal: [] });
   const pindahAnggota = async () => BELUM;
-  const mulaiPembayaran = async () => BELUM;
-  const sinkronPembayaran = async () => { };
+  const mulaiPembayaran = async (
+    tagihanId: string,
+  ): Promise<
+    { ok: true; redirectUrl: string; orderId: string } | { ok: false; alasan: string }
+  > => {
+    if (!tagihanId) return { ok: false, alasan: 'TAGIHAN_TIDAK_DITEMUKAN' };
+    const hasil = await panggilServerBayar('/pembayaran/buat', { tagihanId });
+    if (!hasil.ok) return hasil;
+    const { redirectUrl, orderId } = hasil.data;
+    if (typeof redirectUrl !== 'string' || typeof orderId !== 'string') {
+      return { ok: false, alasan: 'SERVER_ERROR' };
+    }
+    return { ok: true, redirectUrl, orderId };
+  };
+
+  // Melempar Error saat gagal supaya UI bisa menampilkan Toast.
+  const sinkronPembayaran = async (orderId: string): Promise<void> => {
+    const hasil = await panggilServerBayar('/pembayaran/sinkron', { orderId });
+    if (!hasil.ok) throw new Error(hasil.alasan);
+  };
 
   const value = useMemo<SessionContextValue>(
     () => ({
