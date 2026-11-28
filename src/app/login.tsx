@@ -35,8 +35,11 @@ import { useSession } from '@/context/SessionContext';
 import { type Peran } from '@/data/dummy';
 import { fontFamily, radius, spacing, type, type ThemeColors } from '@/theme/tokens';
 
-const berandaUntuk = (peran: Peran) =>
-  peran === 'asisten' ? '/beranda-asisten' : '/beranda-praktikan';
+const berandaUntuk = (peran: Peran): string => {
+  if (peran === 'aslab') return '/(aslab)/(tabs)/beranda-aslab';
+  if (peran === 'asisten') return '/(asisten)/(tabs)/beranda-asisten';
+  return '/(praktikan)/(tabs)/beranda-praktikan';
+};
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -83,7 +86,7 @@ export default function LoginScreen() {
     if (loading || redirectAwalSelesai.current) return;
     redirectAwalSelesai.current = true;
     if (currentUser) {
-      router.replace(berandaUntuk(currentUser.peran));
+      router.replace(berandaUntuk(currentUser.peran) as any);
     }
   }, [loading, currentUser, router]);
 
@@ -195,7 +198,7 @@ export default function LoginScreen() {
         }
 
         showToast(teks.toast.selamatDatang(res.user.nama.split(' ')[0]));
-        router.replace(berandaUntuk(res.user.peran));
+        router.replace(berandaUntuk(res.user.peran) as any);
         return;
       }
 
@@ -214,7 +217,7 @@ export default function LoginScreen() {
       }
 
       showToast(teks.toast.akunDibuat(res.user.nama.split(' ')[0]));
-      router.replace(berandaUntuk(res.user.peran));
+      router.replace(berandaUntuk(res.user.peran) as any);
     } catch (err: any) {
       const kode = typeof err?.code === 'string' ? err.code : null;
       setPesanError(

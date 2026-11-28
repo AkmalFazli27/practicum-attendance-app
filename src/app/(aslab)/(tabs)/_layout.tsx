@@ -2,7 +2,14 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home, LayoutGrid, type LucideIcon } from 'lucide-react-native';
+import {
+  CalendarDays,
+  Home,
+  LayoutGrid,
+  UserRound,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-react-native';
 
 import { AppHeader } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
@@ -27,12 +34,13 @@ function TabItem({
         ]}
       >
         <Icon
-          size={21}
+          size={20}
           strokeWidth={2.2}
           color={focused ? themeColors.onPrimary : themeColors.textMuted}
         />
       </View>
       <Text
+        numberOfLines={1}
         style={[
           styles.label,
           focused
@@ -81,9 +89,48 @@ export default function AslabTabs() {
         <Tabs.Screen
           name="lab"
           options={{
-            title: 'Lab',
+            title: t('tab_lab'),
             tabBarLabel: ({ focused }) => (
-              <TabItem label="Lab" focused={focused} Icon={LayoutGrid} />
+              <TabItem
+                label={t('tab_lab')}
+                focused={focused}
+                Icon={LayoutGrid}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="jadwal"
+          options={{
+            title: t('tab_schedule'),
+            tabBarLabel: ({ focused }) => (
+              <TabItem
+                label={t('tab_schedule')}
+                focused={focused}
+                Icon={CalendarDays}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="denda"
+          options={{
+            title: t('tab_fines'),
+            tabBarLabel: ({ focused }) => (
+              <TabItem label={t('tab_fines')} focused={focused} Icon={Wallet} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="profil"
+          options={{
+            title: t('tab_profile'),
+            tabBarLabel: ({ focused }) => (
+              <TabItem
+                label={t('tab_profile')}
+                focused={focused}
+                Icon={UserRound}
+              />
             ),
           }}
         />
@@ -103,14 +150,15 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   iconPill: {
-    width: 38,
-    height: 31,
+    width: 36,
+    height: 30,
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
     ...type.micro,
-    letterSpacing: 0.2,
+    fontSize: 10.5,
+    letterSpacing: 0.1,
   },
 });

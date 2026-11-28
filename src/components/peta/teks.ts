@@ -35,6 +35,9 @@ export type TeksPeta = {
   membacaLokasi: string;
   validasi: Record<KodeAlasanLab, string>;
   kelas: (kelas: string) => string;
+  mataKuliah: (mk: string) => string;
+  mataKuliahBelumDiatur: string;
+  graceDanDenda: (menit: number, nominalRp: string) => string;
   radiusPresensi: (meter: number) => string;
   radiusBelumDiatur: string;
   memuatAktivitas: string;
@@ -102,6 +105,10 @@ const ID: TeksPeta = {
     'radius-invalid': 'Radius harus lebih dari 0 meter.',
   },
   kelas: (kelas) => `Kelas ${kelas}`,
+  mataKuliah: (mk) => `Mata kuliah: ${mk}`,
+  mataKuliahBelumDiatur: 'Mata kuliah belum ditentukan',
+  graceDanDenda: (menit, nominalRp) =>
+    `Toleransi ${menit} menit · Denda ${nominalRp}`,
   radiusPresensi: (meter) => `Radius presensi ${meter} meter`,
   radiusBelumDiatur: 'Radius presensi belum diatur',
   memuatAktivitas: 'Memuat aktivitas lab…',
@@ -206,6 +213,10 @@ const EN: TeksPeta = {
     'radius-invalid': 'Radius must be greater than 0 meters.',
   },
   kelas: (kelas) => `Class ${kelas}`,
+  mataKuliah: (mk) => `Course: ${mk}`,
+  mataKuliahBelumDiatur: 'Course is not specified',
+  graceDanDenda: (menit, nominalRp) =>
+    `Grace ${menit} min · Fine ${nominalRp}`,
   radiusPresensi: (meter) => `Attendance radius ${meter} meters`,
   radiusBelumDiatur: 'Attendance radius is not set',
   memuatAktivitas: 'Loading lab activity…',

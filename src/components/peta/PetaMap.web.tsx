@@ -80,6 +80,9 @@ export function PetaMap({
               </View>
               <View style={styles.copy}>
                 <Text style={styles.nama}>{lab.nama}</Text>
+                {lab.mataKuliah?.trim() ? (
+                  <Text style={styles.mataKuliah}>{lab.mataKuliah.trim()}</Text>
+                ) : null}
                 <Text style={styles.alamat}>{lab.alamat}</Text>
                 {jarak !== null ? (
                   <Text style={styles.jarak}>
@@ -176,6 +179,11 @@ const buatGaya = (w: ThemeColors) =>
       ...type.bodyStrong,
       fontFamily: fontFamily.bold,
       color: w.textPrimary,
+    },
+    mataKuliah: {
+      ...type.micro,
+      fontFamily: fontFamily.semibold,
+      color: w.sesiDibukaFg,
     },
     alamat: {
       ...type.caption,

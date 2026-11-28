@@ -55,7 +55,7 @@ export function AppHeader({
     if (!currentUser) return;
     const peran = currentUser.peran as 'praktikan' | 'asisten' | 'aslab';
     if (peran === 'aslab') {
-      router.navigate('/(aslab)/(tabs)/beranda-aslab' as any);
+      router.navigate('/(aslab)/(tabs)/profil' as any);
       return;
     }
     router.navigate(

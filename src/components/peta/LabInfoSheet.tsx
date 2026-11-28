@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { CalendarClock, MapPin } from 'lucide-react-native';
+import { BookOpen, CalendarClock, MapPin } from 'lucide-react-native';
 
 import { SheetModal, StatusBadge, Tombol } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
@@ -87,6 +87,15 @@ export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
     >
       {lab ? (
         <>
+          <View style={styles.mkPill}>
+            <BookOpen size={14} color={themeColors.sesiDibukaFg} />
+            <Text style={styles.mkText} numberOfLines={2}>
+              {lab.mataKuliah?.trim()
+                ? teks.mataKuliah(lab.mataKuliah.trim())
+                : teks.mataKuliahBelumDiatur}
+            </Text>
+          </View>
+
           <View style={styles.lokasiRow}>
             <MapPin size={16} color={themeColors.textMuted} />
             <View style={styles.lokasiCopy}>
@@ -96,6 +105,15 @@ export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
                   ? teks.radiusPresensi(lab.radius)
                   : teks.radiusBelumDiatur}
               </Text>
+              {typeof lab.graceMenit === 'number' &&
+              typeof lab.dendaNominal === 'number' ? (
+                <Text style={styles.lokasiRadius}>
+                  {teks.graceDanDenda(
+                    lab.graceMenit,
+                    `Rp${lab.dendaNominal.toLocaleString('id-ID')}`,
+                  )}
+                </Text>
+              ) : null}
             </View>
           </View>
 
@@ -154,6 +172,23 @@ export function LabInfoSheet({ lab, visible, onClose }: LabInfoSheetProps) {
 
 const buatGaya = (w: ThemeColors) =>
   StyleSheet.create({
+    mkPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.s2,
+      paddingHorizontal: spacing.s3,
+      paddingVertical: spacing.s2,
+      borderRadius: radius.button,
+      borderWidth: 1,
+      borderColor: w.radiusInsideBorder,
+      backgroundColor: w.primarySoft,
+    },
+    mkText: {
+      ...type.caption,
+      fontFamily: fontFamily.bold,
+      color: w.sesiDibukaFg,
+      flex: 1,
+    },
     lokasiRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
