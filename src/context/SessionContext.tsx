@@ -401,7 +401,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
           if (userDoc.exists()) {
             const data = userDoc.data();
-            if (data.peran !== 'asisten' && data.peran !== 'praktikan') {
+            if (!['asisten', 'praktikan', 'aslab'].includes(data.peran)) {
               await signOut(auth);
               setCurrentUser(null);
               setError(
@@ -516,7 +516,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
 
     const uid = currentUser.id;
-    const isAsistenRole = currentUser.peran === 'asisten';
+    const isAsistenRole = currentUser.peran === 'asisten' || currentUser.peran === 'aslab';
 
     // Sinkronisasi dokumen profil pengguna aktif secara real-time
     const unsubscribeSelf = onSnapshot(
@@ -524,7 +524,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       (docSnap) => {
         if (!docSnap.exists()) return;
         const d = docSnap.data();
-        if (d.peran !== 'asisten' && d.peran !== 'praktikan') return;
+        if (!['asisten', 'praktikan', 'aslab'].includes(d.peran)) return;
         setCurrentUser((prev) => {
           if (!prev || prev.id !== uid) return prev;
           return {
@@ -555,7 +555,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
               email: d.email || '',
               nim: d.nim || undefined,
               kelas: d.kelas || undefined,
-              peran: d.peran === 'asisten' ? 'asisten' : 'praktikan',
+              peran: d.peran === 'asisten' || d.peran === 'aslab' ? d.peran : 'praktikan',
               pushToken: d.pushToken || undefined,
             };
           });
@@ -773,7 +773,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
 
         const d = userDoc.data();
-        if (d.peran !== 'asisten' && d.peran !== 'praktikan') {
+        if (!['asisten', 'praktikan', 'aslab'].includes(d.peran)) {
           await signOut(auth);
           setCurrentUser(null);
           return {
