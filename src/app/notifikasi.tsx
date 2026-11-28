@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { Redirect, useRouter } from 'expo-router';
+import { dismissAllNotificationsAsync } from 'expo-notifications';
+import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Bell,
@@ -25,6 +27,9 @@ import {
   hapusRiwayatNotifikasi,
   sinkronkanNotifikasiTerkirim,
   subscribeRiwayatNotifikasi,
+  tandaiNotifikasiDibaca,
+  tandaiSemuaNotifikasiDibaca,
+  tujuanNotifikasi,
   type NotifikasiRiwayatItem,
 } from '@/hooks/useNotifications';
 import {
@@ -59,47 +64,66 @@ export default function NotifikasiScreen() {
   const { themeColors, language } = usePreferences();
 
   const isEn = language === 'en';
-  const [items, setItems] = useState<NotifikasiRiwayatItem[]>([]);
-  const [memuat, setMemuat] = useState(true);
+  const uid = currentUser?.id;
+  const [state, setState] = useState<{
+    uid?: string;
+    items: NotifikasiRiwayatItem[];
+  }>({ items: [] });
 
-  const muatRiwayat = useCallback(async () => {
-    if (!currentUser?.id) return;
-    setMemuat(true);
-    try {
-      await sinkronkanNotifikasiTerkirim(currentUser.id);
-      const daftar = await bacaRiwayatNotifikasi(currentUser.id);
-      setItems(daftar);
-    } finally {
-      setMemuat(false);
-    }
-  }, [currentUser?.id]);
+  const memuat = Boolean(uid) && state.uid !== uid;
+  const items = uid && state.uid === uid ? state.items : [];
 
   useEffect(() => {
-    void muatRiwayat();
-    if (!currentUser?.id) return;
+    if (!uid) return;
+    let aktif = true;
+    const muat = async () => {
+      await sinkronkanNotifikasiTerkirim(uid);
+      await tandaiSemuaNotifikasiDibaca(uid);
+      const daftar = await bacaRiwayatNotifikasi(uid);
+      if (aktif) {
+        setState({ uid, items: daftar });
+      }
+    };
+    void muat();
     const unsub = subscribeRiwayatNotifikasi(() => {
-      void bacaRiwayatNotifikasi(currentUser.id).then(setItems);
+      void bacaRiwayatNotifikasi(uid).then((daftar) => {
+        if (aktif) {
+          setState({ uid, items: daftar });
+        }
+      });
     });
-    return unsub;
-  }, [muatRiwayat, currentUser?.id]);
+    return () => {
+      aktif = false;
+      unsub();
+    };
+  }, [uid]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (uid) {
+        void tandaiSemuaNotifikasiDibaca(uid);
+      }
+    }, [uid]),
+  );
 
   if (!currentUser) return <Redirect href="/" />;
 
   const handleHapusSemua = async () => {
     await hapusRiwayatNotifikasi(currentUser.id);
-    setItems([]);
+    if (Platform.OS !== 'web') {
+      await dismissAllNotificationsAsync().catch(() => {});
+    }
+    setState({ uid: currentUser.id, items: [] });
     showToast(
       isEn ? 'Notification history cleared.' : 'Riwayat notifikasi dibersihkan.',
     );
   };
 
   const handleTekanItem = (item: NotifikasiRiwayatItem) => {
-    if (!item.sesiId) return;
-    const pathname =
-      currentUser.peran === 'asisten'
-        ? '/(asisten)/sesi/[id]'
-        : '/(praktikan)/sesi/[id]';
-    router.push({ pathname, params: { id: item.sesiId } } as any);
+    const tujuan = tujuanNotifikasi(item, currentUser.peran);
+    if (!tujuan) return;
+    void tandaiNotifikasiDibaca(currentUser.id, item.id);
+    router.push(tujuan as any);
   };
 
   return (
@@ -186,70 +210,83 @@ export default function NotifikasiScreen() {
             judul={isEn ? 'No notifications yet' : 'Belum ada notifikasi'}
             pesan={
               isEn
-                ? 'Session alerts, schedule updates, and leave decisions will appear here.'
-                : 'Pemberitahuan sesi dibuka, perubahan jadwal, dan keputusan izin akan muncul di sini.'
+                ? 'Session alerts, schedule updates, bills, and leave decisions will appear here.'
+                : 'Pemberitahuan sesi, jadwal, tagihan, pembayaran, dan izin akan muncul di sini.'
             }
           />
         ) : (
           <View style={styles.list}>
-            {items.map((item) => (
-              <Pressable
-                key={item.id}
-                accessibilityRole="button"
-                disabled={!item.sesiId}
-                onPress={() => handleTekanItem(item)}
-                style={({ pressed }) => [
-                  styles.notifCard,
-                  {
-                    backgroundColor: pressed
-                      ? themeColors.surfaceMuted
-                      : themeColors.surface,
-                    borderColor: themeColors.border,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.notifIconTile,
-                    { backgroundColor: themeColors.primarySoft },
+            {items.map((item) => {
+              const tujuan = tujuanNotifikasi(item, currentUser.peran);
+              return (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="button"
+                  disabled={!tujuan}
+                  onPress={() => handleTekanItem(item)}
+                  style={({ pressed }) => [
+                    styles.notifCard,
+                    {
+                      backgroundColor: pressed
+                        ? themeColors.surfaceMuted
+                        : themeColors.surface,
+                      borderColor: themeColors.border,
+                    },
                   ]}
                 >
-                  <Bell size={18} color={themeColors.textPrimary} />
-                </View>
-
-                <View style={styles.notifCopy}>
-                  <Text
+                  <View
                     style={[
-                      styles.notifTitle,
-                      { color: themeColors.textPrimary },
+                      styles.notifIconTile,
+                      { backgroundColor: themeColors.primarySoft },
                     ]}
-                    numberOfLines={1}
                   >
-                    {item.judul}
-                  </Text>
-                  {item.pesan ? (
-                    <Text
-                      style={[
-                        styles.notifBody,
-                        { color: themeColors.textSecondary },
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {item.pesan}
-                    </Text>
-                  ) : null}
-                  <Text
-                    style={[styles.notifTime, { color: themeColors.textMuted }]}
-                  >
-                    {formatWaktuNotif(item.waktu)}
-                  </Text>
-                </View>
+                    <Bell size={18} color={themeColors.textPrimary} />
+                  </View>
 
-                {item.sesiId ? (
-                  <ChevronRight size={18} color={themeColors.textMuted} />
-                ) : null}
-              </Pressable>
-            ))}
+                  <View style={styles.notifCopy}>
+                    <View style={styles.notifTitleRow}>
+                      {item.dibaca === false ? (
+                        <View
+                          style={[
+                            styles.unreadDot,
+                            { backgroundColor: themeColors.errorFg },
+                          ]}
+                        />
+                      ) : null}
+                      <Text
+                        style={[
+                          styles.notifTitle,
+                          { color: themeColors.textPrimary },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.judul}
+                      </Text>
+                    </View>
+                    {item.pesan ? (
+                      <Text
+                        style={[
+                          styles.notifBody,
+                          { color: themeColors.textSecondary },
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {item.pesan}
+                      </Text>
+                    ) : null}
+                    <Text
+                      style={[styles.notifTime, { color: themeColors.textMuted }]}
+                    >
+                      {formatWaktuNotif(item.waktu)}
+                    </Text>
+                  </View>
+
+                  {tujuan ? (
+                    <ChevronRight size={18} color={themeColors.textMuted} />
+                  ) : null}
+                </Pressable>
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -344,9 +381,20 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 3,
   },
+  notifTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  unreadDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
   notifTitle: {
     ...type.bodyStrong,
     fontFamily: fontFamily.bold,
+    flex: 1,
   },
   notifBody: {
     ...type.caption,
