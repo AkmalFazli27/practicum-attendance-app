@@ -113,28 +113,47 @@ export default function DetailSesiPraktikan() {
   const waktuHadir = hadir ? titikJam(formatJam(hadir.waktuHadir)) : null;
   const izinSaya = getIzinBySesiPraktikan(s.id, currentUser.id);
 
-  // Sama dengan aturan di context: izin apa pun (termasuk DITOLAK) memblokir presensi.
+  // Hanya izin DITERIMA yang memblokir presensi; MENUNGGU/DITOLAK tetap boleh presensi.
+  const izinDiterima = izinSaya?.status === 'DITERIMA';
   const bisaPresensi =
-    statusEfektif === 'DIBUKA' && !belumMulai && !waktuHabis && !hadir && !izinSaya;
+    statusEfektif === 'DIBUKA' &&
+    !belumMulai &&
+    !waktuHabis &&
+    !hadir &&
+    !izinDiterima;
   const bisaAjukanIzin = !hadir && !izinSaya && statusEfektif !== 'SELESAI';
 
   const actionLabel = hadir
-    ? `Hadir · ${waktuHadir}`
-    : izinSaya?.status === 'DITERIMA'
-      ? 'Izin telah diterima'
-      : izinSaya?.status === 'MENUNGGU'
-        ? 'Izin menunggu keputusan'
-        : izinSaya?.status === 'DITOLAK'
-          ? 'Izin ditolak'
-          : waktuHabis
-            ? 'Waktu presensi telah berakhir'
-            : s.status === 'SELESAI' || statusEfektif === 'SELESAI'
-              ? 'Sesi telah ditutup'
-              : belumMulai
-                ? 'Sesi belum dimulai'
-                : statusEfektif === 'DIBUKA'
-                  ? 'Tap untuk presensi'
-                  : 'Sesi belum dibuka asisten';
+    ? isEn
+      ? `Checked in · ${waktuHadir}`
+      : `Hadir · ${waktuHadir}`
+    : izinDiterima
+      ? isEn
+        ? 'Leave approved'
+        : 'Izin diterima'
+      : waktuHabis
+        ? isEn
+          ? 'Attendance time has ended'
+          : 'Waktu presensi telah berakhir'
+        : s.status === 'SELESAI' || statusEfektif === 'SELESAI'
+          ? isEn
+            ? 'Session closed'
+            : 'Sesi telah ditutup'
+          : belumMulai
+            ? isEn
+              ? 'Session has not started'
+              : 'Sesi belum dimulai'
+            : statusEfektif !== 'DIBUKA'
+              ? isEn
+                ? 'Session not opened yet'
+                : 'Sesi belum dibuka asisten'
+              : izinSaya?.status === 'MENUNGGU'
+                ? isEn
+                  ? 'Leave pending · you can still check in'
+                  : 'Izin menunggu · tetap bisa presensi'
+                : isEn
+                  ? 'Tap to check in'
+                  : 'Tap untuk presensi';
 
   const infoAi = formatLabelKategoriAi(
     izinSaya?.kategoriAi,
@@ -389,6 +408,58 @@ export default function DetailSesiPraktikan() {
 
             <View
               style={[
+                styles.izinNoticeBox,
+                {
+                  backgroundColor:
+                    izinSaya.status === 'DITERIMA'
+                      ? themeColors.sesiDibukaBg
+                      : izinSaya.status === 'DITOLAK'
+                        ? themeColors.errorBg
+                        : themeColors.izinBg,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.izinNoticeTitle,
+                  {
+                    color:
+                      izinSaya.status === 'DITERIMA'
+                        ? themeColors.sesiDibukaFg
+                        : izinSaya.status === 'DITOLAK'
+                          ? themeColors.errorFg
+                          : themeColors.izinFg,
+                  },
+                ]}
+              >
+                {izinSaya.status === 'DITERIMA'
+                  ? isEn
+                    ? 'Excused absence · no fine'
+                    : 'Tidak hadir dengan izin · bebas denda'
+                  : izinSaya.status === 'DITOLAK'
+                    ? isEn
+                      ? 'Leave rejected. Attendance follows normal rules.'
+                      : 'Izin ditolak. Presensi mengikuti aturan normal.'
+                    : isEn
+                      ? 'Your leave is pending. You can still check in; if late, the bill may be waived if leave is approved.'
+                      : 'Izin sedang menunggu. Kamu masih bisa presensi; jika terlambat, tagihan dapat dibebaskan bila izin diterima.'}
+              </Text>
+              {izinSaya.status === 'DITERIMA' ? (
+                <Text
+                  style={[
+                    styles.izinNoticeSub,
+                    { color: themeColors.sesiDibukaFg },
+                  ]}
+                >
+                  {isEn
+                    ? 'Attendance is not required for this session and no fine applies.'
+                    : 'Presensi tidak diperlukan untuk sesi ini dan tidak ada denda.'}
+                </Text>
+              ) : null}
+            </View>
+
+            <View
+              style={[
                 styles.aiBadgeBox,
                 {
                   backgroundColor: aiTidakTersedia
@@ -453,7 +524,7 @@ export default function DetailSesiPraktikan() {
             {actionLabel}
           </Tombol>
 
-          {!bisaPresensi && !hadir && !izinSaya && statusEfektif === 'DIBUKA' ? (
+          {!bisaPresensi && !hadir && !izinDiterima && statusEfektif === 'DIBUKA' ? (
             <Tombol
               variant="sekunder"
               onPress={bukaHalamanPresensi}
@@ -618,6 +689,22 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
     lineHeight: 18,
+  },
+  izinNoticeBox: {
+    gap: 2,
+    paddingHorizontal: spacing.s3,
+    paddingVertical: spacing.s2 + 2,
+    borderRadius: 10,
+  },
+  izinNoticeTitle: {
+    ...type.caption,
+    fontFamily: fontFamily.bold,
+    lineHeight: 18,
+  },
+  izinNoticeSub: {
+    ...type.micro,
+    fontFamily: fontFamily.regular,
+    lineHeight: 16,
   },
   aiBadgeBox: {
     gap: 4,

@@ -35,7 +35,7 @@ import {
 } from '@/components/ui';
 import { usePreferences } from '@/context/PreferencesContext';
 import { useSession } from '@/context/SessionContext';
-import type { AlasanTolak } from '@/data/dummy';
+import type { AlasanTolak, StatusIzin } from '@/data/dummy';
 import { useLocation } from '@/hooks/useLocation';
 import {
   colors,
@@ -64,6 +64,7 @@ function terjemahkanAlasanTolak(
     radiusLab?: number | null;
     jamMulai?: string;
     jamSelesai?: string;
+    izinStatus?: StatusIzin;
   },
 ): { judul: string; pesan: string } {
   switch (alasan) {
@@ -79,11 +80,19 @@ function terjemahkanAlasanTolak(
             : 'Kamu sudah tercatat hadir pada sesi praktikum ini.',
       };
     case 'SUDAH_IZIN':
+      if (opsi.izinStatus === 'DITERIMA') {
+        return {
+          judul: isEn ? 'Leave approved' : 'Izin diterima',
+          pesan: isEn
+            ? 'You are recorded as excused absent and are not fined.'
+            : 'Kamu tercatat tidak hadir dengan izin dan bebas denda.',
+        };
+      }
       return {
-        judul: isEn ? 'Leave already submitted' : 'Sudah mengajukan izin',
+        judul: isEn ? 'Leave request pending' : 'Izin sedang diproses',
         pesan: isEn
-          ? 'You have already submitted a leave request for this session and cannot check in.'
-          : 'Kamu sudah mengajukan izin pada sesi ini sehingga tidak dapat melakukan presensi.',
+          ? "Your leave request is still awaiting the assistant's decision."
+          : 'Pengajuan izinmu masih menunggu keputusan Asprak.',
       };
     case 'LUAR_RADIUS':
       return {
@@ -273,13 +282,14 @@ export default function HalamanPresensiPraktikan() {
   const izinSaya =
     s && currentUser ? getIzinBySesiPraktikan(s.id, currentUser.id) : undefined;
 
+  const izinDiterima = izinSaya?.status === 'DITERIMA';
   const sesiBisaPresensi =
     Boolean(s) &&
     statusEfektif === 'DIBUKA' &&
     !belumMulai &&
     !waktuHabis &&
     !hadir &&
-    !izinSaya;
+    !izinDiterima;
 
   const hasilCekKode = useMemo(() => {
     if (!s) return { ok: false as const, alasan: 'QR_INVALID' as const };
@@ -381,10 +391,10 @@ export default function HalamanPresensiPraktikan() {
         ? `Checked In · ${waktuHadirTeks}`
         : `Sudah Presensi · ${waktuHadirTeks}`;
     }
-    if (izinSaya) {
+    if (izinDiterima) {
       return isEn
-        ? `Leave Submitted (${izinSaya.status})`
-        : `Sudah Mengajukan Izin (${izinSaya.status})`;
+        ? 'Excused absence · no fine'
+        : 'Izin diterima · bebas denda';
     }
     if (waktuHabis) {
       return isEn
@@ -478,6 +488,7 @@ export default function HalamanPresensiPraktikan() {
         radiusLab: labSesi?.radius ?? null,
         jamMulai: s.jamMulai,
         jamSelesai: s.jamSelesai,
+        izinStatus: izinSaya?.status,
       });
       setGalatModal(infoGalat);
     } catch {

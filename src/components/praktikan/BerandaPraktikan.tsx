@@ -53,8 +53,11 @@ export function BerandaPraktikan() {
 
   const sesiBerjalan = sesiAktif.find((s) => getStatusEfektif(s) === 'DIBUKA');
   const sudahHadirAktif = sesiBerjalan ? hadirMap.has(sesiBerjalan.id) : false;
-  const sudahIzinAktif = sesiBerjalan ? izinMap.has(sesiBerjalan.id) : false;
-  const tombolNonaktif = sudahHadirAktif || sudahIzinAktif;
+  const izinAktifStatus = sesiBerjalan
+    ? izinMap.get(sesiBerjalan.id)
+    : undefined;
+  const izinAktifDiterima = izinAktifStatus === 'DITERIMA';
+  const tombolNonaktif = sudahHadirAktif || izinAktifDiterima;
 
   const jadwalMendatang = daftarKelas
     .filter((s) => getStatusEfektif(s) === 'TERJADWAL')
@@ -173,13 +176,17 @@ export function BerandaPraktikan() {
                 ? isEn
                   ? 'Already checked in'
                   : 'Sudah presensi'
-                : sudahIzinAktif
+                : izinAktifDiterima
                   ? isEn
-                    ? 'Leave requested'
-                    : 'Sudah mengajukan izin'
-                  : isEn
-                    ? 'Tap to check in'
-                    : 'Tap untuk presensi'}
+                    ? 'Leave approved'
+                    : 'Izin diterima'
+                  : izinAktifStatus === 'MENUNGGU'
+                    ? isEn
+                      ? 'Leave pending · you can still check in'
+                      : 'Izin menunggu · tetap bisa presensi'
+                    : isEn
+                      ? 'Tap to check in'
+                      : 'Tap untuk presensi'}
             </Tombol>
           </View>
         ) : (
