@@ -76,7 +76,7 @@ export default function BerandaAslabScreen() {
     );
   }
 
-  const namaLab = (id?: string) => labs.find((l) => l.id === id)?.nama ?? '-';
+  const namaLab = (x: Sesi) => labs.find((l) => l.id === x.labId)?.nama ?? x.lab ?? '-';
 
   const labelStatus: Record<StatusKegiatan, string> = {
     BERLANGSUNG: tx('Berlangsung', 'Ongoing'),
@@ -89,7 +89,7 @@ export default function BerandaAslabScreen() {
     <View key={x.id} style={s.kartu}>
       <Text style={s.kartuJudul}>{x.namaPraktikum}</Text>
       <Text style={s.teks}>
-        {namaLab(x.labId)} · {formatTanggalSingkat(x.tanggal)}
+        {namaLab(x)} · {formatTanggalSingkat(x.tanggal)}
         {tampilJam ? ` · ${titikJam(x.jamMulai)}–${titikJam(x.jamSelesai)}` : ''}
       </Text>
     </View>
@@ -174,7 +174,7 @@ export default function BerandaAslabScreen() {
             pesan={tx('Belum ada kegiatan selesai pada rentang ini.', 'No finished activity in this range.')}
           />
         ) : (
-          data.riwayatKegiatan.map((x) => renderSesi(x, false))
+          data.riwayatKegiatan.map((x) => renderSesi(x))
         )}
 
         <SectionHeading title={tx('Riwayat keuangan denda', 'Fine payment history')} />

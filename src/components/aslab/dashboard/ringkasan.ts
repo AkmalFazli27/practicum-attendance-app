@@ -29,6 +29,11 @@ export function batasRentang(rentang: Rentang, now = Date.now()) {
 const dalamRentang = (tanggal: string, b: { dari: string; sampai: string }) =>
   tanggal >= b.dari && tanggal <= b.sampai;
 
+const cocokLab = (s: Sesi, lab: Lab) =>
+  s.labId
+    ? s.labId === lab.id
+    : s.lab.trim().toLowerCase() === lab.nama.trim().toLowerCase();
+
 export type RingkasanLab = {
   lab: Lab;
   jumlahPraktikan: number;
@@ -70,16 +75,16 @@ type Input = {
   now?: number;
 };
 
-function praktikanPerLab(i: Input, labId: string): Set<string> {
+function praktikanPerLab(i: Input, lab: Lab): Set<string> {
   if (i.keanggotaanLab.length > 0) {
     return new Set(
       i.keanggotaanLab
-        .filter((k) => k.labId === labId && k.peran === 'praktikan')
+        .filter((k) => k.labId === lab.id && k.peran === 'praktikan')
         .map((k) => k.uid),
     );
   }
   // Fallback sementara selama keanggotaanLab masih stub: pakai kelas dari sesi lab
-  const kelas = new Set(i.sesi.filter((s) => s.labId === labId).map((s) => s.kelas));
+  const kelas = new Set(i.sesi.filter((s) => cocokLab(s, lab)).map((s) => s.kelas));
   return new Set(
     i.users
       .filter((u) => u.peran === 'praktikan' && u.kelas && kelas.has(u.kelas))
@@ -118,12 +123,12 @@ export function hitungRingkasan(i: Input): RingkasanDashboard {
   const praktikanUnik = new Set<string>();
 
   const perLab: RingkasanLab[] = i.labs.map((lab) => {
-    const sesiLab = i.sesi.filter((s) => s.labId === lab.id && dalamRentang(s.tanggal, batas));
+    const sesiLab = i.sesi.filter((s) => cocokLab(s, lab) && dalamRentang(s.tanggal, batas));
     const berlangsung = sesiLab.filter((s) => getStatusEfektif(s, now) === 'DIBUKA');
     const akanDatang = sesiLab.filter((s) => getStatusEfektif(s, now) === 'TERJADWAL');
     const selesai = sesiLab.filter((s) => getStatusEfektif(s, now) === 'SELESAI');
 
-    const anggota = praktikanPerLab(i, lab.id);
+    const anggota = praktikanPerLab(i, lab);
     anggota.forEach((uid) => praktikanUnik.add(uid));
 
     const status: StatusKegiatan = berlangsung.length
